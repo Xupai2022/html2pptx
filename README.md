@@ -75,6 +75,26 @@ html2ppt\Scripts\activate.bat     # Windows CMD
 pip install -r requirements.txt
 ```
 
+### 4. (可选)安装Chromium浏览器 - 启用图表截图功能
+
+如果需要将Chart.js图表转换为真实图片(而不是占位文本),需要安装Playwright浏览器:
+
+**方式1: 使用辅助脚本(推荐)**
+```bash
+python install_browser.py
+```
+
+**方式2: 手动安装**
+```bash
+# 安装Playwright浏览器
+playwright install chromium
+```
+
+**说明**:
+- 不安装浏览器时,图表会显示为占位文本,其他功能正常使用
+- Chromium浏览器约300MB,首次安装需要几分钟
+- 安装后图表会自动截图并插入PPTX
+
 ## 使用方法
 
 ### 基本用法

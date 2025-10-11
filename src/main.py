@@ -12,9 +12,11 @@ from src.renderer.pptx_builder import PPTXBuilder
 from src.converters.text_converter import TextConverter
 from src.converters.table_converter import TableConverter
 from src.converters.shape_converter import ShapeConverter
+from src.converters.chart_converter import ChartConverter
 from src.utils.logger import setup_logger
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
+from src.utils.chart_capture import ChartCapture
 from pptx.util import Pt
 from pptx.enum.text import MSO_ANCHOR
 
@@ -234,21 +236,38 @@ class HTML2PPTX:
                     run.font.color.rgb = ColorParser.get_primary_color()
                     run.font.name = 'Microsoft YaHei'
 
-        # 图表区域占位(简化处理,添加提示文本)
-        chart_left = UnitConverter.px_to_emu(80)
-        chart_top = UnitConverter.px_to_emu(y_start + 40)
-        chart_box = pptx_slide.shapes.add_textbox(
-            chart_left, chart_top,
-            UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(200)
-        )
-        chart_frame = chart_box.text_frame
-        chart_frame.text = "[图表占位 - Chart.js图表]"
-        chart_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-        for paragraph in chart_frame.paragraphs:
-            for run in paragraph.runs:
-                run.font.size = Pt(24)
-                run.font.color.rgb = ColorParser.parse_color('#999')
-                run.font.name = 'Microsoft YaHei'
+        # 查找Canvas元素并尝试截图
+        canvas = card.find('canvas')
+        if canvas:
+            # 使用图表转换器
+            chart_converter = ChartConverter(pptx_slide, self.css_parser, self.html_path)
+            success = chart_converter.convert_chart(
+                canvas,
+                x=80,
+                y=y_start + 40,
+                width=1760,
+                height=220,
+                use_screenshot=ChartCapture.is_available()
+            )
+
+            if not success:
+                logger.warning("图表转换失败,已显示占位文本")
+        else:
+            # 没有找到Canvas,显示占位文本
+            chart_left = UnitConverter.px_to_emu(80)
+            chart_top = UnitConverter.px_to_emu(y_start + 40)
+            chart_box = pptx_slide.shapes.add_textbox(
+                chart_left, chart_top,
+                UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(220)
+            )
+            chart_frame = chart_box.text_frame
+            chart_frame.text = "[未找到图表元素]"
+            chart_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            for paragraph in chart_frame.paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(24)
+                    run.font.color.rgb = ColorParser.parse_color('#999')
+                    run.font.name = 'Microsoft YaHei'
 
         return y_start + 280
 
