@@ -1,0 +1,86 @@
+{
+  "font_mapping": {
+    "default": "Microsoft YaHei",
+    "fallback": ["Arial", "SimSun", "SimHei"]
+  },
+  "color_palette": {
+    "primary": "rgb(10, 66, 117)",
+    "text_default": "#333",
+    "text_light": "#666",
+    "bg_card": "rgba(10, 66, 117, 0.08)",
+    "bg_card_light": "rgba(10, 66, 117, 0.06)",
+    "progress_bg": "#e2e8f0",
+    "white": "#ffffff"
+  },
+  "size_mapping": {
+    "h1": {
+      "font_size": 48,
+      "bold": true,
+      "color": "text_default"
+    },
+    "h2": {
+      "font_size": 36,
+      "bold": true,
+      "color": "primary"
+    },
+    "p": {
+      "font_size": 20,
+      "color": "text_default"
+    },
+    ".stat-title": {
+      "font_size": 18,
+      "color": "primary"
+    },
+    ".page-number": {
+      "font_size": 14,
+      "color": "text_light"
+    }
+  },
+  "container_mapping": {
+    ".stat-box": {
+      "background": "rgba(10, 66, 117, 0.06)",
+      "border_radius": 10,
+      "padding": 20,
+      "min_height": 200,
+      "max_height": 300
+    },
+    ".stat-card": {
+      "background": "rgba(10, 66, 117, 0.08)",
+      "border_radius": 8,
+      "padding": 20,
+      "min_height": 200,
+      "max_height": 300
+    },
+    ".data-card": {
+      "border_left": {
+        "width": 4,
+        "color": "primary"
+      },
+      "padding_left": 15,
+      "min_height": 200,
+      "max_height": 300
+    }
+  },
+  "layout": {
+    "slide_width": 1920,
+    "slide_height": 1080,
+    "content_padding": {
+      "top": 20,
+      "right": 80,
+      "bottom": 20,
+      "left": 80
+    },
+    "grid_gap": 20
+  },
+  "decorations": {
+    "top_bar": {
+      "height": 10,
+      "color": "primary"
+    },
+    "title_underline": {
+      "width": 80,
+      "height": 4,
+      "color": "primary"
+    }
+  }
+}

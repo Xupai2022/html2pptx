@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>模板PPT</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: visible; }
+  .slide-container { width: 1920px; min-height: 1080px; background-color: white; position: relative; overflow: visible; }
+  .content-section { max-height: 1000px; padding: 20px 80px; }
+  .page-number { position: absolute; top: 1030px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  .data-card {
+    border-left: 4px solid rgb(10, 66, 117);
+    padding-left: 15px;
+    min-height: 200px; 
+    max-height: 300px;
+	overflow: visible;
+	font-size: 24px;
+  }
+  .chart-container {
+    min-height: 180px; 
+    max-height: 200px;
+    position: relative;
+	overflow: visible;
+  }
+  .stat-card {
+    background-color: rgba(10, 66, 117, 0.08);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    min-height: 200px; 
+    max-height: 300px;
+	overflow: visible;
+	font-size: 24px;
+  }
+  .progress-bar {
+    height: 16px;
+    border-radius: 8px;
+    background-color: #e2e8f0;
+    margin-bottom: 4px;
+    overflow: visible;
+  }
+  .strategy-card {
+    max-height: 300px;
+    min-height:200px;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 5px;
+    background-color: rgba(10, 66, 117, 0.06);
+    border-left: 4px solid rgb(10, 66, 117);
+	overflow: visible;
+  }
+  .bullet-point {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+	font-size: 20px;
+  }
+  .bullet-icon {
+    color: rgb(10, 66, 117);
+    margin-right: 10px;
+    min-width: 20px;
+  }
+  .logo-space {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 100px;
+    }
+  .visualization-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        width: 100%;
+        max-width: calc(1920px - 160px);
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+		overflow: visible;
+    }
+    .stats-container {conten
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+		overflow: visible;
+    }
+    .stat-box {
+		max-height: 300px;
+    	min-height:200px;
+        background-color: rgba(10, 66, 117, 0.06);
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        max-width: calc(1920px - 160px);
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+    .stat-icon {
+        font-size: 36px;
+        margin-right: 20px;
+        color: #3498db;
+    }
+    .stat-content {
+        flex: 1;
+    }
+    .stat-title {
+        font-size: 24px;
+        margin-bottom: 5px;
+        color: rgb(10, 66, 117);
+    }
+    .large-chart {
+        grid-column: span 2;
+        height: 270px;
+    }  
+     .ip-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 20px 0;
+    background-color: #ffffff; 
+    border-radius: 10px;
+    overflow: visible;
+	font-size: 24px;
+   }
+    .ip-table th, .ip-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee; 
+	font-size: 24px;
+   }
+    .ip-table th {
+    background-color: rgb(10, 66, 117); 
+    color: #ffffff; 
+    font-weight: 600;
+   }
+    .ip-table tr:last-child td {
+    border-bottom: none;
+   }  
+    .ip-table td:first-child {
+    color: rgb(10, 66, 117); 
+    font-weight: 600;
+   }
+    h1 { 
+font-size: 48px; 
+font-weight: 700;  } 
+p { 
+font-size: 23px; 
+color: #333; } 
+h2 { 
+font-size: 36px;
+font-weight: 600; 
+color: rgb(10, 66, 117)}
+  /* 其他样式可以自由设置，container和card最大高度不能超过300px，最小高度不能低于200px。所有容器overflow必须设置为visible，容器里的字号不小于25px
+。且不允许改变基础样式 */
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域，严格按照h1和h2样式，如果副标题h2没有可以去掉 -->
+    <div class="mt-10">
+      <h1 >标题占位，必选</h1>
+      <h2 class="mt-2">副标题占位，可选</h2>
+      <div class="w-20 h-1 primary-bg mb-4"></div>
+    </div>
+
+    <!-- 内容区域：正文使用p标签，单栏布局，固定为3个容器 -->
+    <div class="space-y-10">
+      <p class="primary-color">内容区域占位</p>
+    </div>
+  </div>
+  <div class="page-number">X</div>
+</div>
+</body>
+</html>

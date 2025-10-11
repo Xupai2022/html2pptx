@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(if [ -d \"html2ppt\" ])",
+      "Bash(then echo \"虚拟环境存在\")",
+      "Bash(else echo \"虚拟环境不存在\")",
+      "Bash(fi)",
+      "Bash(source:*)",
+      "Bash(python convert.py:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
