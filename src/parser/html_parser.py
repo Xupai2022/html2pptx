@@ -148,6 +148,18 @@ class HTMLParser:
         """
         return slide.find_all('div', class_='data-card')
 
+    def get_strategy_cards(self, slide) -> List:
+        """
+        获取策略卡片 (.strategy-card)
+
+        Args:
+            slide: 幻灯片元素
+
+        Returns:
+            策略卡片列表
+        """
+        return slide.find_all('div', class_='strategy-card')
+
     def get_progress_bars(self, element) -> List:
         """
         获取进度条元素

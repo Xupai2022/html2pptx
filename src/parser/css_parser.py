@@ -142,6 +142,41 @@ class CSSParser:
         style = self.get_style(selector)
         return style.get('color') if style else None
 
+    def get_grid_columns(self, selector: str) -> int:
+        """
+        从grid-template-columns提取列数
+
+        Args:
+            selector: CSS选择器
+
+        Returns:
+            列数，默认4列
+        """
+        style = self.get_style(selector)
+        if not style:
+            return 4  # 默认4列
+
+        grid_template = style.get('grid-template-columns', '')
+        if not grid_template:
+            return 4
+
+        # 解析 "repeat(3, 1fr)" 格式
+        repeat_match = re.match(r'repeat\((\d+),', grid_template)
+        if repeat_match:
+            return int(repeat_match.group(1))
+
+        # 解析 "1fr 1fr 1fr" 格式
+        fr_count = len(re.findall(r'1fr', grid_template))
+        if fr_count > 0:
+            return fr_count
+
+        # 解析其他格式，计算空格分隔的项数
+        items = [item.strip() for item in grid_template.split() if item.strip()]
+        if items:
+            return len(items)
+
+        return 4  # 默认4列
+
     def get_background_color(self, selector: str) -> Optional[str]:
         """
         获取背景颜色

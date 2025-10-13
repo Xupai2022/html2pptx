@@ -147,11 +147,24 @@ class ShapeConverter(BaseConverter):
             left, top, w, h
         )
 
-        # rgba(10, 66, 117, 0.06) 背景
-        bg_color = ColorParser.blend_with_white(ColorParser.get_primary_color(), 0.06)
-        shape.fill.solid()
-        shape.fill.fore_color.rgb = bg_color
+        # 从CSS获取stat-box背景颜色
+        bg_color_str = self.css_parser.get_background_color('.stat-box')
+        if bg_color_str:
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+            if bg_rgb:
+                # 如果有透明度，与白色混合
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                shape.fill.solid()
+                shape.fill.fore_color.rgb = bg_rgb
+        else:
+            # 降级：使用默认颜色 rgba(10, 66, 117, 0.06)
+            bg_color = ColorParser.blend_with_white(ColorParser.get_primary_color(), 0.06)
+            shape.fill.solid()
+            shape.fill.fore_color.rgb = bg_color
+
         shape.line.fill.background()
+        shape.shadow.inherit = False  # 无阴影
 
     def add_border_left(self, x: int, y: int, height: int, width: int = 4):
         """
