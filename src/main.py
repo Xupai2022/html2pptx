@@ -217,57 +217,84 @@ class HTML2PPTX:
         return y_start + num_rows * (box_height + gap) + 30
 
     def _convert_stat_card(self, card, pptx_slide, y_start: int) -> int:
-        """转换统计卡片(.stat-card) - 包含图表"""
-        # 添加提示文本
+        """转换统计卡片(.stat-card) - 只处理包含canvas图表的卡片"""
+        # 检查是否包含canvas图表
+        canvas = card.find('canvas')
+
+        # 如果stat-card内包含stats-container,说明这不是图表卡片,而是stat-box容器
+        # 需要处理嵌套的stats-container结构
+        stats_container = card.find('div', class_='stats-container')
+        if stats_container:
+            logger.info("stat-card包含stats-container,处理嵌套的stat-box结构")
+
+            # 添加标题(如果有)
+            p_elem = card.find('p', class_='primary-color', recursive=False)
+            if not p_elem:
+                # 尝试在第一层查找
+                for child in card.children:
+                    if hasattr(child, 'get') and 'primary-color' in child.get('class', []):
+                        p_elem = child
+                        break
+
+            if p_elem and p_elem.name == 'p':
+                text = p_elem.get_text(strip=True)
+                if text:
+                    text_left = UnitConverter.px_to_emu(80)
+                    text_top = UnitConverter.px_to_emu(y_start)
+                    text_box = pptx_slide.shapes.add_textbox(
+                        text_left, text_top,
+                        UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(30)
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = text
+                    for paragraph in text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(20)
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                            run.font.name = 'Microsoft YaHei'
+
+                    y_start += 40
+
+            # 处理嵌套的stats-container
+            return self._convert_stats_container(stats_container, pptx_slide, y_start)
+
+        # 如果没有canvas,说明这个stat-card不是图表类型,跳过
+        if not canvas:
+            logger.info("stat-card不包含canvas,跳过")
+            return y_start
+
+        # 添加标题文本(如果有)
         p_elem = card.find('p', class_='primary-color')
         if p_elem:
             text = p_elem.get_text(strip=True)
-            text_left = UnitConverter.px_to_emu(80)
-            text_top = UnitConverter.px_to_emu(y_start)
-            text_box = pptx_slide.shapes.add_textbox(
-                text_left, text_top,
-                UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(30)
-            )
-            text_frame = text_box.text_frame
-            text_frame.text = text
-            for paragraph in text_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.font.size = Pt(20)
-                    run.font.color.rgb = ColorParser.get_primary_color()
-                    run.font.name = 'Microsoft YaHei'
+            if text:  # 确保文本不为空
+                text_left = UnitConverter.px_to_emu(80)
+                text_top = UnitConverter.px_to_emu(y_start)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(30)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = text
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(20)
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = 'Microsoft YaHei'
 
-        # 查找Canvas元素并尝试截图
-        canvas = card.find('canvas')
-        if canvas:
-            # 使用图表转换器
-            chart_converter = ChartConverter(pptx_slide, self.css_parser, self.html_path)
-            success = chart_converter.convert_chart(
-                canvas,
-                x=80,
-                y=y_start + 40,
-                width=1760,
-                height=220,
-                use_screenshot=ChartCapture.is_available()
-            )
+        # 处理canvas图表
+        chart_converter = ChartConverter(pptx_slide, self.css_parser, self.html_path)
+        success = chart_converter.convert_chart(
+            canvas,
+            x=80,
+            y=y_start + 40,
+            width=1760,
+            height=220,
+            use_screenshot=ChartCapture.is_available()
+        )
 
-            if not success:
-                logger.warning("图表转换失败,已显示占位文本")
-        else:
-            # 没有找到Canvas,显示占位文本
-            chart_left = UnitConverter.px_to_emu(80)
-            chart_top = UnitConverter.px_to_emu(y_start + 40)
-            chart_box = pptx_slide.shapes.add_textbox(
-                chart_left, chart_top,
-                UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(220)
-            )
-            chart_frame = chart_box.text_frame
-            chart_frame.text = "[未找到图表元素]"
-            chart_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-            for paragraph in chart_frame.paragraphs:
-                for run in paragraph.runs:
-                    run.font.size = Pt(24)
-                    run.font.color.rgb = ColorParser.parse_color('#999')
-                    run.font.name = 'Microsoft YaHei'
+        if not success:
+            logger.warning("图表转换失败,已显示占位文本")
 
         return y_start + 280
 
