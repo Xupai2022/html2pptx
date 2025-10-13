@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<title>自定义字体测试</title>
+<style>
+  /* 测试自定义字体 */
+  body { 
+    font-family: "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  }
+  h1 { 
+    font-size: 48px; 
+    font-weight: 700;
+    font-family: "黑体", "SimHei", sans-serif;  
+  }
+  h2 { 
+    font-size: 36px;
+    font-weight: 600;
+    font-family: "楷体", "KaiTi", serif;
+    color: rgb(10, 66, 117);
+  }
+  .slide-container { width: 1920px; min-height: 1080px; background-color: white; }
+  .content-section { padding: 20px 80px; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+</style>
+</head>
+<body>
+<div class="slide-container">
+<div class="top-bar"></div>
+<div class="content-section">
+<div class="mt-10">
+<h1>字体测试 - 黑体</h1>
+<h2 class="mt-2">副标题使用楷体</h2>
+<div class="w-20 h-1 primary-bg mb-4" style="width:80px;height:4px;margin-bottom:16px;"></div>
+</div>
+<div>
+<p>正文使用苹方字体（回退到微软雅黑）</p>
+<p class="primary-color">这是主题色文字</p>
+</div>
+</div>
+</div>
+</body>
+</html>

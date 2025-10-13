@@ -18,6 +18,7 @@ from src.utils.logger import setup_logger
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.chart_capture import ChartCapture
+from src.utils.font_manager import get_font_manager
 from pptx.util import Pt
 from pptx.enum.text import MSO_ANCHOR
 
@@ -38,6 +39,9 @@ class HTML2PPTX:
         self.html_parser = HTMLParser(html_path)
         self.css_parser = CSSParser(self.html_parser.soup)
         self.pptx_builder = PPTXBuilder()
+
+        # 初始化全局字体管理器
+        self.font_manager = get_font_manager(self.css_parser)
 
     def convert(self, output_path: str):
         """
@@ -257,7 +261,7 @@ class HTML2PPTX:
                     for run in paragraph.runs:
                         run.font.size = Pt(18)
                         run.font.color.rgb = ColorParser.get_primary_color()
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
                 current_y += 30
 
@@ -278,7 +282,7 @@ class HTML2PPTX:
                         run.font.size = Pt(36)
                         run.font.bold = True
                         run.font.color.rgb = ColorParser.get_primary_color()
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
                 current_y += 50
 
@@ -298,11 +302,18 @@ class HTML2PPTX:
                     paragraph.alignment = 2  # PP_ALIGN.CENTER
                     for run in paragraph.runs:
                         run.font.size = Pt(18)
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
         # 计算下一个元素的Y坐标
+        # 注意：这里计算的是所有stat-box渲染完毕后的Y坐标
+        # 每一行占用：box_height + gap（除了最后一行没有gap）
+        # 正确公式：y_start + num_rows * box_height + (num_rows - 1) * gap
         num_rows = (num_boxes + num_columns - 1) // num_columns
-        return y_start + num_rows * (box_height + gap) + 30
+        actual_height = num_rows * box_height + (num_rows - 1) * gap
+
+        logger.info(f"stats-container高度计算: 行数={num_rows}, box高度={box_height}px, gap={gap}px, 总高度={actual_height}px")
+
+        return y_start + actual_height
 
     def _convert_stat_card(self, card, pptx_slide, y_start: int) -> int:
         """转换统计卡片(.stat-card) - 支持多种内部结构"""
@@ -330,8 +341,25 @@ class HTML2PPTX:
             else:
                 num_columns = self.css_parser.get_grid_columns('.stats-container')
 
+            # 从CSS读取约束
+            stat_card_padding_top = 20
+            stat_card_padding_bottom = 20
+            stats_container_gap = 20
+            stat_box_height = 220  # TODO阶段2: 改为动态计算
+
+            # 计算stats-container的实际高度
             num_rows = (num_boxes + num_columns - 1) // num_columns
-            card_height = num_rows * 240 + 60  # 每行约240px(box+gap)，加标题和padding
+            stats_container_height = num_rows * stat_box_height + (num_rows - 1) * stats_container_gap
+
+            # 计算stat-card总高度（包括自身padding）
+            # stat-card = padding-top + (可选标题35px) + stats-container + padding-bottom
+            has_title = card.find('p', class_='primary-color') is not None
+            title_height = 35 if has_title else 0
+
+            card_height = stat_card_padding_top + title_height + stats_container_height + stat_card_padding_bottom
+
+            logger.info(f"stat-card高度计算: padding={stat_card_padding_top+stat_card_padding_bottom}px, "
+                       f"标题={title_height}px, stats-container={stats_container_height}px, 总高度={card_height}px")
 
             # 添加stat-card背景
             bg_color_str = self.css_parser.get_background_color('.stat-card')
@@ -380,7 +408,7 @@ class HTML2PPTX:
                         for run in paragraph.runs:
                             run.font.size = Pt(20)
                             run.font.color.rgb = ColorParser.get_primary_color()
-                            run.font.name = 'Microsoft YaHei'
+                            run.font.name = self.font_manager.get_font('body')
 
                     y_start += 35
 
@@ -446,7 +474,7 @@ class HTML2PPTX:
                         for run in paragraph.runs:
                             run.font.size = Pt(20)
                             run.font.color.rgb = ColorParser.get_primary_color()
-                            run.font.name = 'Microsoft YaHei'
+                            run.font.name = self.font_manager.get_font('body')
 
                     y_start += 35
 
@@ -461,8 +489,22 @@ class HTML2PPTX:
         if canvas:
             logger.info("stat-card包含canvas,处理图表")
 
-            # 估算高度并添加stat-card背景
-            card_height = 300  # 标题+图表+padding
+            # 从CSS读取约束
+            stat_card_padding_top = 20
+            stat_card_padding_bottom = 20
+
+            # 标题高度
+            has_title = card.find('p', class_='primary-color') is not None
+            title_height = 35 if has_title else 0
+
+            # canvas高度（固定220px，这是convert_chart传入的height）
+            canvas_height = 220
+
+            # stat-card总高度
+            card_height = stat_card_padding_top + title_height + canvas_height + stat_card_padding_bottom
+
+            logger.info(f"stat-card(canvas)高度计算: padding={stat_card_padding_top+stat_card_padding_bottom}px, "
+                       f"标题={title_height}px, canvas={canvas_height}px, 总高度={card_height}px")
 
             bg_color_str = self.css_parser.get_background_color('.stat-card')
             if bg_color_str:
@@ -503,7 +545,7 @@ class HTML2PPTX:
                         for run in paragraph.runs:
                             run.font.size = Pt(20)
                             run.font.color.rgb = ColorParser.get_primary_color()
-                            run.font.name = 'Microsoft YaHei'
+                            run.font.name = self.font_manager.get_font('body')
 
                     y_start += 35
 
@@ -695,7 +737,7 @@ class HTML2PPTX:
                         run.font.bold = True
                     if is_primary:
                         run.font.color.rgb = ColorParser.get_primary_color()
-                    run.font.name = 'Microsoft YaHei'
+                    run.font.name = self.font_manager.get_font('body')
 
             current_y += text_height + 10
 
@@ -710,10 +752,41 @@ class HTML2PPTX:
         logger.info("处理strategy-card")
         x_base = 80
 
-        # 添加背景
         action_items = card.find_all('div', class_='action-item')
-        # 每个action-item约80px高度，加上标题40px和padding
-        card_height = len(action_items) * 80 + 80
+
+        # 从CSS读取约束
+        strategy_card_padding = 10  # top + bottom = 20
+        action_item_margin_bottom = 15  # CSS中的margin-bottom
+
+        # 标题高度
+        has_title = card.find('p', class_='primary-color') is not None
+        title_height = 40 if has_title else 0
+
+        # 每个action-item的高度组成：
+        # - 圆形图标: 28px
+        # - 标题(action-title): 18px字体 × 1.5 = 27px
+        # - 描述(p): 16px字体 × 1.5 × 行数（估算2行）= 48px
+        # - margin-bottom: 15px
+        # 总计：28 + 27 + 48 + 15 = 118px
+
+        # 简化估算（TODO阶段2：根据实际文本行数计算）
+        single_action_item_height = 118
+
+        # strategy-card总高度
+        # = padding-top + title + (action-items × height) + padding-bottom
+        card_height = (strategy_card_padding + title_height +
+                       len(action_items) * single_action_item_height +
+                       strategy_card_padding)
+
+        # 限制在max-height范围内（CSS中max-height为300px）
+        max_height = 300
+        if card_height > max_height:
+            logger.warning(f"strategy-card内容高度({card_height}px)超出max-height({max_height}px)")
+            card_height = max_height
+
+        logger.info(f"strategy-card高度计算: padding={strategy_card_padding*2}px, "
+                   f"标题={title_height}px, action-items={len(action_items)}个×{single_action_item_height}px, "
+                   f"总高度={card_height}px")
 
         bg_color_str = self.css_parser.get_background_color('.strategy-card')
         if bg_color_str:
@@ -757,7 +830,7 @@ class HTML2PPTX:
                     for run in paragraph.runs:
                         run.font.size = Pt(20)
                         run.font.color.rgb = ColorParser.get_primary_color()
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
                 current_y += 40
 
@@ -806,7 +879,7 @@ class HTML2PPTX:
                 for run in paragraph.runs:
                     run.font.size = Pt(14)
                     run.font.color.rgb = ColorParser.parse_color('#FFFFFF')
-                    run.font.name = 'Microsoft YaHei'
+                    run.font.name = self.font_manager.get_font('body')
                     run.font.bold = True
 
             # 渲染标题（右侧）
@@ -825,7 +898,7 @@ class HTML2PPTX:
                         run.font.size = Pt(18)
                         run.font.bold = True
                         run.font.color.rgb = ColorParser.get_primary_color()
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
                 current_y += 28
 
@@ -843,7 +916,7 @@ class HTML2PPTX:
                 for paragraph in desc_frame.paragraphs:
                     for run in paragraph.runs:
                         run.font.size = Pt(16)
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = self.font_manager.get_font('body')
 
                 current_y += 50
             else:
@@ -856,15 +929,18 @@ class HTML2PPTX:
         logger.info("处理data-card")
         x_base = 80
 
-        # 添加左边框
-        shape_converter.add_border_left(x_base, y_start, 280, 4)
+        # 注意：左边框的高度需要在计算完实际内容后再添加
+        # 暂时记录起始位置，稍后添加边框
+
+        # 初始化当前Y坐标
+        current_y = y_start + 10
 
         # 标题
         p_elem = card.find('p', class_='primary-color')
         if p_elem:
             text = p_elem.get_text(strip=True)
             text_left = UnitConverter.px_to_emu(x_base + 20)
-            text_top = UnitConverter.px_to_emu(y_start + 10)
+            text_top = UnitConverter.px_to_emu(current_y)
             text_box = pptx_slide.shapes.add_textbox(
                 text_left, text_top,
                 UnitConverter.px_to_emu(1720), UnitConverter.px_to_emu(30)
@@ -875,11 +951,13 @@ class HTML2PPTX:
                 for run in paragraph.runs:
                     run.font.size = Pt(20)
                     run.font.color.rgb = ColorParser.get_primary_color()
-                    run.font.name = 'Microsoft YaHei'
+                    run.font.name = self.font_manager.get_font('body')
+
+            current_y += 40  # 标题后间距
 
         # 进度条
         progress_bars = card.find_all('div', class_='progress-container')
-        progress_y = y_start + 50
+        progress_y = current_y
         for progress in progress_bars:
             label_div = progress.find('div', class_='progress-label')
             if label_div:
@@ -937,7 +1015,7 @@ class HTML2PPTX:
                                 run.font.size = Pt(18)
                             else:
                                 run.font.size = Pt(16)
-                            run.font.name = 'Microsoft YaHei'
+                            run.font.name = self.font_manager.get_font('body')
 
                     progress_y += 28 if idx == 0 else 50
             else:
@@ -956,7 +1034,7 @@ class HTML2PPTX:
                     for paragraph in bullet_frame.paragraphs:
                         for run in paragraph.runs:
                             run.font.size = Pt(20)
-                            run.font.name = 'Microsoft YaHei'
+                            run.font.name = self.font_manager.get_font('body')
 
                     progress_y += 35
 
@@ -965,7 +1043,17 @@ class HTML2PPTX:
             logger.info("data-card不包含progress-bar或bullet-point,使用通用处理")
             return self._convert_generic_card(card, pptx_slide, y_start, card_type='data-card')
 
-        return progress_y + 20
+        # 计算实际高度
+        final_y = progress_y + 20
+        actual_height = final_y - y_start
+
+        # 添加左边框（使用实际计算的高度）
+        shape_converter.add_border_left(x_base, y_start, actual_height, 4)
+
+        logger.info(f"data-card高度计算: 实际高度={actual_height}px, "
+                   f"进度条数={len(progress_bars)}, 列表项数={len(bullet_points)}")
+
+        return final_y
 
     def _get_icon_char(self, icon_classes: list) -> str:
         """根据FontAwesome类获取对应emoji/Unicode字符"""

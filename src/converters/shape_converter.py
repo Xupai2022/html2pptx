@@ -9,6 +9,7 @@ from src.converters.base_converter import BaseConverter
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
+from src.utils.font_manager import get_font_manager
 
 logger = setup_logger(__name__)
 
@@ -62,7 +63,7 @@ class ShapeConverter(BaseConverter):
         for paragraph in label_frame.paragraphs:
             for run in paragraph.runs:
                 run.font.size = Pt(16)
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 添加百分比文本
         percent_text = f"{percentage * 100:.1f}%"
@@ -76,7 +77,7 @@ class ShapeConverter(BaseConverter):
         for paragraph in percent_frame.paragraphs:
             for run in paragraph.runs:
                 run.font.size = Pt(16)
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 添加进度条背景
         bar_top = UnitConverter.px_to_emu(y + 30)
@@ -125,7 +126,7 @@ class ShapeConverter(BaseConverter):
             for run in paragraph.runs:
                 run.font.size = Pt(14)
                 run.font.color.rgb = ColorParser.parse_color('#666')
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         logger.info(f"添加页码: {page_num}")
 

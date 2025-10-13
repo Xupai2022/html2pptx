@@ -10,6 +10,7 @@ from src.converters.base_converter import BaseConverter
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
+from src.utils.font_manager import get_font_manager
 
 logger = setup_logger(__name__)
 
@@ -126,7 +127,7 @@ class TimelineConverter(BaseConverter):
                 run.font.size = Pt(12)
                 run.font.color.rgb = ColorParser.parse_color('#FFFFFF')
                 run.font.bold = True
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 2. 绘制左侧竖线（连接线）
         line_left = UnitConverter.px_to_emu(x + 12)  # 圆心位置
@@ -163,7 +164,7 @@ class TimelineConverter(BaseConverter):
                 run.font.size = Pt(18)
                 run.font.color.rgb = ColorParser.get_primary_color()
                 run.font.bold = True
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 4. 添加内容文本框
         content_left = UnitConverter.px_to_emu(text_x)
@@ -182,7 +183,7 @@ class TimelineConverter(BaseConverter):
             for run in paragraph.runs:
                 run.font.size = Pt(16)
                 run.font.color.rgb = ColorParser.parse_color('#333333')
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 返回下一个item的Y坐标
         return y + 85  # 每个item占用约85px高度

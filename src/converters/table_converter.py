@@ -8,6 +8,7 @@ from src.converters.base_converter import BaseConverter
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
+from src.utils.font_manager import get_font_manager
 
 logger = setup_logger(__name__)
 
@@ -65,7 +66,7 @@ class TableConverter(BaseConverter):
 
                     for run in paragraph.runs:
                         run.font.size = Pt(24)
-                        run.font.name = 'Microsoft YaHei'
+                        run.font.name = get_font_manager(self.css_parser).get_font('body')
 
                         # 表头样式
                         if cell.name == 'th':

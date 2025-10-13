@@ -9,6 +9,7 @@ from src.mapper.style_mapper import StyleMapper
 from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
+from src.utils.font_manager import get_font_manager
 
 logger = setup_logger(__name__)
 
@@ -37,8 +38,8 @@ class TextConverter(BaseConverter):
         + h1: 72px → y = 132px
         + mt-2: 8px → y = 140px
         + h2: 54px → y = 194px
-        + mb-4: 16px → y = 210px
-        + line: 4px → y = 214px
+        + line: 4px → y = 198px (装饰线紧接h2)
+        + mb-4: 16px → y = 214px (装饰线的下边距)
         标题区域结束: y = 214px
 
         Args:
@@ -72,11 +73,15 @@ class TextConverter(BaseConverter):
         title_frame.margin_bottom = 0
         title_frame.margin_left = 0
 
+        # 获取字体
+        font_manager = get_font_manager(self.css_parser)
+        font_name = font_manager.get_font('h1')
+
         for paragraph in title_frame.paragraphs:
             for run in paragraph.runs:
                 run.font.size = Pt(48)
                 run.font.bold = True
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = font_name
 
         logger.info(f"添加标题: {title_text}")
 
@@ -100,21 +105,20 @@ class TextConverter(BaseConverter):
             subtitle_frame.margin_bottom = 0
             subtitle_frame.margin_left = 0
 
+            font_name_h2 = font_manager.get_font('h2')
+
             for paragraph in subtitle_frame.paragraphs:
                 for run in paragraph.runs:
                     run.font.size = Pt(36)
                     run.font.bold = True
                     run.font.color.rgb = ColorParser.get_primary_color()
-                    run.font.name = 'Microsoft YaHei'
+                    run.font.name = font_name_h2
 
             logger.info(f"添加副标题: {subtitle_text}")
 
             current_y += h2_height  # 54px
 
-            # mb-4: 1rem = 16px
-            current_y += 16
-
-            # 添加装饰线 (w-20 h-1)
+            # 添加装饰线 (w-20 h-1) - 紧接h2，无间距
             line_top = UnitConverter.px_to_emu(current_y)
             line_left = UnitConverter.px_to_emu(x)
             line_width = UnitConverter.px_to_emu(80)
@@ -131,8 +135,12 @@ class TextConverter(BaseConverter):
 
             current_y += 4  # 装饰线高度
 
+            # mb-4: 1rem = 16px (装饰线的下边距)
+            current_y += 16
+
         # 标题区域结束位置
-        # 正确计算: y(20) + mt-10(40) + h1(72) + mt-2(8) + h2(54) + mb-4(16) + line(4) = 214px
+        # 正确计算: y(20) + mt-10(40) + h1(72) + mt-2(8) + h2(54) + line(4) + mb-4(16) = 214px
+        # 装饰线紧接h2(194px)，装饰线结束(198px)，装饰线mb-4下边距(16px) → 第一个容器起始(214px)
         logger.info(f"标题区域结束位置: y={current_y}px")
         return current_y
 
@@ -166,10 +174,14 @@ class TextConverter(BaseConverter):
         p_style = self.css_parser.get_element_style('p') or {}
         inline_style = self._extract_inline_style(p_element)
 
+        # 获取字体
+        font_manager = get_font_manager(self.css_parser)
+        font_name = font_manager.get_font('p', inline_style)
+
         for paragraph in text_frame.paragraphs:
             for run in paragraph.runs:
                 run.font.size = Pt(20)
-                run.font.name = 'Microsoft YaHei'
+                run.font.name = font_name
 
                 # 颜色
                 color_str = inline_style.get('color') or p_style.get('color')

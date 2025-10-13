@@ -190,6 +190,19 @@ class CSSParser:
         style = self.get_style(selector)
         return style.get('background-color') if style else None
 
+    def get_font_family(self, selector: str) -> Optional[str]:
+        """
+        获取字体族
+
+        Args:
+            selector: 选择器
+
+        Returns:
+            字体族字符串（可能包含多个字体，用逗号分隔）
+        """
+        style = self.get_style(selector)
+        return style.get('font-family') if style else None
+
     def merge_styles(self, *selectors) -> Dict[str, str]:
         """
         合并多个选择器的样式(后面的覆盖前面的)
