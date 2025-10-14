@@ -6,7 +6,9 @@
       "Bash(else echo \"虚拟环境不存在\")",
       "Bash(fi)",
       "Bash(source:*)",
-      "Bash(python convert.py:*)"
+      "Bash(python convert.py:*)",
+      "Bash(git rm:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
