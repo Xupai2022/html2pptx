@@ -25,6 +25,9 @@ class CSSParser:
         self.style_rules = {}
         self._parse_styles()
 
+        # 初始化Tailwind CSS映射
+        self._init_tailwind_mappings()
+
     def _parse_styles(self):
         """解析<style>标签中的CSS规则"""
         style_tags = self.soup.find_all('style')
@@ -38,6 +41,22 @@ class CSSParser:
             self._extract_rules(css_text)
 
         logger.info(f"解析了 {len(self.style_rules)} 条CSS规则")
+
+    def _init_tailwind_mappings(self):
+        """初始化Tailwind CSS字体大小映射"""
+        self.tailwind_font_sizes = {
+            'text-xs': '12px',
+            'text-sm': '14px',
+            'text-base': '16px',
+            'text-lg': '18px',
+            'text-xl': '20px',
+            'text-2xl': '24px',
+            'text-3xl': '30px',
+            'text-4xl': '36px',
+            'text-5xl': '48px',
+            'text-6xl': '60px',
+        }
+        logger.debug(f"初始化 {len(self.tailwind_font_sizes)} 个Tailwind字体大小映射")
 
     def _extract_rules(self, css_text: str):
         """
@@ -120,14 +139,98 @@ class CSSParser:
         """
         获取字体大小
 
+        支持的选择器类型：
+        - 标签选择器: h1, p, div
+        - 类选择器: .class-name
+        - ID选择器: #id-name
+        - 复合选择器: div.class-name
+        - 多类选择器: .class1.class2
+        - Tailwind CSS类: text-xl, text-lg等
+
         Args:
             selector: 选择器
 
         Returns:
             字体大小字符串(如'48px')
         """
+        # 直接匹配
         style = self.get_style(selector)
-        return style.get('font-size') if style else None
+        if style and 'font-size' in style:
+            return style.get('font-size')
+
+        # 检查Tailwind CSS字体大小类
+        if selector.startswith('.text-'):
+            class_name = selector[1:]  # 移除点号
+            if class_name in self.tailwind_font_sizes:
+                font_size = self.tailwind_font_sizes[class_name]
+                logger.debug(f"Tailwind CSS类 {selector}: {font_size}")
+                return font_size
+
+        # 如果没有直接匹配，尝试模糊匹配
+        return self._match_font_size_fallback(selector)
+
+    def _match_font_size_fallback(self, selector: str) -> Optional[str]:
+        """
+        模糊匹配字体大小
+
+        当直接匹配失败时，尝试更宽松的匹配规则
+
+        Args:
+            selector: 选择器
+
+        Returns:
+            字体大小字符串
+        """
+        # 1. 如果是复合选择器，尝试各个部分
+        if '.' in selector and '#' not in selector:
+            parts = selector.split('.')
+            # 尝试主选择器 + 单个类
+            base = parts[0]
+            for i in range(1, len(parts)):
+                partial_selector = f"{base}.{'.'.join(parts[1:i+1])}"
+                style = self.get_style(partial_selector)
+                if style and 'font-size' in style:
+                    return style.get('font-size')
+
+            # 尝试单个类
+            for i in range(1, len(parts)):
+                class_selector = f".{parts[i]}"
+                style = self.get_style(class_selector)
+                if style and 'font-size' in style:
+                    return style.get('font-size')
+
+        # 2. 如果是标签选择器，没有匹配，尝试通用标签
+        if selector in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span']:
+            # 检查是否有通用标签样式
+            for tag_style in self.style_rules:
+                if tag_style == selector and 'font-size' in self.style_rules[tag_style]:
+                    return self.style_rules[tag_style]['font-size']
+
+        # 3. 如果是类选择器，检查是否有相关的类匹配
+        if selector.startswith('.'):
+            class_name = selector[1:]
+            # 寻找包含此类的复合选择器
+            for css_selector, style in self.style_rules.items():
+                if 'font-size' in style and class_name in css_selector:
+                    # 检查是否包含此类（避免部分匹配）
+                    class_parts = css_selector.split('.')
+                    if class_name in class_parts:
+                        return style['font-size']
+
+        return None
+
+    def list_font_size_rules(self) -> Dict[str, str]:
+        """
+        列出所有包含字体大小的CSS规则
+
+        Returns:
+            字体大小规则字典 {选择器: 字体大小}
+        """
+        font_size_rules = {}
+        for selector, style in self.style_rules.items():
+            if 'font-size' in style:
+                font_size_rules[selector] = style['font-size']
+        return font_size_rules
 
     def get_color(self, selector: str) -> Optional[str]:
         """

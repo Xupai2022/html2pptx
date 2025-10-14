@@ -19,6 +19,7 @@ from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.chart_capture import ChartCapture
 from src.utils.font_manager import get_font_manager
+from src.utils.style_computer import get_style_computer
 from pptx.util import Pt
 from pptx.enum.text import MSO_ANCHOR
 
@@ -40,8 +41,9 @@ class HTML2PPTX:
         self.css_parser = CSSParser(self.html_parser.soup)
         self.pptx_builder = PPTXBuilder()
 
-        # 初始化全局字体管理器
+        # 初始化全局字体管理器和样式计算器
         self.font_manager = get_font_manager(self.css_parser)
+        self.style_computer = get_style_computer(self.css_parser)
 
     def convert(self, output_path: str):
         """
@@ -239,6 +241,7 @@ class HTML2PPTX:
                 for paragraph in icon_frame.paragraphs:
                     paragraph.alignment = 2  # PP_ALIGN.CENTER
                     for run in paragraph.runs:
+                        # 图标字体大小应该是父元素的1.5倍，默认36pt
                         run.font.size = Pt(36)
                         run.font.color.rgb = ColorParser.get_primary_color()
 
@@ -259,7 +262,9 @@ class HTML2PPTX:
                 for paragraph in title_frame.paragraphs:
                     paragraph.alignment = 2  # PP_ALIGN.CENTER
                     for run in paragraph.runs:
-                        run.font.size = Pt(18)
+                        # 使用样式计算器获取正确的字体大小
+                        title_font_size_pt = self.style_computer.get_font_size_pt(title_elem)
+                        run.font.size = Pt(title_font_size_pt)
                         run.font.color.rgb = ColorParser.get_primary_color()
                         run.font.name = self.font_manager.get_font('body')
 
@@ -279,7 +284,9 @@ class HTML2PPTX:
                 for paragraph in h2_frame.paragraphs:
                     paragraph.alignment = 2  # PP_ALIGN.CENTER
                     for run in paragraph.runs:
-                        run.font.size = Pt(36)
+                        # 使用样式计算器获取正确的字体大小
+                        h2_font_size_pt = self.style_computer.get_font_size_pt(h2)
+                        run.font.size = Pt(h2_font_size_pt)
                         run.font.bold = True
                         run.font.color.rgb = ColorParser.get_primary_color()
                         run.font.name = self.font_manager.get_font('body')
@@ -301,7 +308,9 @@ class HTML2PPTX:
                 for paragraph in p_frame.paragraphs:
                     paragraph.alignment = 2  # PP_ALIGN.CENTER
                     for run in paragraph.runs:
-                        run.font.size = Pt(18)
+                        # 使用样式计算器获取正确的字体大小
+                        p_font_size_pt = self.style_computer.get_font_size_pt(p)
+                        run.font.size = Pt(p_font_size_pt)
                         run.font.name = self.font_manager.get_font('body')
 
         # 计算下一个元素的Y坐标
@@ -406,7 +415,9 @@ class HTML2PPTX:
                     text_frame.text = text
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(20)
+                            # 使用样式计算器获取正确的字体大小
+                            p_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                            run.font.size = Pt(p_font_size_pt)
                             run.font.color.rgb = ColorParser.get_primary_color()
                             run.font.name = self.font_manager.get_font('body')
 
@@ -472,7 +483,9 @@ class HTML2PPTX:
                     text_frame.text = text
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(20)
+                            # 使用样式计算器获取正确的字体大小
+                            title_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                            run.font.size = Pt(title_font_size_pt)
                             run.font.color.rgb = ColorParser.get_primary_color()
                             run.font.name = self.font_manager.get_font('body')
 
@@ -543,7 +556,9 @@ class HTML2PPTX:
                     text_frame.text = text
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(20)
+                            # 使用样式计算器获取正确的字体大小
+                            title_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                            run.font.size = Pt(title_font_size_pt)
                             run.font.color.rgb = ColorParser.get_primary_color()
                             run.font.name = self.font_manager.get_font('body')
 
@@ -828,7 +843,9 @@ class HTML2PPTX:
                 text_frame.text = text
                 for paragraph in text_frame.paragraphs:
                     for run in paragraph.runs:
-                        run.font.size = Pt(20)
+                        # 使用样式计算器获取正确的字体大小
+                        title_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                        run.font.size = Pt(title_font_size_pt)
                         run.font.color.rgb = ColorParser.get_primary_color()
                         run.font.name = self.font_manager.get_font('body')
 
@@ -895,7 +912,9 @@ class HTML2PPTX:
                 title_frame.word_wrap = True
                 for paragraph in title_frame.paragraphs:
                     for run in paragraph.runs:
-                        run.font.size = Pt(18)
+                        # 使用样式计算器获取正确的字体大小
+                        title_font_size_pt = self.style_computer.get_font_size_pt(title_elem)
+                        run.font.size = Pt(title_font_size_pt)
                         run.font.bold = True
                         run.font.color.rgb = ColorParser.get_primary_color()
                         run.font.name = self.font_manager.get_font('body')
@@ -915,7 +934,9 @@ class HTML2PPTX:
                 desc_frame.word_wrap = True
                 for paragraph in desc_frame.paragraphs:
                     for run in paragraph.runs:
-                        run.font.size = Pt(16)
+                        # 使用样式计算器获取正确的字体大小
+                        desc_font_size_pt = self.style_computer.get_font_size_pt(desc_elem)
+                        run.font.size = Pt(desc_font_size_pt)
                         run.font.name = self.font_manager.get_font('body')
 
                 current_y += 50
@@ -949,7 +970,9 @@ class HTML2PPTX:
             text_frame.text = text
             for paragraph in text_frame.paragraphs:
                 for run in paragraph.runs:
-                    run.font.size = Pt(20)
+                    # 使用样式计算器获取正确的字体大小
+                    font_size_px = self.style_computer.get_font_size_pt(p_elem)
+                    run.font.size = Pt(font_size_px)
                     run.font.color.rgb = ColorParser.get_primary_color()
                     run.font.name = self.font_manager.get_font('body')
 
@@ -1009,12 +1032,12 @@ class HTML2PPTX:
 
                     for paragraph in bullet_frame.paragraphs:
                         for run in paragraph.runs:
+                            # 使用样式计算器获取正确的字体大小
+                            font_size_px = self.style_computer.get_font_size_pt(p)
+                            run.font.size = Pt(font_size_px)
                             # 第一个p加粗
                             if idx == 0:
                                 run.font.bold = True
-                                run.font.size = Pt(18)
-                            else:
-                                run.font.size = Pt(16)
                             run.font.name = self.font_manager.get_font('body')
 
                     progress_y += 28 if idx == 0 else 50
@@ -1033,7 +1056,9 @@ class HTML2PPTX:
                     bullet_frame.text = f"• {text}"
                     for paragraph in bullet_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(20)
+                            # 使用样式计算器获取正确的字体大小
+                            font_size_px = self.style_computer.get_font_size_pt(p)
+                            run.font.size = Pt(font_size_px)
                             run.font.name = self.font_manager.get_font('body')
 
                     progress_y += 35

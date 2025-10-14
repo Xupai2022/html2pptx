@@ -100,6 +100,86 @@ class UnitConverter:
         return px * cls.PT_PER_INCH / cls.DPI
 
     @classmethod
+    def font_size_px_to_pt(cls, px_size: int) -> int:
+        """
+        字体大小专用转换：像素转点
+
+        专门用于HTML到PPTX的字体大小转换，确保转换精度和一致性
+
+        Args:
+            px_size: HTML中的字体大小(像素)
+
+        Returns:
+            PPTX中的字体大小(点)，确保最小值为1
+        """
+        if px_size <= 0:
+            return 1
+
+        # 使用标准转换：1px = 0.75pt (96 DPI标准)
+        pt_size = px_size * cls.PT_PER_INCH / cls.DPI
+
+        # 四舍五入并确保最小值为1
+        return max(1, int(round(pt_size)))
+
+    @classmethod
+    def parse_html_font_size(cls, font_size_str: str, parent_size_px: int = None) -> int:
+        """
+        解析HTML字体大小字符串并转换为pt
+
+        支持多种单位：px, pt, em, rem, %
+
+        Args:
+            font_size_str: HTML字体大小字符串(如"16px", "1.2em", "120%")
+            parent_size_px: 父元素字体大小(px)，用于相对单位计算
+
+        Returns:
+            转换后的pt值
+        """
+        import re
+
+        if not font_size_str:
+            return cls.font_size_px_to_pt(16)  # 默认16px -> 12pt
+
+        # 移除空白字符
+        font_size_str = font_size_str.strip()
+
+        # 正则表达式匹配数字和单位
+        match = re.match(r'^([\d.]+)\s*(px|pt|em|rem|%)?$', font_size_str.lower())
+        if not match:
+            # 无法解析时返回默认值
+            return cls.font_size_px_to_pt(16)
+
+        value = float(match.group(1))
+        unit = match.group(2) or 'px'  # 默认单位为px
+
+        # 默认字体大小
+        default_px = 16
+
+        # 根据单位转换为px
+        if unit == 'px':
+            px_size = int(value)
+        elif unit == 'pt':
+            # pt已经是目标单位，直接返回
+            return max(1, int(round(value)))
+        elif unit == 'em':
+            # em相对于父元素
+            base_px = parent_size_px or default_px
+            px_size = int(value * base_px)
+        elif unit == 'rem':
+            # rem相对于根元素
+            px_size = int(value * default_px)
+        elif unit == '%':
+            # 百分比相对于父元素
+            base_px = parent_size_px or default_px
+            px_size = int(value * base_px / 100)
+        else:
+            # 未知单位，当作px处理
+            px_size = int(value)
+
+        # 转换为pt
+        return cls.font_size_px_to_pt(px_size)
+
+    @classmethod
     def get_slide_dimensions(cls):
         """
         获取幻灯片尺寸 (EMU)

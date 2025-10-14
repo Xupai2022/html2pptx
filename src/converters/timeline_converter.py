@@ -11,6 +11,7 @@ from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
 from src.utils.font_manager import get_font_manager
+from src.utils.style_computer import get_style_computer
 
 logger = setup_logger(__name__)
 
@@ -147,13 +148,28 @@ class TimelineConverter(BaseConverter):
         text_x = x + 40  # 圆形右侧
         text_width = width - 40
 
+        # 获取样式计算器
+        style_computer = get_style_computer(self.css_parser)
+        font_manager = get_font_manager(self.css_parser)
+
+        # 创建临时timeline-title元素来获取字体大小
+        from bs4 import BeautifulSoup
+        temp_soup_title = BeautifulSoup('<div class="timeline-title">' + title_text + '</div>', 'html.parser')
+        title_elem = temp_soup_title.find('div', class_='timeline-title')
+
+        # 获取timeline-title的字体大小
+        title_font_size_pt = style_computer.get_font_size_pt(title_elem)
+        # 转换回px用于高度计算
+        title_font_size_px = UnitConverter.pt_to_px(title_font_size_pt)
+        title_height = int(title_font_size_px * 1.3)  # timeline-title行高约1.3
+
         title_left = UnitConverter.px_to_emu(text_x)
         title_top = UnitConverter.px_to_emu(y)
         title_width = UnitConverter.px_to_emu(text_width)
-        title_height = UnitConverter.px_to_emu(25)
+        title_height_emu = UnitConverter.px_to_emu(title_height)
 
         title_box = self.slide.shapes.add_textbox(
-            title_left, title_top, title_width, title_height
+            title_left, title_top, title_width, title_height_emu
         )
         title_frame = title_box.text_frame
         title_frame.text = title_text
@@ -161,19 +177,29 @@ class TimelineConverter(BaseConverter):
 
         for paragraph in title_frame.paragraphs:
             for run in paragraph.runs:
-                run.font.size = Pt(18)
+                run.font.size = Pt(title_font_size_pt)
                 run.font.color.rgb = ColorParser.get_primary_color()
                 run.font.bold = True
-                run.font.name = get_font_manager(self.css_parser).get_font('body')
+                run.font.name = font_manager.get_font('body')
 
         # 4. 添加内容文本框
+        # 创建临时p元素来获取字体大小
+        temp_soup_content = BeautifulSoup('<p>' + content_text + '</p>', 'html.parser')
+        content_elem = temp_soup_content.p
+
+        # 获取内容的字体大小
+        content_font_size_pt = style_computer.get_font_size_pt(content_elem)
+        # 转换回px用于高度计算
+        content_font_size_px = UnitConverter.pt_to_px(content_font_size_pt)
+        content_height = int(content_font_size_px * 1.5)  # 内容行高1.5
+
         content_left = UnitConverter.px_to_emu(text_x)
-        content_top = UnitConverter.px_to_emu(y + 28)
+        content_top = UnitConverter.px_to_emu(y + title_height + 3)  # 标题下方3px间距
         content_width = UnitConverter.px_to_emu(text_width)
-        content_height = UnitConverter.px_to_emu(50)
+        content_height_emu = UnitConverter.px_to_emu(content_height)
 
         content_box = self.slide.shapes.add_textbox(
-            content_left, content_top, content_width, content_height
+            content_left, content_top, content_width, content_height_emu
         )
         content_frame = content_box.text_frame
         content_frame.text = content_text
@@ -181,9 +207,9 @@ class TimelineConverter(BaseConverter):
 
         for paragraph in content_frame.paragraphs:
             for run in paragraph.runs:
-                run.font.size = Pt(16)
+                run.font.size = Pt(content_font_size_pt)
                 run.font.color.rgb = ColorParser.parse_color('#333333')
-                run.font.name = get_font_manager(self.css_parser).get_font('body')
+                run.font.name = font_manager.get_font('body')
 
         # 返回下一个item的Y坐标
         return y + 85  # 每个item占用约85px高度

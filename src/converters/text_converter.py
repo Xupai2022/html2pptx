@@ -10,6 +10,7 @@ from src.utils.unit_converter import UnitConverter
 from src.utils.color_parser import ColorParser
 from src.utils.logger import setup_logger
 from src.utils.font_manager import get_font_manager
+from src.utils.style_computer import get_style_computer
 
 logger = setup_logger(__name__)
 
@@ -57,12 +58,28 @@ class TextConverter(BaseConverter):
         # mt-10: 2.5rem = 40px
         current_y += 40
 
+        # 获取样式计算器和字体
+        style_computer = get_style_computer(self.css_parser)
+        font_manager = get_font_manager(self.css_parser)
+        font_name = font_manager.get_font('h1')
+
+        # 创建临时h1元素来获取字体大小
+        from bs4 import BeautifulSoup
+        temp_soup = BeautifulSoup('<h1>' + title_text + '</h1>', 'html.parser')
+        h1_element = temp_soup.h1
+
+        # 获取h1的字体大小 (现在get_font_size_pt返回pt值)
+        h1_font_size_pt = style_computer.get_font_size_pt(h1_element)
+        # 转换回px用于高度计算
+        h1_font_size_px = UnitConverter.pt_to_px(h1_font_size_pt)
+        h1_height = int(h1_font_size_px * 1.5)  # 行高1.5
+
+        logger.debug(f"H1标题字体大小: {h1_font_size_px}px → {h1_font_size_pt}pt, 高度: {h1_height}px")
+
         # 添加h1标题
         left = UnitConverter.px_to_emu(x)
         top = UnitConverter.px_to_emu(current_y)
         width = UnitConverter.px_to_emu(1760)
-        # h1高度: 48px × 1.5 = 72px
-        h1_height = int(48 * 1.5)
         height = UnitConverter.px_to_emu(h1_height)
 
         title_box = self.slide.shapes.add_textbox(left, top, width, height)
@@ -73,13 +90,10 @@ class TextConverter(BaseConverter):
         title_frame.margin_bottom = 0
         title_frame.margin_left = 0
 
-        # 获取字体
-        font_manager = get_font_manager(self.css_parser)
-        font_name = font_manager.get_font('h1')
-
         for paragraph in title_frame.paragraphs:
             for run in paragraph.runs:
-                run.font.size = Pt(48)
+                # 使用转换后的pt值设置字体大小
+                run.font.size = Pt(h1_font_size_pt)
                 run.font.bold = True
                 run.font.name = font_name
 
@@ -92,9 +106,19 @@ class TextConverter(BaseConverter):
             # mt-2: 0.5rem = 8px
             current_y += 8
 
+            # 创建临时h2元素来获取字体大小
+            temp_soup_h2 = BeautifulSoup('<h2>' + subtitle_text + '</h2>', 'html.parser')
+            h2_element = temp_soup_h2.h2
+
+            # 获取h2的字体大小 (现在get_font_size_pt返回pt值)
+            h2_font_size_pt = style_computer.get_font_size_pt(h2_element)
+            # 转换回px用于高度计算
+            h2_font_size_px = UnitConverter.pt_to_px(h2_font_size_pt)
+            h2_height = int(h2_font_size_px * 1.5)  # 行高1.5
+
+            logger.debug(f"H2副标题字体大小: {h2_font_size_px}px → {h2_font_size_pt}pt, 高度: {h2_height}px")
+
             subtitle_top = UnitConverter.px_to_emu(current_y)
-            # h2高度: 36px × 1.5 = 54px
-            h2_height = int(36 * 1.5)
             subtitle_box = self.slide.shapes.add_textbox(
                 left, subtitle_top, width, UnitConverter.px_to_emu(h2_height)
             )
@@ -109,7 +133,8 @@ class TextConverter(BaseConverter):
 
             for paragraph in subtitle_frame.paragraphs:
                 for run in paragraph.runs:
-                    run.font.size = Pt(36)
+                    # 使用转换后的pt值设置字体大小
+                    run.font.size = Pt(h2_font_size_pt)
                     run.font.bold = True
                     run.font.color.rgb = ColorParser.get_primary_color()
                     run.font.name = font_name_h2
@@ -158,10 +183,22 @@ class TextConverter(BaseConverter):
         if not text:
             return
 
+        # 获取样式计算器和字体
+        style_computer = get_style_computer(self.css_parser)
+        font_manager = get_font_manager(self.css_parser)
+
+        # 获取段落的字体大小 (现在get_font_size_pt返回pt值)
+        p_font_size_pt = style_computer.get_font_size_pt(p_element)
+        # 转换回px用于高度计算
+        p_font_size_px = UnitConverter.pt_to_px(p_font_size_pt)
+        p_height = int(p_font_size_px * 1.5)  # 行高1.5
+
+        logger.debug(f"段落字体大小: {p_font_size_px}px → {p_font_size_pt}pt, 高度: {p_height}px")
+
         left = UnitConverter.px_to_emu(x)
         top = UnitConverter.px_to_emu(y)
         w = UnitConverter.px_to_emu(width)
-        h = UnitConverter.px_to_emu(30)
+        h = UnitConverter.px_to_emu(p_height)
 
         text_box = self.slide.shapes.add_textbox(left, top, w, h)
         text_frame = text_box.text_frame
@@ -170,25 +207,28 @@ class TextConverter(BaseConverter):
         text_frame.margin_top = 0
         text_frame.margin_bottom = 0
 
-        # 应用P样式
-        p_style = self.css_parser.get_element_style('p') or {}
+        # 应用样式
+        p_style = style_computer.compute_computed_style(p_element)
         inline_style = self._extract_inline_style(p_element)
-
-        # 获取字体
-        font_manager = get_font_manager(self.css_parser)
         font_name = font_manager.get_font('p', inline_style)
 
         for paragraph in text_frame.paragraphs:
             for run in paragraph.runs:
-                run.font.size = Pt(20)
+                # 使用转换后的pt值设置字体大小
+                run.font.size = Pt(p_font_size_pt)
                 run.font.name = font_name
 
                 # 颜色
-                color_str = inline_style.get('color') or p_style.get('color')
+                color_str = p_style.get('color') or inline_style.get('color')
                 if color_str:
                     color = ColorParser.parse_color(color_str)
                     if color:
                         run.font.color.rgb = color
+
+                # 字体粗细
+                font_weight = p_style.get('font-weight')
+                if font_weight:
+                    run.font.bold = StyleMapper.parse_font_weight(font_weight)
 
     def _extract_inline_style(self, element) -> dict:
         """提取内联样式"""
@@ -205,9 +245,14 @@ class TextConverter(BaseConverter):
 
     def convert(self, element, **kwargs):
         """转换文本元素"""
-        tag_name = element.name
+        # 注意：这个方法在main.py中用于单个元素的转换
+        # 但是convert_title会创建新的文本框，可能导致重复文字
+        # 为了避免重复，这里应该使用convert_paragraph方法处理所有文本元素
 
-        if tag_name == 'h1':
-            self.convert_title(element.get_text(strip=True), **kwargs)
-        elif tag_name == 'p':
-            self.convert_paragraph(element, **kwargs)
+        tag_name = element.name
+        if tag_name in ['h1', 'h2', 'h3', 'p']:
+            # 统一使用段落转换方法，传入实际元素
+            x = kwargs.get('x', 80)
+            y = kwargs.get('y', 0)
+            width = kwargs.get('width', 1760)
+            self.convert_paragraph(element, x, y, width)
