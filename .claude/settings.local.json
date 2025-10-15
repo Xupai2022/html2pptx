@@ -7,7 +7,8 @@
       "Bash(fi)",
       "Bash(source:*)",
       "Bash(python convert.py:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
