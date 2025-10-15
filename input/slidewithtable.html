@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>第一季度网络安全态势汇报</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: visible; }
+  .slide-container { width: 1920px; min-height: 1080px; background-color: white; position: relative; overflow: visible; }
+  .content-section { max-height: 1000px; padding: 20px 80px; }
+  .page-number { position: absolute; top: 1030px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  .data-card {
+    border-left: 4px solid rgb(10, 66, 117);
+    padding-left: 15px;
+    min-height: 200px; 
+    max-height: 300px;
+    overflow: visible;
+  }
+  .chart-container {
+    min-height: 180px; 
+    max-height: 200px;
+    position: relative;
+    overflow: visible;
+  }
+  .stat-card {
+    background-color: rgba(10, 66, 117, 0.08);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+    min-height: 200px; 
+    max-height: 300px;
+    overflow: visible;
+  }
+  .progress-bar {
+    height: 16px;
+    border-radius: 8px;
+    background-color: #e2e8f0;
+    margin-bottom: 4px;
+    overflow: visible;
+  }
+  .strategy-card {
+    max-height: 300px;
+    min-height:200px;
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 5px;
+    background-color: rgba(10, 66, 117, 0.06);
+    border-left: 4px solid rgb(10, 66, 117);
+    overflow: visible;
+  }
+  .bullet-point {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .bullet-icon {
+    color: rgb(10, 66, 117);
+    margin-right: 10px;
+    min-width: 20px;
+  }
+  .logo-space {
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 100px;
+    }
+  .visualization-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        width: 100%;
+        max-width: calc(1920px - 160px);
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        overflow: visible;
+    }
+    .stats-container {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        margin-bottom: 30px;
+        overflow: visible;
+    }
+    .stat-box {
+        max-height: 300px;
+        min-height:200px;
+        background-color: rgba(10, 66, 117, 0.06);
+        border-radius: 10px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        max-width: calc(1920px - 160px);
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+    }
+    .stat-icon {
+        font-size: 36px;
+        margin-right: 20px;
+        color: rgb(10, 66, 117);
+    }
+    .stat-content {
+        flex: 1;
+    }
+    .stat-title {
+        font-size: 18px;
+        margin-bottom: 5px;
+        color: rgb(10, 66, 117);
+    }
+    .large-chart {
+        grid-column: span 2;
+        height: 270px;
+    }  
+    .ip-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 20px 0;
+    background-color: #ffffff; 
+    border-radius: 10px;
+    overflow: visible;
+   }
+    .ip-table th, .ip-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #eee; 
+   }
+    .ip-table th {
+    background-color: rgb(10, 66, 117); 
+    color: #ffffff; 
+    font-weight: 600;
+   }
+    .ip-table tr:last-child td {
+    border-bottom: none;
+   }  
+    .ip-table td:first-child {
+    color: rgb(10, 66, 117); 
+    font-weight: 600;
+   }
+    h1 { 
+font-size: 48px; 
+font-weight: 700;  } 
+p { 
+font-size: 20px; 
+color: #333; } 
+h2 { 
+font-size: 36px;
+font-weight: 600; 
+color: rgb(10, 66, 117)}
+.progress-container {
+  margin-bottom: 15px;
+}
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+.progress-bar-bg {
+  background-color: #e2e8f0;
+  height: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 8px;
+}
+</style>
+</head>
+<body>
+<div class="slide-container">
+<div class="top-bar"></div>
+<div class="content-section">
+<!-- 标题区域，严格按照h1和h2样式，如果副标题h2没有可以去掉 -->
+<div class="mt-10">
+<h1>网络安全漏洞扫描与修复进展</h1>
+<h2 class="mt-2">第一季度漏洞发现与修复情况</h2>
+<div class="w-20 h-1 primary-bg mb-4"></div>
+</div>
+<!-- 内容区域：正文使用p标签，单栏布局，固定为3个容器 -->
+<div class="space-y-10">
+<!-- 第一个容器：漏洞扫描覆盖数据 -->
+<div class="stats-container">
+<div class="stat-box">
+<div class="stat-icon">
+<i class="fas fa-search"></i>
+</div>
+<div class="stat-content">
+<div class="stat-title">扫描资产数量</div>
+<h2>428</h2>
+<p>覆盖率98.2%</p>
+</div>
+</div>
+<div class="stat-box">
+<div class="stat-icon">
+<i class="fas fa-bug"></i>
+</div>
+<div class="stat-content">
+<div class="stat-title">发现漏洞总数</div>
+<h2>342</h2>
+<p>较上季度减少8.3%</p>
+</div>
+</div>
+<div class="stat-box">
+<div class="stat-icon">
+<i class="fas fa-check-circle"></i>
+</div>
+<div class="stat-content">
+<div class="stat-title">已修复漏洞</div>
+<h2>263</h2>
+<p>修复率76.9%</p>
+</div>
+</div>
+<div class="stat-box">
+<div class="stat-icon">
+<i class="fas fa-exclamation-triangle"></i>
+</div>
+<div class="stat-content">
+<div class="stat-title">高危漏洞数量</div>
+<h2>87</h2>
+<p>已修复76个(87.4%)</p>
+</div>
+</div>
+</div>
+<!-- 第二个容器：漏洞类型分布和趋势 -->
+<div class="stat-card">
+<p class="primary-color mb-4">漏洞类型分布与修复情况</p>
+<div class="chart-container" style="height: 220px;">
+<canvas id="vulnerabilityChart"></canvas>
+</div>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('vulnerabilityChart').getContext('2d');
+    const vulnerabilityChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['SQL注入', '跨站脚本(XSS)', '权限管理不当', '访问控制不当', '命令注入', '缓冲区溢出', '信息泄露'],
+        datasets: [{
+          label: '已发现',
+          data: [78, 65, 57, 44, 36, 29, 33],
+          backgroundColor: 'rgba(10, 66, 117, 0.7)',
+          borderColor: 'rgb(10, 66, 117)',
+          borderWidth: 1
+        }, {
+          label: '已修复',
+          data: [63, 51, 42, 35, 29, 22, 21],
+          backgroundColor: 'rgba(75, 192, 192, 0.7)',
+          borderColor: 'rgb(75, 192, 192)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  });
+</script>
+</div>
+<!-- 第三个容器：修复进度和待整改项 -->
+<div class="data-card">
+<p class="primary-color mb-3">高危漏洞修复进度与重点待整改项</p>
+<div class="progress-container">
+<div class="progress-label">
+<span>核心业务系统漏洞修复</span>
+<span>92.7%</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill primary-bg" style="width: 92.7%"></div>
+</div>
+</div>
+<div class="progress-container">
+<div class="progress-label">
+<span>办公内网系统漏洞修复</span>
+<span>84.5%</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill primary-bg" style="width: 84.5%"></div>
+</div>
+</div>
+<div class="progress-container">
+<div class="progress-label">
+<span>周边业务系统漏洞修复</span>
+<span>65.8%</span>
+</div>
+<div class="progress-bar-bg">
+<div class="progress-bar-fill primary-bg" style="width: 65.8%"></div>
+</div>
+</div>
+<div class="bullet-point mt-4">
+<i class="fas fa-exclamation-circle bullet-icon"></i>
+<p>待修复：数据中心API接口存在未授权访问漏洞（高危）- 预计5月15日完成整改</p>
+</div>
+<div class="bullet-point">
+<i class="fas fa-exclamation-circle bullet-icon"></i>
+<p>待修复：内部办公系统存在跨站脚本漏洞（中危）- 已安排5月10日前修复</p>
+</div>
+</div>
+</div>
+</div>
+<div class="page-number">7</div>
+</div>
+<script>
+  // 确保页面加载完成后图表正确渲染
+  window.onload = function() {
+    if (typeof vulnerabilityChart !== 'undefined') {
+      vulnerabilityChart.update();
+    }
+  };
+</script>
+</body>
+</html>

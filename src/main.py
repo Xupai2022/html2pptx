@@ -1724,8 +1724,8 @@ class HTML2PPTX:
                 return 'vertical'
 
         # 方法2：从CSS解析器获取样式
-        computed_styles = self.css_parser.get_computed_styles('.stat-box')
-        align_items = computed_styles.get('align-items', '').lower()
+        computed_styles = self.css_parser.get_style('.stat-box')
+        align_items = computed_styles.get('align-items', '').lower() if computed_styles else ''
 
         if 'center' in align_items:
             logger.info("从CSS检测到align-items: center，使用水平布局")
@@ -1809,8 +1809,8 @@ class HTML2PPTX:
                 return PP_PARAGRAPH_ALIGNMENT.LEFT
 
         # 方法4：从CSS解析器获取样式
-        computed_styles = self.css_parser.get_computed_styles('.stat-box')
-        text_align = computed_styles.get('text-align', '').lower()
+        computed_styles = self.css_parser.get_style('.stat-box')
+        text_align = computed_styles.get('text-align', '').lower() if computed_styles else ''
 
         if 'center' in text_align:
             return PP_PARAGRAPH_ALIGNMENT.CENTER

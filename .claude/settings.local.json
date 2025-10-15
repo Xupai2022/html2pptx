@@ -9,7 +9,8 @@
       "Bash(python convert.py:*)",
       "Bash(git rm:*)",
       "Bash(git checkout:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
