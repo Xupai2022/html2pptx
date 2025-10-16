@@ -6,7 +6,7 @@
 python convert_slides.py
 
 功能:
-- 自动查找当前目录下所有以"slide"开头的.html文件
+- 自动查找input目录下所有以"slide"开头的.html文件
 - 批量转换为PPTX文件
 - 输出到output目录
 - 显示转换进度和结果统计
@@ -20,8 +20,9 @@ import subprocess
 import time
 
 def find_slide_html_files():
-    """查找当前目录下所有以slide开头的HTML文件"""
-    pattern = "slide*.html"
+    """查找input目录下所有以slide开头的HTML文件"""
+    input_dir = "input"
+    pattern = os.path.join(input_dir, "slide*.html")
     files = glob.glob(pattern)
     files.sort()  # 按文件名排序
     return files
@@ -66,7 +67,7 @@ def main():
 
     if not html_files:
         print("[ERROR] 未找到任何以'slide'开头的HTML文件")
-        print("   请确保当前目录下有slide*.html文件")
+        print("   请确保input目录下有slide*.html文件")
         return
 
     print(f"[INFO] 找到 {len(html_files)} 个HTML文件:")
