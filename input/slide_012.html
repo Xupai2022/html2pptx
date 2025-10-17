@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>致谢</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>致谢</h1>
+      <h2 class="text-gray-600">Q&A环节</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：正文使用p标签，单栏布局 -->
+    <div class="flex-1 overflow-hidden flex flex-col justify-center">
+      <div class="data-card mb-8">
+        <p class="text-center text-3xl font-semibold primary-color">感谢您的耐心聆听与参与</p>
+      </div>
+      
+      <div class="mb-8">
+        <p class="text-center text-2xl">现在进入问答环节，欢迎各位提出问题</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6 mb-8">
+        <div class="stat-card">
+          <div class="flex items-center mb-2">
+            <i class="fas fa-envelope bullet-icon text-2xl"></i>
+            <h3 class="text-2xl font-semibold ml-2">联系方式</h3>
+          </div>
+          <p class="pl-8">邮箱：contact@example.com</p>
+          <p class="pl-8">电话：400-123-4567</p>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center mb-2">
+            <i class="fas fa-headset bullet-icon text-2xl"></i>
+            <h3 class="text-2xl font-semibold ml-2">后续支持</h3>
+          </div>
+          <p class="pl-8">7×24小时技术支持</p>
+          <p class="pl-8">专属客户经理服务</p>
+        </div>
+      </div>
+
+      <div class="text-center">
+        <p class="text-xl text-gray-600">期待与您的进一步合作</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">12</div>
+</div>
+</body>
+</html>

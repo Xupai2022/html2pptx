@@ -220,8 +220,18 @@ class HTML2PPTX:
             # 底部信息容器（包含bullet-point的flex布局）
             return self._convert_bottom_info(container, pptx_slide, y_offset)
         elif 'flex-1' in container_classes and 'overflow-hidden' in container_classes:
-            # 内容容器（包含多个子容器）
-            return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+            # 先检查是否是居中容器
+            has_justify_center = 'justify-center' in container_classes
+            has_flex_col = 'flex-col' in container_classes
+            has_items_center = 'items-center' in container_classes
+
+            # 如果同时有居中相关的类，优先作为居中容器处理
+            if has_justify_center and (has_flex_col or has_items_center):
+                logger.info(f"检测到居中容器（flex-1 overflow-hidden variant）: {container_classes}")
+                return self._convert_centered_container(container, pptx_slide, y_offset, shape_converter)
+            else:
+                # 内容容器（包含多个子容器）
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
         else:
             # 首先检查是否包含SVG元素
             svgs_in_container = container.find_all('svg')
@@ -301,14 +311,23 @@ class HTML2PPTX:
                         logger.info("flex容器内只包含一个网格容器，直接处理网格布局")
                         return self._convert_grid_container(grid_child, pptx_slide, y_offset, shape_converter)
 
-                # flex容器 - 增强检测，处理居中布局
+                # flex容器 - 增强检测，处理居中布局（优先检测）
                 # 检查是否是居中容器
                 has_justify_center = 'justify-center' in container_classes
                 has_items_center = 'items-center' in container_classes
                 has_flex_col = 'flex-col' in container_classes
+                has_overflow_hidden = 'overflow-hidden' in container_classes
+                has_flex_1 = 'flex-1' in container_classes or 'flex' in container_classes
 
-                # 如果是居中布局的flex容器
-                if (has_justify_center and has_items_center) or (has_flex_col and has_justify_center):
+                # 如果是居中布局的flex容器（增强检测逻辑）
+                # 条件1：有justify-center和items-center（水平垂直居中）
+                # 条件2：有justify-center和flex-col（垂直居中）
+                # 条件3：有justify-center且是flex容器（更宽松的检测）
+                # 条件4：有flex-col和justify-center（特别处理垂直居中）
+                if (has_justify_center and has_items_center) or \
+                   (has_flex_col and has_justify_center) or \
+                   (has_justify_center and has_flex_1):
+                    logger.info(f"检测到居中容器: {container_classes}")
                     return self._convert_centered_container(container, pptx_slide, y_offset, shape_converter)
 
                 # 普通flex容器
@@ -365,7 +384,6 @@ class HTML2PPTX:
         # 计算布局
         total_width = 1760  # 可用宽度
         item_width = (total_width - (num_columns - 1) * gap) // num_columns
-        item_height = 200  # 估算高度
 
         current_y = y_start
         max_y_in_row = y_start
@@ -454,6 +472,24 @@ class HTML2PPTX:
             estimated_height += 40
             logger.info(f"检测到h3标题: {h3_elem.get_text(strip=True)}")
 
+        # 处理bullet-point（这是slide_011.html的主要内容）
+        bullet_points = card.find_all('div', class_='bullet-point')
+        # 同时检查space-y-3容器内的flex items-start结构（slide_011.html的实际结构）
+        if not bullet_points:
+            space_y_containers = card.find_all('div', class_='space-y-3')
+            for container in space_y_containers:
+                flex_items = container.find_all('div', class_='flex')
+                for flex_item in flex_items:
+                    if flex_item.find('i') and flex_item.find('p'):
+                        bullet_points.append(flex_item)
+
+        if bullet_points:
+            logger.info(f"检测到{len(bullet_points)}个bullet-point")
+            # 每个bullet-point高度: 25px字体 + 10px间距 = 35px
+            estimated_height += len(bullet_points) * 35
+            # bullet-point之间的间距 (space-y-3 ≈ 12px)
+            estimated_height += (len(bullet_points) - 1) * 12
+
         # 处理risk-item
         risk_items = card.find_all('div', class_='risk-item')
         if risk_items:
@@ -488,9 +524,8 @@ class HTML2PPTX:
                 estimated_height += item_height
                 logger.info(f"risk-item {i+1} 精确高度: {item_height}px (总高度: {estimated_height}px)")
 
-        # 处理其他内容（如bullet-point等）
-        # 如果没有risk-item但有其他内容
-        if not risk_items:
+        # 处理其他内容（既没有bullet-point也没有risk-item）
+        if not bullet_points and not risk_items:
             # 查找所有直接子元素
             direct_children = []
             for child in card.children:
@@ -553,6 +588,14 @@ class HTML2PPTX:
         # 2. 处理risk-item或bullet-point
         risk_items = card.find_all('div', class_='risk-item')
         bullet_points = card.find_all('div', class_='bullet-point')
+        # 同时检查space-y-3容器内的flex items-start结构（slide_011.html的实际结构）
+        if not bullet_points:
+            space_y_containers = card.find_all('div', class_='space-y-3')
+            for container in space_y_containers:
+                flex_items = container.find_all('div', class_='flex')
+                for flex_item in flex_items:
+                    if flex_item.find('i') and flex_item.find('p'):
+                        bullet_points.append(flex_item)
 
         if risk_items:
             logger.info(f"找到 {len(risk_items)} 个risk-item")
@@ -647,12 +690,15 @@ class HTML2PPTX:
             card: 父data-card元素
             pptx_slide: PPTX幻灯片
             x: 起始X坐标
-            y: 起始Y坐标
+            y: 起始Y坐标（相对于幻灯片的绝对位置）
             width: 容器宽度
-            current_y: 当前Y坐标偏移
+            current_y: 当前Y坐标偏移（相对于容器的位置）
         """
         from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
         from pptx.dml.color import RGBColor
+
+        # 使用current_y而不是y作为起始位置，因为current_y已经考虑了标题的偏移
+        actual_y = current_y if current_y > y else y
 
         for bp in bullet_points:
             # 获取图标
@@ -662,49 +708,56 @@ class HTML2PPTX:
 
             if icon_elem:
                 icon_classes = icon_elem.get('class', [])
+                # 使用_get_icon_char函数获取图标字符
+                icon_char = self._get_icon_char(icon_classes)
+
                 # 根据图标类确定颜色
-                if 'risk-high' in icon_classes:
+                if 'text-red-600' in icon_classes or 'risk-high' in icon_classes:
                     icon_color = RGBColor(220, 38, 38)  # 红色
-                elif 'risk-medium' in icon_classes:
+                elif 'text-orange-600' in icon_classes or 'risk-medium' in icon_classes:
                     icon_color = RGBColor(234, 88, 12)  # 橙色
-                elif 'risk-low' in icon_classes:
-                    icon_color = RGBColor(202, 138, 4)  # 黄色
+                elif 'text-yellow-600' in icon_classes or 'text-green-600' in icon_classes or 'risk-low' in icon_classes:
+                    icon_color = RGBColor(34, 197, 94)  # 绿色
+                elif 'text-blue-600' in icon_classes:
+                    icon_color = RGBColor(59, 130, 246)  # 蓝色
+                elif 'primary-color' in icon_classes:
+                    icon_color = ColorParser.get_primary_color()
 
-                # 获取图标字符（简化处理）
-                if 'fa-cloud' in icon_classes:
-                    icon_char = "☁"
-                elif 'fa-comments' in icon_classes:
-                    icon_char = "💬"
-                elif 'fa-code-branch' in icon_classes:
-                    icon_char = "⚡"
-                elif 'fa-globe' in icon_classes:
-                    icon_char = "🌐"
-                elif 'fa-building' in icon_classes:
-                    icon_char = "🏢"
-                elif 'fa-link' in icon_classes:
-                    icon_char = "🔗"
-                elif 'fa-box' in icon_classes:
-                    icon_char = "📦"
-                elif 'fa-server' in icon_classes:
-                    icon_char = "🖥"
-                elif 'fa-exclamation-triangle' in icon_classes:
-                    icon_char = "⚠"
-                elif 'fa-shield-alt' in icon_classes:
-                    icon_char = "🛡"
-                elif 'fa-clock' in icon_classes:
-                    icon_char = "⏰"
-                else:
-                    icon_char = "•"  # 默认圆点
-
-            # 获取文本内容
+            # 获取段落元素
             p_elem = bp.find('p')
             if p_elem:
-                text = p_elem.get_text(strip=True)
+                # 检查是否包含priority-tag
+                priority_tag = p_elem.find('span', class_='priority-tag')
+                main_text = ""
+                tag_text = ""
+                tag_color = None
 
-                # 创建文本框
+                if priority_tag:
+                    # 提取标签文本
+                    tag_text = priority_tag.get_text(strip=True)
+                    tag_classes = priority_tag.get('class', [])
+
+                    # 确定标签颜色
+                    if 'priority-high' in tag_classes:
+                        tag_color = RGBColor(239, 68, 68)  # 红色
+                        tag_bg_color = RGBColor(254, 226, 226)  # 浅红色背景
+                    elif 'priority-medium' in tag_classes:
+                        tag_color = RGBColor(251, 146, 60)  # 橙色
+                        tag_bg_color = RGBColor(255, 237, 213)  # 浅橙色背景
+                    elif 'priority-low' in tag_classes:
+                        tag_color = RGBColor(209, 177, 0)  # 黄色
+                        tag_bg_color = RGBColor(250, 204, 21)  # 浅黄色背景
+
+                    # 移除标签后获取主文本
+                    priority_tag.extract()
+                    main_text = p_elem.get_text(strip=True)
+                else:
+                    main_text = p_elem.get_text(strip=True)
+
+                # 创建文本框，使用actual_y确保不会与标题重叠
                 text_box = pptx_slide.shapes.add_textbox(
                     UnitConverter.px_to_emu(x + 20),
-                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(actual_y),
                     UnitConverter.px_to_emu(width - 40),
                     UnitConverter.px_to_emu(35)
                 )
@@ -718,36 +771,47 @@ class HTML2PPTX:
                 if icon_char:
                     icon_run = p.add_run()
                     icon_run.text = icon_char + " "
-                    icon_run.font.size = Pt(25)
+                    # 图标字体大小与文本同步
+                    icon_font_size_pt = self._get_font_size_pt(p_elem, default_px=25)
+                    icon_run.font.size = Pt(icon_font_size_pt)
                     icon_run.font.color.rgb = icon_color
                     icon_run.font.name = self.font_manager.get_font('body')
 
-                # 添加文本
-                text_run = p.add_run()
-                text_run.text = text
+                # 添加主文本
+                if main_text:
+                    text_run = p.add_run()
+                    text_run.text = main_text
 
-                # 获取字体大小（从CSS解析）
-                font_size_pt = self.style_computer.get_font_size_pt(p_elem)
-                if font_size_pt:
+                    # 获取字体大小（从CSS解析）
+                    font_size_pt = self._get_font_size_pt(p_elem, default_px=25)
                     text_run.font.size = Pt(font_size_pt)
-                else:
-                    text_run.font.size = Pt(25)  # 默认25px = 19pt
 
-                text_run.font.name = self.font_manager.get_font('body')
-                text_run.font.color.rgb = RGBColor(51, 51, 51)  # 深灰色
+                    text_run.font.name = self.font_manager.get_font('body')
+                    text_run.font.color.rgb = RGBColor(51, 51, 51)  # 深灰色
+
+                # 添加标签文本（如果存在）
+                if tag_text and tag_color:
+                    tag_run = p.add_run()
+                    tag_run.text = " " + tag_text
+                    # 标签字体稍小
+                    tag_font_size_pt = max(12, self._get_font_size_pt(p_elem, default_px=25) - 4)
+                    tag_run.font.size = Pt(tag_font_size_pt)
+                    tag_run.font.color.rgb = tag_color
+                    tag_run.font.bold = True
+                    tag_run.font.name = self.font_manager.get_font('body')
 
                 # 设置段落格式
                 p.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
                 p.space_before = Pt(0)
                 p.space_after = Pt(4)
 
-                current_y += 35  # 每个bullet-point占35px
+                actual_y += 35  # 每个bullet-point占35px
 
         logger.info(f"处理了 {len(bullet_points)} 个bullet-point")
 
     def _process_risk_items(self, risk_items, card, pptx_slide, x, y, width, current_y):
         """
-        处理risk-item列表（原有的逻辑）
+        处理risk-item列表
 
         Args:
             risk_items: risk-item元素列表
@@ -758,9 +822,135 @@ class HTML2PPTX:
             width: 容器宽度
             current_y: 当前Y坐标偏移
         """
-        # 这里保留原有的risk-item处理逻辑
-        # 由于重构，暂时使用空实现
-        logger.info(f"处理了 {len(risk_items)} 个risk-item")
+        from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+        from pptx.dml.color import RGBColor
+        from src.utils.unit_converter import UnitConverter
+        from pptx.util import Pt
+
+        logger.info(f"开始处理{len(risk_items)}个risk-item")
+
+        # 使用current_y作为起始位置，与bullet-point保持一致
+        actual_y = current_y if current_y > y else y
+
+        for risk_item in risk_items:
+            # 获取图标
+            icon_elem = risk_item.find('i')
+            icon_char = None
+            icon_color = RGBColor(220, 38, 38)  # 默认红色（risk-icon）
+
+            if icon_elem:
+                icon_classes = icon_elem.get('class', [])
+                icon_char = self._get_icon_char(icon_classes)
+
+                # 根据图标类调整颜色
+                if 'bullet-icon' in icon_classes:
+                    icon_color = ColorParser.get_primary_color()
+
+            # 处理文本内容
+            text_container = risk_item.find('div')
+            if text_container:
+                # 处理主标题和风险等级
+                first_p = text_container.find('p')
+                if first_p:
+                    # 提取strong文本
+                    strong_elem = first_p.find('strong')
+                    main_text = strong_elem.get_text(strip=True) if strong_elem else first_p.get_text(strip=True)
+
+                    # 提取risk-level
+                    risk_level_elem = first_p.find('span', class_='risk-level')
+                    risk_text = ""
+                    risk_color = RGBColor(220, 38, 38)  # 默认红色
+
+                    if risk_level_elem:
+                        risk_text = risk_level_elem.get_text(strip=True)
+                        risk_classes = risk_level_elem.get('class', [])
+
+                        # 根据风险等级设置颜色
+                        if 'risk-high' in risk_classes:
+                            risk_color = RGBColor(220, 38, 38)  # 红色
+                        elif 'risk-medium' in risk_classes:
+                            risk_color = RGBColor(245, 158, 11)  # 橙色
+                        elif 'risk-low' in risk_classes:
+                            risk_color = RGBColor(59, 130, 246)  # 蓝色
+
+                    # 创建主文本文本框（与bullet-point保持一致的位置）
+                    if main_text:
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + 20),  # 与bullet-point一致的左边距
+                            UnitConverter.px_to_emu(actual_y),
+                            UnitConverter.px_to_emu(width - 40),  # 与bullet-point一致的宽度
+                            UnitConverter.px_to_emu(25)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.clear()
+
+                        # 添加段落
+                        p = text_frame.paragraphs[0]
+
+                        # 添加图标（如果有）
+                        if icon_char:
+                            icon_run = p.add_run()
+                            icon_run.text = icon_char + " "
+                            icon_run.font.size = Pt(20)
+                            icon_run.font.color.rgb = icon_color
+                            icon_run.font.name = self.font_manager.get_font('icon')
+
+                        # 添加主文本
+                        text_run = p.add_run()
+                        text_run.text = main_text
+                        text_run.font.size = Pt(22)
+                        text_run.font.bold = True
+                        text_run.font.color.rgb = RGBColor(51, 51, 51)  # 深灰色
+                        text_run.font.name = self.font_manager.get_font('p')
+
+                        # 添加风险等级标签（如果有）
+                        if risk_text:
+                            risk_run = p.add_run()
+                            risk_run.text = f" {risk_text}"
+                            risk_run.font.size = Pt(20)
+                            risk_run.font.bold = True
+                            risk_run.font.color.rgb = risk_color
+
+                        # 设置段落格式
+                        p.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        p.space_before = Pt(0)
+                        p.space_after = Pt(4)
+
+                    actual_y += 28  # 主文本后的间距
+
+                # 处理描述文本
+                desc_p = text_container.find('p', class_='text-sm')
+                if desc_p:
+                    desc_text = desc_p.get_text(strip=True)
+                    if desc_text:
+                        # 描述文本的左边距应该与主文本对齐（在图标后面）
+                        desc_text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + 20 + (25 if icon_char else 0)),  # 如果有图标则缩进
+                            UnitConverter.px_to_emu(actual_y),
+                            UnitConverter.px_to_emu(width - 40 - (25 if icon_char else 0)),  # 相应减少宽度
+                            UnitConverter.px_to_emu(40)
+                        )
+                        desc_frame = desc_text_box.text_frame
+                        desc_para = desc_frame.paragraphs[0]
+                        desc_para.text = desc_text
+
+                        # 设置字体样式
+                        desc_run = desc_para.runs[0] if desc_para.runs else desc_para.add_run()
+                        desc_run.font.size = Pt(14)
+                        desc_run.font.color.rgb = RGBColor(107, 114, 128)  # 灰色
+                        desc_run.font.name = self.font_manager.get_font('p')
+
+                        # 设置段落格式
+                        desc_para.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        desc_para.space_before = Pt(0)
+                        desc_para.space_after = Pt(4)
+
+                        actual_y += 22  # 描述文本高度
+
+            # risk-item之间的间距
+            actual_y += 12
+
+        logger.info(f"成功处理了{len(risk_items)}个risk-item")
 
     def _convert_grid_risk_card(self, card, pptx_slide, shape_converter, x, y, width):
         """
@@ -1105,7 +1295,16 @@ class HTML2PPTX:
         if '4px solid' in border_left_style:
             shape_converter.add_border_left(x, y, 180, 4)
 
-        # 首先检查是否包含risk-level标签（风险分布）
+        # 首先检查是否包含bullet-point结构
+        bullet_points = card.find_all('div', class_='bullet-point')
+        if bullet_points:
+            logger.info(f"stat-card包含{len(bullet_points)}个bullet-point，使用bullet-point处理逻辑")
+            # 获取h3标题（如果有）
+            h3_elem = card.find('h3')
+            # 转换为类似data-card的格式处理，但要传入x和width参数
+            return self._convert_grid_card_with_bullet_points(card, pptx_slide, shape_converter, x, y, width, bullet_points, h3_elem)
+
+        # 然后检查是否包含risk-level标签（风险分布）
         risk_levels = card.find_all('span', class_='risk-level')
         if risk_levels:
             logger.info(f"stat-card包含{len(risk_levels)}个risk-level标签，处理为风险分布")
@@ -1202,6 +1401,76 @@ class HTML2PPTX:
                 current_x += risk_width + 20
 
             return y + 180
+
+        # 直接提取所有文本内容，不跳过flex容器
+        all_content = []
+
+        # 方法1：提取h3和p标签
+        h3_elem = card.find('h3')
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                all_content.append(('h3', h3_text))
+
+        # 提取所有p标签
+        for p in card.find_all('p'):
+            p_text = p.get_text(strip=True)
+            if p_text:
+                all_content.append(('p', p_text))
+
+        # 如果没有找到内容，使用更通用的方法
+        if not all_content:
+            logger.info("使用通用方法提取stat-card内容")
+            # 遍历所有后代元素
+            for elem in card.descendants:
+                if elem.name in ['h1', 'h2', 'h3', 'h4', 'p', 'span', 'div']:
+                    # 只提取没有子块级元素的文本节点
+                    if not elem.find_all(['h1', 'h2', 'h3', 'h4', 'p', 'div']):
+                        text = elem.get_text(strip=True)
+                        if text and len(text) > 1:
+                            # 判断元素类型
+                            if elem.name == 'h3':
+                                all_content.append(('h3', text))
+                            else:
+                                all_content.append(('text', text))
+
+        logger.info(f"stat-card提取到{len(all_content)}个内容项")
+
+        # 渲染内容
+        current_y = y + 20
+        for elem_type, text in all_content[:5]:  # 最多5项
+            if text:
+                # 根据类型设置样式
+                if elem_type == 'h3':
+                    font_size = 24
+                    is_bold = True
+                else:
+                    font_size = 20
+                    is_bold = False
+
+                # 创建文本框
+                text_left = UnitConverter.px_to_emu(x + 20)
+                text_top = UnitConverter.px_to_emu(current_y)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(30)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = text
+                text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in paragraph.runs:
+                        run.font.size = Pt(font_size)
+                        run.font.name = self.font_manager.get_font('body')
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        if is_bold:
+                            run.font.bold = True
+
+                current_y += 35
+
+        return y + 180
 
         # 查找内部的flex容器
         flex_container = card.find('div', class_='flex')
@@ -1947,7 +2216,8 @@ class HTML2PPTX:
 
     def _convert_centered_container(self, container, pptx_slide, y_start, shape_converter):
         """
-        转换居中容器（flex justify-center items-center 或 flex-col justify-center）
+        转换垂直居中的flex容器（flex-col justify-center）
+        内容在可用空间内垂直居中
 
         Args:
             container: 居中容器元素
@@ -1958,85 +2228,211 @@ class HTML2PPTX:
         Returns:
             下一个元素的Y坐标
         """
-        logger.info("处理居中容器")
+        logger.info("处理垂直居中的flex容器")
 
-        # 获取容器的直接子元素
+        # 获取所有直接子元素
         children = []
         for child in container.children:
             if hasattr(child, 'name') and child.name:
                 children.append(child)
 
-
         if not children:
             return y_start
 
-        # 计算可用高度（从当前位置到底部）
-        available_height = 1080 - y_start - 60  # 留出底部页码空间
-
-        # 计算内容所需的总高度
-        content_height = 0
+        # 计算所有元素的总高度
+        total_height = 0
         for child in children:
             child_classes = child.get('class', [])
+
+            # 估算每个元素的高度
             if 'data-card' in child_classes:
-                content_height += 100  # 估算每个data-card高度
-            elif 'stat-card' in child_classes:
-                content_height += 220  # 估算每个stat-card高度
+                total_height += 100  # data-card高度
+            elif 'grid' in child_classes:
+                # grid包含两个stat-card
+                total_height += 220  # grid高度
             else:
-                content_height += 80  # 估算其他元素高度
+                # 普通div（p标签）
+                p_elem = child.find('p')
+                if p_elem:
+                    p_classes = p_elem.get('class', [])
+                    if 'text-2xl' in p_classes:
+                        total_height += 50
+                    elif 'text-xl' in p_classes:
+                        total_height += 40
+                    else:
+                        total_height += 50
+                else:
+                    total_height += 50
+
+            # 添加间距
+            spacing_value = self._get_spacing_value_for_mb(child_classes)
+            total_height += spacing_value
+            total_height += 20  # 默认元素间距
+
+        # 计算可用高度（从y_start到页面底部，留出页码空间）
+        available_height = 1080 - y_start - 100  # 留出底部空间
 
         # 计算起始Y坐标（垂直居中）
-        start_y = y_start
-        if content_height < available_height:
-            start_y = y_start + (available_height - content_height) // 2
+        if total_height < available_height:
+            # 内容在可用空间内垂直居中
+            current_y = y_start + (available_height - total_height) // 2
+            logger.info(f"内容垂直居中: 总高度={total_height}px, 可用高度={available_height}px, 起始Y={current_y}px")
+        else:
+            # 内容太高，从顶部开始
+            current_y = y_start
+            logger.info(f"内容过高，从顶部开始: 总高度={total_height}px")
 
-        current_y = start_y
-
-        # 处理每个子元素
+        # 顺序处理每个子元素，保持HTML结构和间距
         for child in children:
             child_classes = child.get('class', [])
+
+            # 处理上边距（mb-*）
+            spacing_value = self._get_spacing_value_for_mb(child_classes)
+            if spacing_value > 0 and current_y > y_start:
+                current_y += spacing_value
 
             # 根据子元素类型调用相应的处理方法
             if 'data-card' in child_classes:
-                # 对于居中容器中的data-card，使用特殊的处理方式（不带左边框）
+                logger.info(f"处理data-card: {child_classes}")
                 current_y = self._convert_centered_data_card(child, pptx_slide, current_y)
+            elif 'grid' in child_classes:
+                logger.info(f"处理grid布局: {child_classes}")
+                current_y = self._convert_grid_container(child, pptx_slide, current_y, shape_converter)
             elif 'stat-card' in child_classes:
+                logger.info(f"处理stat-card: {child_classes}")
                 current_y = self._convert_stat_card(child, pptx_slide, current_y)
             else:
-                # 检查是否包含嵌套的data-card
-                nested_data_cards = child.find_all('div', class_='data-card')
-                if nested_data_cards:
-                    # 添加间距
-                    if 'space-y-8' in child_classes:
-                        current_y += 32  # space-y-8 ≈ 32px
+                # 处理普通div（如text-center）
+                logger.info(f"处理普通div: {child_classes}")
+                current_y = self._convert_simple_div(child, pptx_slide, current_y)
 
-                    # 处理每个嵌套的data-card
-                    for nested_card in nested_data_cards:
-                        current_y = self._convert_centered_data_card(nested_card, pptx_slide, current_y)
-                        current_y += 32  # data-card之间的间距
-                else:
-                    # 处理其他元素
-                    text = child.get_text(strip=True)
-                    if text:
-                        # 创建文本框
-                        text_box = pptx_slide.shapes.add_textbox(
-                            UnitConverter.px_to_emu(80),
-                            UnitConverter.px_to_emu(current_y),
-                            UnitConverter.px_to_emu(1760),
-                            UnitConverter.px_to_emu(50)
-                        )
-                        text_frame = text_box.text_frame
-                        text_frame.text = text
-                        text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+            # 添加默认间距
+            current_y += 20
 
-                        for paragraph in text_frame.paragraphs:
-                            paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
-                            for run in paragraph.runs:
-                                run.font.size = Pt(25)
-                                run.font.name = self.font_manager.get_font('body')
+        return current_y
 
-                        current_y += 60
+    def _get_spacing_value_for_mb(self, classes):
+        """
+        获取Tailwind margin-bottom类的像素值
 
-        return max(y_start + available_height, current_y + 40)
+        Args:
+            classes: CSS类列表
+
+        Returns:
+            int: 间距像素值
+        """
+        spacing_map = {
+            'mb-1': 4, 'mb-2': 8, 'mb-3': 12, 'mb-4': 16,
+            'mb-5': 20, 'mb-6': 24, 'mb-8': 32, 'mb-10': 40,
+            'mb-12': 48, 'mb-16': 64, 'mb-20': 80
+        }
+
+        for cls in classes:
+            if cls in spacing_map:
+                return spacing_map[cls]
+        return 0
+
+    def _convert_simple_div(self, div, pptx_slide, y_start):
+        """
+        处理简单的div（如text-center的问答提示和结尾语）
+        增强处理：检查是否有嵌套的data-card或其他特殊元素
+
+        Args:
+            div: div元素
+            pptx_slide: PPTX幻灯片
+            y_start: 起始Y坐标
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        # 首先检查是否有嵌套的data-card
+        nested_data_cards = div.find_all('div', class_='data-card')
+        if nested_data_cards:
+            logger.info(f"普通div中发现{len(nested_data_cards)}个嵌套的data-card")
+            current_y = y_start
+
+            # 获取space-y间距
+            div_classes = div.get('class', [])
+            space_y_spacing = self._get_spacing_value_for_space_y(div_classes)
+
+            for i, card in enumerate(nested_data_cards):
+                current_y = self._convert_centered_data_card(card, pptx_slide, current_y)
+                # 添加间距，但最后一个不添加
+                if i < len(nested_data_cards) - 1 and space_y_spacing > 0:
+                    current_y += space_y_spacing
+
+            return current_y
+
+        # 查找p标签
+        p_elem = div.find('p')
+        if p_elem:
+            text = p_elem.get_text(strip=True)
+            if text:
+                # 获取样式
+                div_classes = div.get('class', [])
+                p_classes = p_elem.get('class', [])
+
+                # 字体大小
+                font_size = 25  # 默认
+                if 'text-2xl' in p_classes:
+                    font_size = 24
+                elif 'text-xl' in p_classes:
+                    font_size = 20
+                elif 'text-3xl' in p_classes:
+                    font_size = 30
+
+                # 创建文本框
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(80),
+                    UnitConverter.px_to_emu(y_start),
+                    UnitConverter.px_to_emu(1760),
+                    UnitConverter.px_to_emu(50)
+                )
+
+                # 设置文本和样式
+                text_frame = text_box.text_frame
+                text_frame.text = text
+                text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+
+                for paragraph in text_frame.paragraphs:
+                    # 如果有text-center类，居中对齐
+                    if 'text-center' in div_classes or 'text-center' in p_classes:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                    else:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+
+                    for run in paragraph.runs:
+                        run.font.size = Pt(font_size)
+                        run.font.name = self.font_manager.get_font('body')
+
+                        # 颜色处理
+                        if 'text-gray-600' in p_classes:
+                            run.font.color.rgb = RGBColor(102, 102, 102)
+                        elif 'primary-color' in p_classes:
+                            run.font.color.rgb = ColorParser.get_primary_color()
+
+        return y_start + 60
+
+    def _get_spacing_value_for_space_y(self, classes):
+        """
+        获取Tailwind space-y类的像素值
+
+        Args:
+            classes: CSS类列表
+
+        Returns:
+            int: 间距像素值
+        """
+        spacing_map = {
+            'space-y-1': 4, 'space-y-2': 8, 'space-y-3': 12, 'space-y-4': 16,
+            'space-y-5': 20, 'space-y-6': 24, 'space-y-8': 32, 'space-y-10': 40,
+            'space-y-12': 48, 'space-y-16': 64, 'space-y-20': 80
+        }
+
+        for cls in classes:
+            if cls in spacing_map:
+                return spacing_map[cls]
+        return 0
 
     def _convert_centered_data_card(self, card, pptx_slide, y_start: int) -> int:
         """
@@ -2144,13 +2540,41 @@ class HTML2PPTX:
                 text_frame.word_wrap = True
                 text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
 
+                # 检查元素是否有text-center类或父容器有text-center
+                elem_classes = elem.get('class', [])
+                parent = elem.parent
+                has_text_center = 'text-center' in elem_classes
+
+                # 检查父容器是否有text-center类
+                while parent and not has_text_center:
+                    parent_classes = parent.get('class', [])
+                    if isinstance(parent_classes, str):
+                        parent_classes = parent_classes.split()
+                    if 'text-center' in parent_classes:
+                        has_text_center = True
+                        break
+                    parent = parent.parent
+
                 for paragraph in text_frame.paragraphs:
-                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                    # 如果有text-center类或者元素本身是居中的，则设置居中对齐
+                    if has_text_center:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                    else:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
                     for run in paragraph.runs:
                         # 使用样式计算器获取字体大小
                         font_size_px = self.style_computer.get_font_size_pt(elem)
                         run.font.size = Pt(font_size_px) if font_size_px else Pt(16)
                         run.font.name = self.font_manager.get_font('body')
+
+                        # 检查并应用颜色
+                        elem_classes = elem.get('class', [])
+                        if 'primary-color' in elem_classes:
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                        else:
+                            element_color = self._get_element_color(elem)
+                            if element_color:
+                                run.font.color.rgb = element_color
 
                 current_y += 35
 
@@ -2479,7 +2903,16 @@ class HTML2PPTX:
             return y_start
         card._processed = True
 
-        # 0. 检查是否包含目录布局 (toc-item)
+        # 0. 检查是否包含bullet-point结构
+        bullet_points = card.find_all('div', class_='bullet-point')
+        if bullet_points:
+            logger.info(f"stat-card包含{len(bullet_points)}个bullet-point，使用bullet-point处理逻辑")
+            # 获取h3标题（如果有）
+            h3_elem = card.find('h3')
+            # 转换为类似data-card的格式处理
+            return self._convert_card_with_bullet_points(card, pptx_slide, y_start, bullet_points, h3_elem)
+
+        # 1. 检查是否包含目录布局 (toc-item)
         toc_items = card.find_all('div', class_='toc-item')
         if toc_items:
             logger.info("stat-card包含toc-item目录结构，处理目录布局")
@@ -2770,6 +3203,201 @@ class HTML2PPTX:
         # 5. 通用降级处理 - 提取所有文本内容
         logger.info("stat-card不包含已知结构,使用通用文本提取")
         return self._convert_generic_card(card, pptx_slide, y_start, card_type='stat-card')
+
+    def _convert_card_with_bullet_points(self, card, pptx_slide, y_start: int, bullet_points, h3_elem=None) -> int:
+        """
+        转换包含bullet-point的卡片（适用于stat-card和data-card）
+
+        Args:
+            card: 卡片元素
+            pptx_slide: PPTX幻灯片
+            y_start: 起始Y坐标
+            bullet_points: bullet-point元素列表
+            h3_elem: h3标题元素（可选）
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info(f"处理包含{len(bullet_points)}个bullet-point的卡片")
+        x_base = 80
+
+        # 添加背景色
+        if 'stat-card' in card.get('class', []):
+            bg_color_str = self.css_parser.get_background_color('.stat-card')
+        else:
+            bg_color_str = 'rgba(10, 66, 117, 0.03)'  # data-card默认背景色
+
+        if bg_color_str:
+            from pptx.enum.shapes import MSO_SHAPE
+            # 计算高度：标题 + bullet-point列表
+            estimated_height = 50  # 顶部padding
+            if h3_elem:
+                estimated_height += 50  # h3标题高度
+            estimated_height += len(bullet_points) * 35 + 20  # bullet-point列表高度
+
+            bg_shape = pptx_slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                UnitConverter.px_to_emu(x_base),
+                UnitConverter.px_to_emu(y_start),
+                UnitConverter.px_to_emu(1760),
+                UnitConverter.px_to_emu(estimated_height)
+            )
+            bg_shape.fill.solid()
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+            if bg_rgb:
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                bg_shape.fill.fore_color.rgb = bg_rgb
+            bg_shape.line.fill.background()
+            logger.info(f"添加卡片背景色，高度={estimated_height}px")
+
+        current_y = y_start + 20  # 顶部padding
+
+        # 处理h3标题
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                # 获取h3的字体大小和颜色
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                text_left = UnitConverter.px_to_emu(x_base + 20)
+                text_top = UnitConverter.px_to_emu(current_y)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(1720), UnitConverter.px_to_emu(30)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = h3_text
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        run.font.size = Pt(font_size_pt)
+                        h3_color = self._get_element_color(h3_elem)
+                        if h3_color:
+                            run.font.color.rgb = h3_color
+                        else:
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                        # 检查是否加粗
+                        h3_classes = h3_elem.get('class', [])
+                        if 'font-bold' in h3_classes:
+                            run.font.bold = True
+
+                current_y += 50  # 标题后间距
+
+        # 处理bullet-point列表
+        self._process_bullet_points(bullet_points, card, pptx_slide, x_base, current_y, 1760, 0)
+
+        # 计算总高度
+        total_height = current_y - y_start + len(bullet_points) * 35 + 20
+
+        # 如果是data-card，需要添加左边框
+        if 'data-card' in card.get('class', []):
+            from src.converters.shape_converter import ShapeConverter
+            shape_converter = ShapeConverter(pptx_slide, self.css_parser)
+            shape_converter.add_border_left(x_base, y_start, total_height, 4)
+
+        return y_start + total_height + 10
+
+    def _convert_grid_card_with_bullet_points(self, card, pptx_slide, shape_converter, x, y, width, bullet_points, h3_elem=None) -> int:
+        """
+        转换网格中包含bullet-point的卡片
+
+        Args:
+            card: 卡片元素
+            pptx_slide: PPTX幻灯片
+            shape_converter: 形状转换器
+            x: X坐标
+            y: Y坐标
+            width: 宽度
+            bullet_points: bullet-point元素列表
+            h3_elem: h3标题元素（可选）
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info(f"处理网格中包含{len(bullet_points)}个bullet-point的卡片")
+
+        # 添加背景色
+        if 'stat-card' in card.get('class', []):
+            bg_color_str = self.css_parser.get_background_color('.stat-card')
+        else:
+            bg_color_str = 'rgba(10, 66, 117, 0.03)'  # data-card默认背景色
+
+        if bg_color_str:
+            from pptx.enum.shapes import MSO_SHAPE
+            # 计算高度：标题 + bullet-point列表
+            estimated_height = 50  # 顶部padding
+            if h3_elem:
+                estimated_height += 50  # h3标题高度
+            estimated_height += len(bullet_points) * 35 + 20  # bullet-point列表高度
+
+            bg_shape = pptx_slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                UnitConverter.px_to_emu(x),
+                UnitConverter.px_to_emu(y),
+                UnitConverter.px_to_emu(width),
+                UnitConverter.px_to_emu(estimated_height)
+            )
+            bg_shape.fill.solid()
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+            if bg_rgb:
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                bg_shape.fill.fore_color.rgb = bg_rgb
+            bg_shape.line.fill.background()
+            logger.info(f"添加网格卡片背景色，高度={estimated_height}px")
+
+        # 添加左边框（如果是stat-card）
+        if 'stat-card' in card.get('class', []):
+            border_left_style = self.css_parser.get_style('.stat-card').get('border-left', '')
+            if '4px solid' in border_left_style:
+                shape_converter.add_border_left(x, y, estimated_height, 4)
+
+        current_y = y + 20  # 顶部padding
+
+        # 处理h3标题
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                # 获取h3的字体大小和颜色
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                text_left = UnitConverter.px_to_emu(x + 20)
+                text_top = UnitConverter.px_to_emu(current_y)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(width - 40),
+                    UnitConverter.px_to_emu(30)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = h3_text
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        run.font.size = Pt(font_size_pt)
+                        h3_color = self._get_element_color(h3_elem)
+                        if h3_color:
+                            run.font.color.rgb = h3_color
+                        else:
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                        # 检查是否加粗
+                        h3_classes = h3_elem.get('class', [])
+                        if 'font-bold' in h3_classes:
+                            run.font.bold = True
+
+                current_y += 50  # 标题后间距
+
+        # 处理bullet-point列表
+        self._process_bullet_points(bullet_points, card, pptx_slide, x, current_y, width, 0)
+
+        # 计算总高度
+        total_height = current_y - y + len(bullet_points) * 35 + 20
+
+        return y + total_height + 10
 
     def _convert_modern_stat_card(self, card, pptx_slide, y_start: int) -> int:
         """
@@ -3903,12 +4531,45 @@ class HTML2PPTX:
             p_elem = bullet_point.find('p')
 
             if icon_elem and p_elem:
-                # 获取图标字符
+                # 获取图标字符和颜色
                 icon_classes = icon_elem.get('class', [])
                 icon_char = self._get_icon_char(icon_classes)
 
-                # 获取文本
-                text = p_elem.get_text(strip=True)
+                # 根据图标类确定颜色
+                icon_color = ColorParser.get_primary_color()
+                if 'text-red-600' in icon_classes:
+                    icon_color = RGBColor(220, 38, 38)  # 红色
+                elif 'text-green-600' in icon_classes:
+                    icon_color = RGBColor(34, 197, 94)  # 绿色
+                elif 'text-blue-600' in icon_classes:
+                    icon_color = RGBColor(59, 130, 246)  # 蓝色
+                elif 'primary-color' in icon_classes:
+                    icon_color = ColorParser.get_primary_color()
+
+                # 检查是否包含priority-tag
+                priority_tag = p_elem.find('span', class_='priority-tag')
+                main_text = ""
+                tag_text = ""
+                tag_color = None
+
+                if priority_tag:
+                    # 提取标签文本
+                    tag_text = priority_tag.get_text(strip=True)
+                    tag_classes = priority_tag.get('class', [])
+
+                    # 确定标签颜色
+                    if 'priority-high' in tag_classes:
+                        tag_color = RGBColor(239, 68, 68)  # 红色
+                    elif 'priority-medium' in tag_classes:
+                        tag_color = RGBColor(251, 146, 60)  # 橙色
+                    elif 'priority-low' in tag_classes:
+                        tag_color = RGBColor(209, 177, 0)  # 黄色
+
+                    # 移除标签后获取主文本
+                    priority_tag.extract()
+                    main_text = p_elem.get_text(strip=True)
+                else:
+                    main_text = p_elem.get_text(strip=True)
 
                 # 计算水平位置
                 item_x = x_base + idx * (item_width + gap)
@@ -3926,8 +4587,9 @@ class HTML2PPTX:
                 for paragraph in icon_frame.paragraphs:
                     paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
                     for run in paragraph.runs:
-                        run.font.size = Pt(16)
-                        run.font.color.rgb = ColorParser.get_primary_color()
+                        icon_font_size_pt = self._get_font_size_pt(p_elem, default_px=20)
+                        run.font.size = Pt(icon_font_size_pt)
+                        run.font.color.rgb = icon_color
                         run.font.name = self.font_manager.get_font('body')
 
                 # 添加文本（在图标右侧）
@@ -3935,14 +4597,14 @@ class HTML2PPTX:
                 text_top = UnitConverter.px_to_emu(current_y)
                 text_width = item_width - 40  # 减去图标占用的宽度
 
+                # 获取字体大小
+                font_size_pt = self._get_font_size_pt(p_elem, default_px=20)
+
                 # 检查文本中是否有strong标签
                 strong_elem = p_elem.find('strong')
 
-                if strong_elem:
-                    # 处理带strong的文本
-                    strong_text = strong_elem.get_text(strip=True)
-                    remaining_text = text.replace(strong_text, '').strip()
-
+                if strong_elem or tag_text:
+                    # 创建文本框
                     text_box = pptx_slide.shapes.add_textbox(
                         text_left, text_top,
                         UnitConverter.px_to_emu(text_width), UnitConverter.px_to_emu(25)
@@ -3952,20 +4614,54 @@ class HTML2PPTX:
                     text_frame.clear()
                     p = text_frame.paragraphs[0]
 
-                    # 添加加粗部分
-                    if strong_text:
-                        strong_run = p.add_run()
-                        strong_run.text = strong_text
-                        strong_run.font.size = Pt(16)
-                        strong_run.font.bold = True
-                        strong_run.font.name = self.font_manager.get_font('body')
+                    # 处理带strong的文本
+                    if strong_elem:
+                        strong_text = strong_elem.get_text(strip=True)
+                        # 移除strong标签获取剩余文本
+                        strong_copy = strong_elem.extract()
+                        remaining_text = p_elem.get_text(strip=True)
 
-                    # 添加剩余部分
-                    if remaining_text:
-                        normal_run = p.add_run()
-                        normal_run.text = remaining_text
-                        normal_run.font.size = Pt(16)
-                        normal_run.font.name = self.font_manager.get_font('body')
+                        # 添加加粗部分
+                        if strong_text:
+                            strong_run = p.add_run()
+                            strong_run.text = strong_text
+                            strong_run.font.size = Pt(font_size_pt)
+                            strong_run.font.bold = True
+                            strong_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加剩余部分
+                        if remaining_text:
+                            normal_run = p.add_run()
+                            normal_run.text = remaining_text
+                            normal_run.font.size = Pt(font_size_pt)
+                            normal_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加标签文本（如果存在）
+                        if tag_text and tag_color:
+                            tag_run = p.add_run()
+                            tag_run.text = " " + tag_text
+                            tag_font_size_pt = max(10, font_size_pt - 2)
+                            tag_run.font.size = Pt(tag_font_size_pt)
+                            tag_run.font.color.rgb = tag_color
+                            tag_run.font.bold = True
+                            tag_run.font.name = self.font_manager.get_font('body')
+                    else:
+                        # 普通文本 + 标签
+                        if main_text:
+                            normal_run = p.add_run()
+                            normal_run.text = main_text
+                            normal_run.font.size = Pt(font_size_pt)
+                            normal_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加标签文本（如果存在）
+                        if tag_text and tag_color:
+                            tag_run = p.add_run()
+                            tag_run.text = " " + tag_text
+                            tag_font_size_pt = max(10, font_size_pt - 2)
+                            tag_run.font.size = Pt(tag_font_size_pt)
+                            tag_run.font.color.rgb = tag_color
+                            tag_run.font.bold = True
+                            tag_run.font.name = self.font_manager.get_font('body')
                 else:
                     # 普通文本
                     text_box = pptx_slide.shapes.add_textbox(
@@ -3973,12 +4669,12 @@ class HTML2PPTX:
                         UnitConverter.px_to_emu(text_width), UnitConverter.px_to_emu(50)  # 增加高度以支持换行
                     )
                     text_frame = text_box.text_frame
-                    text_frame.text = text
+                    text_frame.text = main_text
                     text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
                     text_frame.word_wrap = True
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            run.font.size = Pt(16)
+                            run.font.size = Pt(font_size_pt)
                             run.font.name = self.font_manager.get_font('body')
 
         return current_y + 30
@@ -4061,8 +4757,8 @@ class HTML2PPTX:
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
                             # 使用样式计算器获取正确的字体大小
-                            font_size_px = self.style_computer.get_font_size_pt(title_elem)
-                            run.font.size = Pt(font_size_px)
+                            font_size_pt = self.style_computer.get_font_size_pt(title_elem)
+                            run.font.size = Pt(font_size_pt)
 
                             # 设置颜色和字体
                             if title_elem.name == 'h3':
@@ -4896,16 +5592,19 @@ class HTML2PPTX:
         h3_elem = card.find('h3')
         title_elem = None
         title_text = None
+        actual_title_elem = None  # 实际的标题元素，用于字体大小提取
 
         if h3_elem:
             # 优先使用h3标签作为标题
             title_text = h3_elem.get_text(strip=True)
+            actual_title_elem = h3_elem
             logger.info(f"找到h3标题: {title_text}")
         else:
             # 兼容旧逻辑，查找p标签
             title_elem = card.find('p', class_='primary-color')
             if title_elem:
                 title_text = title_elem.get_text(strip=True)
+                actual_title_elem = title_elem  # 使用p标签作为标题元素
                 logger.info(f"找到p标签标题: {title_text}")
         current_y = y_start
 
@@ -4970,10 +5669,15 @@ class HTML2PPTX:
             text_frame.text = title_text
             for paragraph in text_frame.paragraphs:
                 for run in paragraph.runs:
-                    font_size_px = self.style_computer.get_font_size_pt(title_elem)
-                    run.font.size = Pt(font_size_px)
+                    # 使用实际的标题元素来获取字体大小
+                    font_size_pt = self.style_computer.get_font_size_pt(actual_title_elem)
+                    run.font.size = Pt(font_size_pt)
                     run.font.color.rgb = ColorParser.get_primary_color()
                     run.font.name = self.font_manager.get_font('body')
+
+                    # 智能判断是否应该加粗
+                    if self._should_be_bold(actual_title_elem):
+                        run.font.bold = True
 
             current_y += 50  # 标题后间距
 
@@ -4993,27 +5697,54 @@ class HTML2PPTX:
             p_elem = bullet_point.find('p')
 
             if icon_elem and p_elem:
-                # 获取图标字符
+                # 获取图标字符和颜色
                 icon_classes = icon_elem.get('class', [])
                 icon_char = self._get_icon_char(icon_classes)
-
-                # 获取文本
-                text = p_elem.get_text(strip=True)
 
                 # 获取颜色
                 icon_color = self._get_element_color(icon_elem)
                 if not icon_color:
                     # 根据图标类确定颜色
-                    if 'text-orange-600' in icon_classes:
+                    if 'text-red-600' in icon_classes:
+                        icon_color = RGBColor(220, 38, 38)  # 红色
+                    elif 'text-orange-600' in icon_classes:
                         icon_color = ColorParser.get_color_by_name('orange')
                     elif 'text-green-600' in icon_classes:
-                        icon_color = ColorParser.get_color_by_name('green')
+                        icon_color = RGBColor(34, 197, 94)  # 绿色
                     elif 'text-blue-600' in icon_classes:
-                        icon_color = ColorParser.get_color_by_name('blue')
+                        icon_color = RGBColor(59, 130, 246)  # 蓝色
                     elif 'text-purple-600' in icon_classes:
                         icon_color = ColorParser.get_color_by_name('purple')
                     else:
                         icon_color = ColorParser.get_primary_color()
+
+                # 检查是否包含priority-tag
+                priority_tag = p_elem.find('span', class_='priority-tag')
+                main_text = ""
+                tag_text = ""
+                tag_color = None
+
+                if priority_tag:
+                    # 提取标签文本
+                    tag_text = priority_tag.get_text(strip=True)
+                    tag_classes = priority_tag.get('class', [])
+
+                    # 确定标签颜色
+                    if 'priority-high' in tag_classes:
+                        tag_color = RGBColor(239, 68, 68)  # 红色
+                    elif 'priority-medium' in tag_classes:
+                        tag_color = RGBColor(251, 146, 60)  # 橙色
+                    elif 'priority-low' in tag_classes:
+                        tag_color = RGBColor(209, 177, 0)  # 黄色
+
+                    # 移除标签后获取主文本
+                    priority_tag.extract()
+                    main_text = p_elem.get_text(strip=True)
+                else:
+                    main_text = p_elem.get_text(strip=True)
+
+                # 获取字体大小
+                font_size_pt = self._get_font_size_pt(p_elem, default_px=20)
 
                 # 添加图标
                 if icon_char:
@@ -5034,7 +5765,7 @@ class HTML2PPTX:
                     for paragraph in icon_frame.paragraphs:
                         paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
                         for run in paragraph.runs:
-                            run.font.size = Pt(20)
+                            run.font.size = Pt(font_size_pt)
                             run.font.color.rgb = icon_color
                             run.font.name = self.font_manager.get_font('body')
 
@@ -5062,36 +5793,65 @@ class HTML2PPTX:
                 # 检查是否有strong标签
                 strong_elem = p_elem.find('strong')
 
-                if strong_elem:
-                    # 处理带strong的文本
-                    strong_text = strong_elem.get_text(strip=True)
-                    remaining_text = text.replace(strong_text, '').strip()
-
+                if strong_elem or tag_text:
                     # 清除默认段落
                     text_frame.clear()
                     p = text_frame.paragraphs[0]
 
-                    # 添加加粗部分
-                    if strong_text:
-                        strong_run = p.add_run()
-                        strong_run.text = strong_text
-                        strong_run.font.size = Pt(16)
-                        strong_run.font.bold = True
-                        strong_run.font.name = self.font_manager.get_font('body')
+                    # 处理带strong的文本
+                    if strong_elem:
+                        strong_text = strong_elem.get_text(strip=True)
+                        # 移除strong标签获取剩余文本
+                        strong_copy = strong_elem.extract()
+                        remaining_text = p_elem.get_text(strip=True)
 
-                    # 添加剩余部分
-                    if remaining_text:
-                        normal_run = p.add_run()
-                        normal_run.text = remaining_text
-                        normal_run.font.size = Pt(16)
-                        normal_run.font.name = self.font_manager.get_font('body')
+                        # 添加加粗部分
+                        if strong_text:
+                            strong_run = p.add_run()
+                            strong_run.text = strong_text
+                            strong_run.font.size = Pt(font_size_pt)
+                            strong_run.font.bold = True
+                            strong_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加剩余部分
+                        if remaining_text:
+                            normal_run = p.add_run()
+                            normal_run.text = remaining_text
+                            normal_run.font.size = Pt(font_size_pt)
+                            normal_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加标签文本（如果存在）
+                        if tag_text and tag_color:
+                            tag_run = p.add_run()
+                            tag_run.text = " " + tag_text
+                            tag_font_size_pt = max(10, font_size_pt - 2)
+                            tag_run.font.size = Pt(tag_font_size_pt)
+                            tag_run.font.color.rgb = tag_color
+                            tag_run.font.bold = True
+                            tag_run.font.name = self.font_manager.get_font('body')
+                    else:
+                        # 普通文本 + 标签
+                        if main_text:
+                            normal_run = p.add_run()
+                            normal_run.text = main_text
+                            normal_run.font.size = Pt(font_size_pt)
+                            normal_run.font.name = self.font_manager.get_font('body')
+
+                        # 添加标签文本（如果存在）
+                        if tag_text and tag_color:
+                            tag_run = p.add_run()
+                            tag_run.text = " " + tag_text
+                            tag_font_size_pt = max(10, font_size_pt - 2)
+                            tag_run.font.size = Pt(tag_font_size_pt)
+                            tag_run.font.color.rgb = tag_color
+                            tag_run.font.bold = True
+                            tag_run.font.name = self.font_manager.get_font('body')
                 else:
                     # 普通文本
-                    text_frame.text = text
+                    text_frame.text = main_text
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
-                            font_size_px = self.style_computer.get_font_size_pt(p_elem)
-                            run.font.size = Pt(font_size_px)
+                            run.font.size = Pt(font_size_pt)
                             run.font.name = self.font_manager.get_font('body')
 
         # 计算实际内容高度
@@ -5130,6 +5890,12 @@ class HTML2PPTX:
             'fa-bug': '🐛',
             'fa-radiation': '☢️',
             'fa-biohazard': '☣️',
+
+            # 检查和确认
+            'fa-check': '✓',
+            'fa-check-circle': '✓',
+            'fa-check-square': '☑',
+            'fa-check-double': '✓',
 
             # === 计算机和硬件 ===
             # 设备
@@ -5409,6 +6175,72 @@ class HTML2PPTX:
         # 如果找不到匹配，返回默认图标
         return '●'
 
+    def _get_font_size_pt(self, element, default_px: int = 16) -> int:
+        """
+        获取元素的字体大小（以pt为单位）
+
+        Args:
+            element: HTML元素
+            default_px: 默认字体大小（像素）
+
+        Returns:
+            字体大小（pt）
+        """
+        # 1. 首先尝试从已有的style_computer获取
+        font_size_pt = self.style_computer.get_font_size_pt(element)
+        if font_size_pt:
+            return int(font_size_pt)
+
+        # 2. 检查元素的style属性
+        style = element.get('style', '')
+        if 'font-size' in style:
+            import re
+            match = re.search(r'font-size:\s*(\d+)px', style)
+            if match:
+                px_size = int(match.group(1))
+                # px转pt的近似公式：1px ≈ 0.75pt
+                return int(px_size * 0.75)
+
+        # 3. 检查元素的class属性中的Tailwind CSS字体大小类
+        classes = element.get('class', [])
+        if isinstance(classes, str):
+            classes = classes.split()
+
+        # Tailwind字体大小映射
+        tailwind_font_sizes = {
+            'text-xs': 12,    # 12px = 9pt
+            'text-sm': 14,    # 14px = 10.5pt
+            'text-base': 16,  # 16px = 12pt
+            'text-lg': 18,    # 18px = 13.5pt
+            'text-xl': 20,    # 20px = 15pt
+            'text-2xl': 24,   # 24px = 18pt
+            'text-3xl': 30,   # 30px = 22.5pt
+            'text-4xl': 36,   # 36px = 27pt
+            'text-5xl': 48,   # 48px = 36pt
+            'text-6xl': 60,   # 60px = 45pt
+            'text-7xl': 72,   # 72px = 54pt
+            'text-8xl': 96,   # 96px = 72pt
+            'text-9xl': 128,  # 128px = 96pt
+        }
+
+        for cls in classes:
+            if cls in tailwind_font_sizes:
+                px_size = tailwind_font_sizes[cls]
+                return int(px_size * 0.75)
+
+        # 4. 检查父元素（特别是bullet-point）
+        parent = element.parent
+        if parent:
+            parent_classes = parent.get('class', [])
+            if isinstance(parent_classes, str):
+                parent_classes = parent_classes.split()
+            if 'bullet-point' in parent_classes:
+                # bullet-point通常有25px的字体大小
+                return int(25 * 0.75)  # 19pt
+
+        # 5. 返回默认值
+        return int(default_px * 0.75)
+
     def _get_element_color(self, element):
         """
         获取元素的颜色，支持Tailwind CSS类
@@ -5425,7 +6257,10 @@ class HTML2PPTX:
         # 检查Tailwind CSS颜色类
         classes = element.get('class', [])
         for cls in classes:
-            if cls.startswith('text-') and hasattr(self.css_parser, 'tailwind_colors'):
+            # 优先检查primary-color类
+            if cls == 'primary-color':
+                return ColorParser.get_primary_color()
+            elif cls.startswith('text-') and hasattr(self.css_parser, 'tailwind_colors'):
                 color = self.css_parser.tailwind_colors.get(cls)
                 if color:
                     return ColorParser.parse_color(color)

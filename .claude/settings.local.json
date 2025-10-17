@@ -10,7 +10,11 @@
       "Bash(git rm:*)",
       "Bash(git checkout:*)",
       "Bash(git commit:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(git restore:*)",
+      "Bash(del:*)",
+      "Bash(cat:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []

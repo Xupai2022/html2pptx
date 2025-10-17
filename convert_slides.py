@@ -40,9 +40,18 @@ def convert_single_file(html_file, output_dir):
         print(f"  转换: {html_file} -> {output_file}")
 
         # 调用转换程序
+        # 在Windows系统上处理编码问题
+        import locale
+        encoding = locale.getpreferredencoding()
+        if encoding.lower() in ['utf-8', 'utf8']:
+            encoding = 'utf-8'
+        else:
+            # Windows中文系统通常返回cp936或gbk
+            encoding = 'gbk'  # 使用gbk处理中文Windows系统
+
         result = subprocess.run([
             sys.executable, "convert.py", html_file, output_file
-        ], capture_output=True, text=True, encoding='utf-8')
+        ], capture_output=True, text=True, encoding=encoding, errors='replace')
 
         if result.returncode == 0:
             print(f"  [SUCCESS] 成功: {output_file}")

@@ -98,7 +98,13 @@ class FontSizeExtractor:
         # 直接缓存px值，不转换为Pt
         self._font_size_cache[cache_key] = font_size_px
 
-        logger.debug(f"元素 {element.name} 字体大小: {font_size_px}px")
+        # 获取元素信息用于调试
+        element_info = element.name
+        if element.get('class'):
+            element_info += f".{'.'.join(element.get('class', []))}"
+        text_preview = element.get_text(strip=True)[:20]
+
+        logger.debug(f"FontSizeExtractor: 元素 {element_info} 字体大小: {font_size_px}px (文本: {text_preview})")
         return font_size_px
 
     def _extract_from_inline_style(self, style_str: str, parent_font_size: int = None) -> Optional[int]:
@@ -318,6 +324,10 @@ class FontSizeExtractor:
             'text-3xl': 30,    # 30px
             'text-4xl': 36,    # 36px
             'text-5xl': 48,    # 48px
+            'text-6xl': 60,    # 60px
+            'text-7xl': 72,    # 72px
+            'text-8xl': 96,    # 96px
+            'text-9xl': 128,   # 128px
         }
 
         px_size = tailwind_sizes.get(class_name)

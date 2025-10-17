@@ -31,7 +31,7 @@ logger = setup_logger(__name__)
 
 
 class BatchHTML2PPTXMerger:
-    """批量HTML转PPTX合并器"""
+    """批量HTML转PPTX合并器 - 使用convert.py的逻辑"""
 
     def __init__(self, html_dir: str):
         """
@@ -77,13 +77,13 @@ class BatchHTML2PPTXMerger:
 
     def convert(self, output_path: str):
         """
-        执行批量转换
+        执行批量转换 - 使用HTML2PPTX类来处理每个HTML文件
 
         Args:
             output_path: 输出PPTX路径
         """
         logger.info("=" * 60)
-        logger.info("开始批量HTML转PPTX合并转换")
+        logger.info("开始批量HTML转PPTX合并转换 (使用convert.py逻辑)")
         logger.info("=" * 60)
 
         total_slides = 0
@@ -94,60 +94,25 @@ class BatchHTML2PPTXMerger:
             logger.info(f"{'='*40}")
 
             try:
-                # 获取该文件的HTML解析器
-                html_parser = self._get_parser_for_file(html_file)
+                # 为每个HTML文件创建HTML2PPTX实例
+                # 这样就能使用convert.py中的最新转换逻辑
+                converter = HTML2PPTX(str(html_file))
 
-                # 为每个HTML文件创建独立的CSS解析器
-                css_parser = CSSParser(html_parser.soup)
+                # 转换所有幻灯片
+                slides = converter.convert_all_slides()
 
-                # 获取所有幻灯片
-                slides = html_parser.get_slides()
-
-                logger.info(f"  找到 {len(slides)} 个幻灯片")
-
-                # 处理每个幻灯片
-                for slide_idx, slide_html in enumerate(slides, 1):
-                    logger.info(f"  处理幻灯片 {slide_idx}/{len(slides)}")
-
-                    # 创建空白幻灯片
-                    pptx_slide = self.pptx_builder.add_blank_slide()
-
-                    # 初始化转换器
-                    text_converter = TextConverter(pptx_slide, css_parser)
-                    table_converter = TableConverter(pptx_slide, css_parser)
-                    shape_converter = ShapeConverter(pptx_slide, css_parser)
-
-                    # 1. 添加顶部装饰条
-                    shape_converter.add_top_bar()
-
-                    # 2. 添加标题和副标题
-                    title = html_parser.get_title(slide_html)
-                    subtitle = html_parser.get_subtitle(slide_html)
-                    if title:
-                        # content-section的padding-top是20px
-                        title_end_y = text_converter.convert_title(title, subtitle, x=80, y=20)
-                        # space-y-10的第一个子元素紧接标题区域（无上间距）
-                        y_offset = title_end_y
-                    else:
-                        # 没有标题时使用默认位置（content-section padding-top）
-                        y_offset = 20
-
-                    # 3. 处理内容区域
-                    y_offset = self._process_slide_content(
-                        slide_html, pptx_slide, css_parser, html_parser, y_offset, html_file
-                    )
-
-                    # 4. 添加页码
-                    page_num = html_parser.get_page_number(slide_html)
-                    if page_num:
-                        shape_converter.add_page_number(page_num)
-
+                # 将幻灯片添加到当前的PPTX构建器
+                for slide_data in slides:
+                    # 使用当前的PPTX构建器添加幻灯片
+                    self.pptx_builder.add_slide_from_data(slide_data)
                     total_slides += 1
 
-                logger.info(f"  ✓ 成功处理 {html_file.name}")
+                logger.info(f"  ✓ 成功处理 {html_file.name}, 添加 {len(slides)} 张幻灯片")
 
             except Exception as e:
                 logger.error(f"  ✗ 处理 {html_file.name} 时出错: {e}")
+                import traceback
+                traceback.print_exc()
                 # 继续处理其他文件
                 continue
 

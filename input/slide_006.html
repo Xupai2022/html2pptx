@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>风险与资产类型分析</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>风险与资产类型分析</h1>
+      <h2 class="text-gray-600">风险等级分布与资产类型图表</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 关键指标卡片 -->
+      <div class="grid grid-cols-4 gap-6 mb-6">
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">高危风险资产</h3>
+              <p class="text-3xl font-bold text-red-600">4</p>
+              <p class="text-sm text-gray-500 mt-1">需立即处理</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-3xl text-red-600 opacity-30"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">中危风险资产</h3>
+              <p class="text-3xl font-bold text-orange-600">12</p>
+              <p class="text-sm text-gray-500 mt-1">需尽快处理</p>
+            </div>
+            <i class="fas fa-shield-alt text-3xl text-orange-600 opacity-30"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">低危风险资产</h3>
+              <p class="text-3xl font-bold text-yellow-600">19</p>
+              <p class="text-sm text-gray-500 mt-1">建议修复</p>
+            </div>
+            <i class="fas fa-info-circle text-3xl text-yellow-600 opacity-30"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">无风险资产</h3>
+              <p class="text-3xl font-bold primary-color">112</p>
+              <p class="text-sm text-gray-500 mt-1">状态良好</p>
+            </div>
+            <i class="fas fa-check-circle text-3xl primary-color opacity-30"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图表区域 -->
+      <div class="flex gap-6 mb-6">
+        <!-- 饼图 - 风险等级分布 -->
+        <div class="flex-1">
+          <h3 class="text-xl font-semibold mb-4 primary-color">风险等级分布</h3>
+          <svg width="100%" height="250" viewBox="0 0 400 250">
+            <!-- 饼图 -->
+            <g transform="translate(150, 125)">
+              <!-- 无风险 112个 (76.2%) -->
+              <path d="M 0,-80 A 80,80 0 1,1 -24.87,76.03 L 0,0 Z" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="2"/>
+              <!-- 低危 19个 (12.9%) -->
+              <path d="M -24.87,76.03 A 80,80 0 0,1 -70.71,-40 L 0,0 Z" fill="rgba(255, 204, 0, 0.3)" stroke="rgb(255, 204, 0)" stroke-width="2"/>
+              <!-- 中危 12个 (8.2%) -->
+              <path d="M -70.71,-40 A 80,80 0 0,1 -40,-69.28 L 0,0 Z" fill="rgba(255, 152, 0, 0.4)" stroke="rgb(255, 152, 0)" stroke-width="2"/>
+              <!-- 高危 4个 (2.7%) -->
+              <path d="M -40,-69.28 A 80,80 0 0,1 0,-80 L 0,0 Z" fill="rgba(220, 53, 69, 0.5)" stroke="rgb(220, 53, 69)" stroke-width="2"/>
+              
+              <!-- 中心圆 -->
+              <circle cx="0" cy="0" r="40" fill="white"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="20" font-weight="bold" fill="rgb(10, 66, 117)">147</text>
+              <text x="0" y="18" text-anchor="middle" dominant-baseline="middle" font-size="12" fill="#666">总资产</text>
+            </g>
+            
+            <!-- 图例 -->
+            <g transform="translate(280, 60)">
+              <rect x="0" y="0" width="12" height="12" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="1"/>
+              <text x="18" y="10" font-size="12" fill="#333">无风险 112个 (76.2%)</text>
+              
+              <rect x="0" y="18" width="12" height="12" fill="rgba(255, 204, 0, 0.3)" stroke="rgb(255, 204, 0)" stroke-width="1"/>
+              <text x="18" y="28" font-size="12" fill="#333">低危 19个 (12.9%)</text>
+              
+              <rect x="0" y="36" width="12" height="12" fill="rgba(255, 152, 0, 0.4)" stroke="rgb(255, 152, 0)" stroke-width="1"/>
+              <text x="18" y="46" font-size="12" fill="#333">中危 12个 (8.2%)</text>
+              
+              <rect x="0" y="54" width="12" height="12" fill="rgba(220, 53, 69, 0.5)" stroke="rgb(220, 53, 69)" stroke-width="1"/>
+              <text x="18" y="64" font-size="12" fill="#333">高危 4个 (2.7%)</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- 柱状图 - 资产类型分布 -->
+        <div class="flex-1">
+          <h3 class="text-xl font-semibold mb-4 primary-color">资产类型分布</h3>
+          <svg width="100%" height="250" viewBox="0 0 400 250">
+            <!-- Y轴 -->
+            <line x1="40" y1="30" x2="40" y2="200" stroke="#ccc" stroke-width="1"/>
+            <!-- X轴 -->
+            <line x1="40" y1="200" x2="380" y2="200" stroke="#ccc" stroke-width="1"/>
+            
+            <!-- 柱状图 -->
+            <!-- 子域名 87个 -->
+            <rect x="50" y="60" width="45" height="140" fill="rgba(10, 66, 117, 0.7)"/>
+            <text x="72.5" y="50" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">87</text>
+            <text x="72.5" y="215" text-anchor="middle" font-size="11" fill="#666">子域名</text>
+            <text x="72.5" y="228" text-anchor="middle" font-size="10" fill="#999">59.2%</text>
+            
+            <!-- Web应用 45个 -->
+            <rect x="105" y="110" width="45" height="90" fill="rgba(10, 66, 117, 0.6)"/>
+            <text x="127.5" y="100" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">45</text>
+            <text x="127.5" y="215" text-anchor="middle" font-size="11" fill="#666">Web应用</text>
+            <text x="127.5" y="228" text-anchor="middle" font-size="10" fill="#999">30.6%</text>
+            
+            <!-- API端点 32个 -->
+            <rect x="160" y="130" width="45" height="70" fill="rgba(10, 66, 117, 0.5)"/>
+            <text x="182.5" y="120" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">32</text>
+            <text x="182.5" y="215" text-anchor="middle" font-size="11" fill="#666">API端点</text>
+            <text x="182.5" y="228" text-anchor="middle" font-size="10" fill="#999">21.8%</text>
+            
+            <!-- 网络IP 25个 -->
+            <rect x="215" y="145" width="45" height="55" fill="rgba(10, 66, 117, 0.4)"/>
+            <text x="237.5" y="135" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">25</text>
+            <text x="237.5" y="215" text-anchor="middle" font-size="11" fill="#666">网络IP</text>
+            <text x="237.5" y="228" text-anchor="middle" font-size="10" fill="#999">17.0%</text>
+            
+            <!-- 云存储 18个 -->
+            <rect x="270" y="160" width="45" height="40" fill="rgba(251, 146, 60, 0.6)"/>
+            <text x="292.5" y="150" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(251, 146, 60)">18</text>
+            <text x="292.5" y="215" text-anchor="middle" font-size="11" fill="#666">云存储</text>
+            <text x="292.5" y="228" text-anchor="middle" font-size="10" fill="#999">12.2%</text>
+            
+            <!-- 邮件服务器 5个 -->
+            <rect x="325" y="185" width="45" height="15" fill="rgba(10, 66, 117, 0.3)"/>
+            <text x="347.5" y="175" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">5</text>
+            <text x="347.5" y="215" text-anchor="middle" font-size="11" fill="#666">邮件服务器</text>
+            <text x="347.5" y="228" text-anchor="middle" font-size="10" fill="#999">3.4%</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- 关键发现 -->
+      <div class="data-card">
+        <h3 class="text-xl font-semibold mb-3 primary-color">关键发现</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="bullet-point">
+            <i class="fas fa-exclamation-circle bullet-icon text-red-600"></i>
+            <p>4个高危资产需立即关注，涉及敏感数据暴露和RCE漏洞</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-server bullet-icon text-blue-600"></i>
+            <p>子域名占比最高(59.2%)，是资产管理的重点</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-cloud bullet-icon text-orange-600"></i>
+            <p>云存储资产风险集中，3个高风险需优先处理</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-check-circle bullet-icon text-green-600"></i>
+            <p>76.2%资产无风险，基础安全状况良好</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">6</div>
+</div>
+</body>
+</html>

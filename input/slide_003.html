@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>核心摘要</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>核心摘要</h1>
+      <h2 class="text-gray-600">资产总览与关键风险指标</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：关键指标卡片 -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">已发现资产总数</h3>
+        <p class="text-4xl font-bold text-gray-800">147个</p>
+        <p class="text-lg text-gray-600 mt-2">过去7天新增12个</p>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">存在风险的资产</h3>
+        <p class="text-4xl font-bold text-gray-800">35个</p>
+        <p class="text-lg text-gray-600 mt-2">占总资产的23.8%</p>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">高风险资产</h3>
+        <p class="text-4xl font-bold text-red-600">8个</p>
+        <p class="text-lg text-gray-600 mt-2">需立即处理的关键风险</p>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">资产健康度</h3>
+        <p class="text-4xl font-bold text-green-600">76.2%</p>
+        <p class="text-lg text-gray-600 mt-2">112个资产无已知风险</p>
+      </div>
+    </div>
+
+    <!-- 核心发现说明 -->
+    <div class="flex-1">
+      <div class="data-card">
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-triangle bullet-icon"></i>
+          <p>发现8个高危资产涉及敏感数据暴露和严重远程代码执行漏洞，需要立即响应</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-chart-line bullet-icon"></i>
+          <p>子域名资产占比最高（87个，59.2%），云存储资产风险集中（3个高风险）</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-shield-alt bullet-icon"></i>
+          <p>基础安全状况良好，大部分资产（112个）当前未发现已知安全风险</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-users bullet-icon"></i>
+          <p>5个资产无法确定维护团队，需要进一步明确责任归属</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">3</div>
+</div>
+</body>
+</html>
