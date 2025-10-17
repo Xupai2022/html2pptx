@@ -4,6 +4,7 @@
 """
 
 from pptx.util import Pt
+from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
 from src.converters.base_converter import BaseConverter
 from src.mapper.style_mapper import StyleMapper
 from src.utils.unit_converter import UnitConverter
@@ -242,6 +243,149 @@ class TextConverter(BaseConverter):
                 style_dict['color'] = 'rgb(10, 66, 117)'
 
         return style_dict
+
+    def convert_numbered_list(self, numbered_item: dict, x: int, y: int, width: int = 1760) -> int:
+        """
+        转换数字列表项
+
+        Args:
+            numbered_item: 数字列表项信息
+            x: X坐标(px)
+            y: Y坐标(px)
+            width: 宽度(px)
+
+        Returns:
+            下一项的Y坐标(px)
+        """
+        style_computer = get_style_computer(self.css_parser)
+        font_manager = get_font_manager(self.css_parser)
+
+        # 获取基础字体大小（使用p标签作为参考）
+        from bs4 import BeautifulSoup
+        temp_soup = BeautifulSoup('<p>Temp</p>', 'html.parser')
+        p_element = temp_soup.p
+        p_font_size_pt = style_computer.get_font_size_pt(p_element)
+        p_font_size_px = UnitConverter.pt_to_px(p_font_size_pt)
+        line_height = int(p_font_size_px * 1.6)  # 使用1.6行高，与HTML一致
+
+        # 获取数字样式
+        number_style = style_computer.compute_computed_style(numbered_item['number_elem'])
+        number_inline = self._extract_inline_style(numbered_item['number_elem'])
+        number_font_name = font_manager.get_font('p', number_inline)
+
+        # 获取文本样式
+        text_style = style_computer.compute_computed_style(numbered_item['text_elem'])
+        text_inline = self._extract_inline_style(numbered_item['text_elem'])
+        text_font_name = font_manager.get_font('p', text_inline)
+
+        # 根据类型调整布局
+        if numbered_item['type'] == 'toc':
+            # TOC格式：数字和文本水平排列
+            number_width = 60  # 数字区域宽度
+            text_width = width - number_width - 20  # 文本区域宽度，留20px间距
+
+            # 添加数字
+            number_left = UnitConverter.px_to_emu(x)
+            number_top = UnitConverter.px_to_emu(y)
+            number_w = UnitConverter.px_to_emu(number_width)
+            number_h = UnitConverter.px_to_emu(line_height)
+
+            number_box = self.slide.shapes.add_textbox(number_left, number_top, number_w, number_h)
+            number_frame = number_box.text_frame
+            number_frame.text = numbered_item['number']
+            number_frame.margin_top = 0
+            number_frame.margin_bottom = 0
+            number_frame.margin_left = 0
+
+            # 设置数字样式
+            for paragraph in number_frame.paragraphs:
+                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.RIGHT  # 右对齐
+                for run in paragraph.runs:
+                    run.font.size = Pt(p_font_size_pt)
+                    run.font.bold = True
+                    run.font.name = number_font_name
+                    # 应用数字颜色（通常是主题色）
+                    run.font.color.rgb = ColorParser.get_primary_color()
+
+            # 添加文本
+            text_left = UnitConverter.px_to_emu(x + number_width + 20)
+            text_top = UnitConverter.px_to_emu(y)
+            text_w = UnitConverter.px_to_emu(text_width)
+            text_h = UnitConverter.px_to_emu(line_height)
+
+            text_box = self.slide.shapes.add_textbox(text_left, text_top, text_w, text_h)
+            text_frame = text_box.text_frame
+            text_frame.text = numbered_item['text']
+            text_frame.margin_top = 0
+            text_frame.margin_bottom = 0
+            text_frame.margin_left = 0
+
+            # 设置文本样式
+            for paragraph in text_frame.paragraphs:
+                for run in paragraph.runs:
+                    run.font.size = Pt(p_font_size_pt)
+                    run.font.name = text_font_name
+
+                    # 应用文本颜色
+                    color_str = text_style.get('color') or text_inline.get('color')
+                    if color_str:
+                        color = ColorParser.parse_color(color_str)
+                        if color:
+                            run.font.color.rgb = color
+
+            logger.info(f"添加目录项: {numbered_item['number']} - {numbered_item['text']}")
+
+        else:
+            # 其他格式：数字和文本在同一个文本框中
+            text_left = UnitConverter.px_to_emu(x)
+            text_top = UnitConverter.px_to_emu(y)
+            text_w = UnitConverter.px_to_emu(width)
+            text_h = UnitConverter.px_to_emu(line_height)
+
+            text_box = self.slide.shapes.add_textbox(text_left, text_top, text_w, text_h)
+            text_frame = text_box.text_frame
+            text_frame.margin_top = 0
+            text_frame.margin_bottom = 0
+            text_frame.margin_left = 0
+
+            # 清除默认段落
+            text_frame.clear()
+
+            # 创建段落
+            p = text_frame.paragraphs[0]
+
+            # 添加数字部分
+            number_run = p.add_run()
+            number_run.text = numbered_item['number']
+            number_run.font.size = Pt(p_font_size_pt)
+            number_run.font.bold = True
+            number_run.font.name = number_font_name
+            number_run.font.color.rgb = ColorParser.get_primary_color()
+
+            # 添加分隔符
+            sep_run = p.add_run()
+            sep_run.text = ". " if numbered_item['type'] in ['ordered_list', 'paragraph_numbered'] else " "
+            sep_run.font.size = Pt(p_font_size_pt)
+            sep_run.font.name = number_font_name
+
+            # 添加文本部分
+            text_run = p.add_run()
+            text_run.text = numbered_item['text']
+            text_run.font.size = Pt(p_font_size_pt)
+            text_run.font.name = text_font_name
+
+            # 应用文本颜色
+            color_str = text_style.get('color') or text_inline.get('color')
+            if color_str:
+                color = ColorParser.parse_color(color_str)
+                if color:
+                    text_run.font.color.rgb = color
+
+            logger.info(f"添加数字列表项: {numbered_item['number']} - {numbered_item['text']}")
+
+        # 返回下一行的Y坐标（添加项目间距）
+        item_spacing = 18 if numbered_item['type'] == 'toc' else 10
+        return y + line_height + item_spacing
 
     def convert(self, element, **kwargs):
         """转换文本元素"""

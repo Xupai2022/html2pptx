@@ -43,6 +43,278 @@ class ChartCapture:
         if use_system_chrome:
             logger.info("优先使用系统Chrome浏览器")
 
+    async def capture_svg_async(
+        self,
+        html_path: str,
+        svg_selector: str = "svg",
+        output_path: str = None,
+        wait_time: int = 2000
+    ) -> Optional[str]:
+        """
+        异步截取SVG图表
+
+        Args:
+            html_path: HTML文件路径
+            svg_selector: SVG元素选择器，支持CSS选择器或XPath
+            output_path: 输出路径,不指定则自动生成
+            wait_time: 等待时间(毫秒),确保SVG渲染完成
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.error("Playwright未安装,无法截图")
+            return None
+
+        html_path = Path(html_path).absolute()
+        if not html_path.exists():
+            logger.error(f"HTML文件不存在: {html_path}")
+            return None
+
+        # 生成输出路径
+        if output_path is None:
+            cache_key = self._get_cache_key(str(html_path), svg_selector)
+            output_path = self.cache_dir / f"svg_{cache_key}.png"
+        else:
+            output_path = Path(output_path)
+
+        # 检查缓存
+        if output_path.exists():
+            logger.info(f"使用缓存的SVG截图: {output_path}")
+            return str(output_path)
+
+        try:
+            async with async_playwright() as p:
+                # 启动浏览器（复用现有逻辑）
+                browser = None
+
+                if self.use_system_chrome:
+                    try:
+                        browser = await p.chromium.launch(
+                            headless=True,
+                            channel="chrome"
+                        )
+                        logger.info("使用系统Chrome浏览器")
+                    except Exception as chrome_error:
+                        logger.warning(f"系统Chrome不可用: {chrome_error}")
+                        logger.info("尝试使用Playwright Chromium...")
+
+                if browser is None:
+                    try:
+                        browser = await p.chromium.launch(headless=True)
+                        logger.info("使用Playwright Chromium浏览器")
+                    except Exception as chromium_error:
+                        error_msg = str(chromium_error)
+                        if "Executable doesn't exist" in error_msg or "playwright install" in error_msg:
+                            logger.error("浏览器不可用!")
+                            logger.error("解决方案:")
+                            logger.error("  1. 确保Chrome已安装(推荐)")
+                            logger.error("  2. 或运行: playwright install chromium")
+                            return None
+                        else:
+                            raise chromium_error
+
+                # 创建页面
+                page = await browser.new_page(
+                    viewport={'width': 1920, 'height': 1080}
+                )
+
+                # 加载HTML
+                file_url = html_path.as_uri()
+                await page.goto(file_url, wait_until='networkidle')
+                logger.info(f"加载HTML: {html_path}")
+
+                # 判断选择器类型
+                is_xpath = svg_selector.startswith('//') or svg_selector.startswith('(')
+
+                # 等待SVG元素
+                if is_xpath:
+                    await page.wait_for_selector(f'xpath={svg_selector}', timeout=10000)
+                    logger.info(f"找到SVG元素(XPath): {svg_selector}")
+                    svg_element = await page.query_selector(f'xpath={svg_selector}')
+                else:
+                    await page.wait_for_selector(svg_selector, timeout=10000)
+                    logger.info(f"找到SVG元素(CSS): {svg_selector}")
+                    svg_element = await page.query_selector(svg_selector)
+
+                if svg_element:
+                    # 等待SVG渲染完成
+                    await page.wait_for_timeout(wait_time)
+                    logger.info(f"等待SVG渲染 {wait_time}ms")
+
+                    # 截取SVG元素，保持原始比例
+                    screenshot_bytes = await svg_element.screenshot(
+                        path=str(output_path),
+                        type='png'
+                    )
+                    logger.info(f"SVG截图成功: {output_path}")
+                else:
+                    logger.error(f"未找到SVG元素: {svg_selector}")
+                    await browser.close()
+                    return None
+
+                # 关闭浏览器
+                await browser.close()
+
+                return str(output_path)
+
+        except Exception as e:
+            logger.error(f"SVG截图失败: {e}")
+            return None
+
+    async def capture_svg_by_index_async(
+        self,
+        html_path: str,
+        svg_index: int = 0,
+        output_path: str = None,
+        wait_time: int = 2000
+    ) -> Optional[str]:
+        """
+        按索引截取SVG图表
+
+        Args:
+            html_path: HTML文件路径
+            svg_index: SVG元素索引(从0开始)
+            output_path: 输出路径,不指定则自动生成
+            wait_time: 等待时间(毫秒)
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.error("Playwright未安装,无法截图")
+            return None
+
+        html_path = Path(html_path).absolute()
+        if not html_path.exists():
+            logger.error(f"HTML文件不存在: {html_path}")
+            return None
+
+        # 生成输出路径
+        if output_path is None:
+            cache_key = self._get_cache_key(str(html_path), f"svg_index_{svg_index}")
+            output_path = self.cache_dir / f"svg_{cache_key}.png"
+        else:
+            output_path = Path(output_path)
+
+        # 检查缓存
+        if output_path.exists():
+            logger.info(f"使用缓存的SVG截图: {output_path}")
+            return str(output_path)
+
+        try:
+            async with async_playwright() as p:
+                # 启动浏览器（复用现有逻辑）
+                browser = None
+
+                if self.use_system_chrome:
+                    try:
+                        browser = await p.chromium.launch(
+                            headless=True,
+                            channel="chrome"
+                        )
+                    except Exception:
+                        browser = None
+
+                if browser is None:
+                    try:
+                        browser = await p.chromium.launch(headless=True)
+                    except Exception as chromium_error:
+                        error_msg = str(chromium_error)
+                        if "Executable doesn't exist" in error_msg or "playwright install" in error_msg:
+                            logger.error("浏览器不可用!")
+                            return None
+                        else:
+                            raise chromium_error
+
+                # 创建页面
+                page = await browser.new_page(
+                    viewport={'width': 1920, 'height': 1080}
+                )
+
+                # 加载HTML
+                file_url = html_path.as_uri()
+                await page.goto(file_url, wait_until='networkidle')
+                logger.info(f"加载HTML: {html_path}")
+
+                # 获取所有SVG元素
+                svg_elements = await page.query_selector_all("svg")
+                logger.info(f"找到 {len(svg_elements)} 个SVG元素")
+
+                if svg_index < len(svg_elements):
+                    svg_element = svg_elements[svg_index]
+                    logger.info(f"截取第 {svg_index} 个SVG元素")
+
+                    # 等待SVG渲染完成
+                    await page.wait_for_timeout(wait_time)
+                    logger.info(f"等待SVG渲染 {wait_time}ms")
+
+                    # 截取SVG元素
+                    screenshot_bytes = await svg_element.screenshot(
+                        path=str(output_path),
+                        type='png'
+                    )
+                    logger.info(f"SVG截图成功: {output_path}")
+                else:
+                    logger.error(f"SVG索引 {svg_index} 超出范围(总共 {len(svg_elements)} 个)")
+                    await browser.close()
+                    return None
+
+                # 关闭浏览器
+                await browser.close()
+
+                return str(output_path)
+
+        except Exception as e:
+            logger.error(f"SVG截图失败: {e}")
+            return None
+
+    def capture_svg(
+        self,
+        html_path: str,
+        svg_selector: str = "svg",
+        output_path: str = None,
+        wait_time: int = 2000
+    ) -> Optional[str]:
+        """
+        同步截取SVG(内部调用异步方法)
+
+        Args:
+            html_path: HTML文件路径
+            svg_selector: SVG元素选择器
+            output_path: 输出路径
+            wait_time: 等待时间(毫秒)
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        return asyncio.run(
+            self.capture_svg_async(html_path, svg_selector, output_path, wait_time)
+        )
+
+    def capture_svg_by_index(
+        self,
+        html_path: str,
+        svg_index: int = 0,
+        output_path: str = None,
+        wait_time: int = 2000
+    ) -> Optional[str]:
+        """
+        同步按索引截取SVG(内部调用异步方法)
+
+        Args:
+            html_path: HTML文件路径
+            svg_index: SVG元素索引
+            output_path: 输出路径
+            wait_time: 等待时间(毫秒)
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        return asyncio.run(
+            self.capture_svg_by_index_async(html_path, svg_index, output_path, wait_time)
+        )
+
     async def capture_chart_async(
         self,
         html_path: str,
@@ -265,12 +537,21 @@ class ChartCapture:
     def clear_cache(self):
         """清除所有缓存的图表截图"""
         if self.cache_dir.exists():
+            # 清除chart缓存
             for file in self.cache_dir.glob("chart_*.png"):
                 try:
                     file.unlink()
                     logger.info(f"删除缓存: {file}")
                 except Exception as e:
                     logger.error(f"删除缓存失败: {e}")
+
+            # 清除svg缓存
+            for file in self.cache_dir.glob("svg_*.png"):
+                try:
+                    file.unlink()
+                    logger.info(f"删除SVG缓存: {file}")
+                except Exception as e:
+                    logger.error(f"删除SVG缓存失败: {e}")
 
     @staticmethod
     def is_available() -> bool:
@@ -293,3 +574,35 @@ def capture_chart(html_path: str, canvas_selector: str = "canvas", output_path: 
     """
     capturer = ChartCapture()
     return capturer.capture_chart(html_path, canvas_selector, output_path)
+
+
+def capture_svg(html_path: str, svg_selector: str = "svg", output_path: str = None) -> Optional[str]:
+    """
+    快速截取SVG(单例模式)
+
+    Args:
+        html_path: HTML文件路径
+        svg_selector: SVG选择器
+        output_path: 输出路径
+
+    Returns:
+        截图路径
+    """
+    capturer = ChartCapture()
+    return capturer.capture_svg(html_path, svg_selector, output_path)
+
+
+def capture_svg_by_index(html_path: str, svg_index: int = 0, output_path: str = None) -> Optional[str]:
+    """
+    快速按索引截取SVG(单例模式)
+
+    Args:
+        html_path: HTML文件路径
+        svg_index: SVG索引
+        output_path: 输出路径
+
+    Returns:
+        截图路径
+    """
+    capturer = ChartCapture()
+    return capturer.capture_svg_by_index(html_path, svg_index, output_path)

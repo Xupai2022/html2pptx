@@ -25,6 +25,7 @@ class HTMLParser:
         """
         self.html_path = Path(html_path)
         self.soup = None
+        self.full_soup = None  # 保存完整的HTML soup
         self._parse()
 
     def _parse(self):
@@ -32,10 +33,30 @@ class HTMLParser:
         if not self.html_path.exists():
             raise FileNotFoundError(f"HTML文件不存在: {self.html_path}")
 
-        with open(self.html_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
+        # 尝试多种编码
+        encodings = ['utf-8', 'utf-8-sig', 'gbk', 'gb2312', 'latin-1', 'cp1252']
+        html_content = None
 
-        self.soup = BeautifulSoup(html_content, 'lxml')
+        for encoding in encodings:
+            try:
+                with open(self.html_path, 'r', encoding=encoding) as f:
+                    html_content = f.read()
+                logger.info(f"使用编码 {encoding} 成功读取文件: {self.html_path}")
+                break
+            except UnicodeDecodeError:
+                continue
+
+        if html_content is None:
+            # 如果所有编码都失败，使用错误处理模式
+            with open(self.html_path, 'r', encoding='utf-8', errors='replace') as f:
+                html_content = f.read()
+            logger.warning(f"使用替换模式读取文件（部分字符可能丢失）: {self.html_path}")
+
+        # 保存完整的HTML soup
+        self.full_soup = BeautifulSoup(html_content, 'lxml')
+        # 创建slide-container的副本（用于向后兼容）
+        slide_container = self.full_soup.find('div', class_='slide-container')
+        self.soup = slide_container if slide_container else self.full_soup
         logger.info(f"成功解析HTML: {self.html_path}")
 
     def get_slides(self) -> List:
@@ -45,6 +66,12 @@ class HTMLParser:
         Returns:
             幻灯片元素列表
         """
+        # 如果soup本身就是slide-container，直接返回
+        if self.soup.name == 'div' and self.soup.get('class') and 'slide-container' in self.soup.get('class', []):
+            logger.info("找到 1 个幻灯片 (soup本身就是slide-container)")
+            return [self.soup]
+
+        # 否则查找slide-container
         slides = self.soup.find_all('div', class_='slide-container')
         logger.info(f"找到 {len(slides)} 个幻灯片")
         return slides
@@ -219,6 +246,124 @@ class HTMLParser:
             canvas元素列表
         """
         return slide.find_all('canvas')
+
+    def get_toc_items(self, slide) -> List:
+        """
+        获取目录项 (.toc-item)
+
+        Args:
+            slide: 幻灯片元素
+
+        Returns:
+            目录项列表
+        """
+        return slide.find_all('div', class_='toc-item')
+
+    def detect_numbered_lists(self, slide) -> List[dict]:
+        """
+        智能检测数字列表
+
+        Args:
+            slide: 幻灯片元素
+
+        Returns:
+            数字列表信息列表，每个元素包含类型、元素、数字和文本
+        """
+        numbered_lists = []
+
+        # 1. 检测toc-item结构
+        toc_items = self.get_toc_items(slide)
+        for toc_item in toc_items:
+            number_elem = toc_item.find('div', class_='toc-number')
+            text_elem = toc_item.find('div', class_='toc-title')
+
+            if number_elem and text_elem:
+                numbered_lists.append({
+                    'type': 'toc',
+                    'container': toc_item,
+                    'number_elem': number_elem,
+                    'text_elem': text_elem,
+                    'number': number_elem.get_text(strip=True),
+                    'text': text_elem.get_text(strip=True)
+                })
+
+        # 2. 检测带数字类名的元素
+        number_patterns = ['number', 'num', 'count', 'index', 'step', 'order']
+        for pattern in number_patterns:
+            elems = slide.find_all('div', class_=lambda x: x and pattern in str(x))
+            for elem in elems:
+                text = elem.get_text(strip=True)
+                if text and text[0].isdigit():
+                    # 分离数字和文本
+                    match = re.match(r'^(\d+)[\.\)\s]*\s*(.*)', text)
+                    if match:
+                        numbered_lists.append({
+                            'type': 'numbered_class',
+                            'container': elem,
+                            'number_elem': elem,
+                            'text_elem': elem,
+                            'number': match.group(1),
+                            'text': match.group(2)
+                        })
+
+        # 3. 检测flex布局中的数字结构
+        flex_containers = slide.find_all('div', style=lambda x: x and 'display' in x and 'flex' in x)
+        for flex_container in flex_containers:
+            children = [child for child in flex_container.children if hasattr(child, 'get')]
+            if len(children) >= 2:
+                # 检查第一个子元素是否为数字
+                first_text = children[0].get_text(strip=True)
+                if re.match(r'^\d+(\.\d+)?$', first_text) or re.match(r'^\d{2}$', first_text):
+                    numbered_lists.append({
+                        'type': 'flex_numbered',
+                        'container': flex_container,
+                        'number_elem': children[0],
+                        'text_elem': children[1] if len(children) > 1 else None,
+                        'number': first_text,
+                        'text': children[1].get_text(strip=True) if len(children) > 1 else ''
+                    })
+
+        # 4. 检测有序列表
+        ol_lists = slide.find_all('ol')
+        for ol in ol_lists:
+            li_items = ol.find_all('li')
+            for idx, li in enumerate(li_items, 1):
+                numbered_lists.append({
+                    'type': 'ordered_list',
+                    'container': li,
+                    'number_elem': li,
+                    'text_elem': li,
+                    'number': str(idx),
+                    'text': li.get_text(strip=True)
+                })
+
+        # 5. 检测段落开头的数字模式
+        paragraphs = slide.find_all('p')
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            # 匹配各种数字开头格式
+            patterns = [
+                r'^(\d+)\.\s*(.*)',  # 1. 文本
+                r'^(\d+)\)\s*(.*)',  # 1) 文本
+                r'^(\d+)、\s*(.*)',  # 1、文本
+                r'^([①②③④⑤⑥⑦⑧⑨⑩])\s*(.*)',  # 圆圈数字
+                r'^([⓵⓶⓷⓸⓹⓺⓻⓼⓽⓾])\s*(.*)',  # 带圈数字
+            ]
+
+            for pattern in patterns:
+                match = re.match(pattern, text)
+                if match:
+                    numbered_lists.append({
+                        'type': 'paragraph_numbered',
+                        'container': p,
+                        'number_elem': p,
+                        'text_elem': p,
+                        'number': match.group(1),
+                        'text': match.group(2)
+                    })
+                    break
+
+        return numbered_lists
 
     def extract_chart_data(self, slide) -> List[dict]:
         """

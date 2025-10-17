@@ -130,6 +130,38 @@ class ShapeConverter(BaseConverter):
 
         logger.info(f"添加页码: {page_num}")
 
+    def add_decorative_bar(self, x: int, y: int, width: int, height: int, color: str = None):
+        """
+        添加装饰条
+
+        Args:
+            x, y: 坐标(px)
+            width: 宽度(px)
+            height: 高度(px)
+            color: 颜色字符串(可选)
+        """
+        left = UnitConverter.px_to_emu(x)
+        top = UnitConverter.px_to_emu(y)
+        w = UnitConverter.px_to_emu(width)
+        h = UnitConverter.px_to_emu(height)
+
+        shape = self.slide.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            left, top, w, h
+        )
+
+        # 设置颜色
+        if color:
+            rgb_color = ColorParser.parse_color(color)
+        else:
+            rgb_color = ColorParser.get_primary_color()
+
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = rgb_color
+        shape.line.fill.background()
+
+        logger.info(f"添加装饰条: 位置({x}, {y}), 尺寸({width}x{height})")
+
     def add_stat_box_background(self, x: int, y: int, width: int, height: int):
         """
         添加统计卡片背景
@@ -167,7 +199,7 @@ class ShapeConverter(BaseConverter):
         shape.line.fill.background()
         shape.shadow.inherit = False  # 无阴影
 
-    def add_border_left(self, x: int, y: int, height: int, width: int = 4):
+    def add_border_left(self, x: int, y: int, height: int, width: int = 4, adjust_for_rounded: bool = True):
         """
         添加左边框
 
@@ -175,11 +207,21 @@ class ShapeConverter(BaseConverter):
             x, y: 坐标(px)
             height: 高度(px)
             width: 边框宽度(px)
+            adjust_for_rounded: 是否为圆角矩形调整竖线长度
         """
+        # 如果是为圆角矩形添加竖线，稍微缩短竖线以避免超出圆角
+        if adjust_for_rounded:
+            # 圆角半径约为8px，所以竖线缩短8px以保持协调
+            adjusted_y = y + 4  # 向下偏移4px
+            adjusted_height = height - 8  # 高度减少8px
+        else:
+            adjusted_y = y
+            adjusted_height = height
+
         left = UnitConverter.px_to_emu(x)
-        top = UnitConverter.px_to_emu(y)
+        top = UnitConverter.px_to_emu(adjusted_y)
         w = UnitConverter.px_to_emu(width)
-        h = UnitConverter.px_to_emu(height)
+        h = UnitConverter.px_to_emu(adjusted_height)
 
         shape = self.slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
