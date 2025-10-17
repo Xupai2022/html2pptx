@@ -17,6 +17,16 @@ class ColorParser:
     WHITE = RGBColor(255, 255, 255)
     BLACK = RGBColor(0, 0, 0)
 
+    # 预定义颜色
+    COLOR_MAP = {
+        'orange': RGBColor(251, 146, 60),  # rgb(251, 146, 60)
+        'green': RGBColor(34, 197, 94),    # rgb(34, 197, 94)
+        'blue': RGBColor(37, 99, 235),     # rgb(37, 99, 235)
+        'purple': RGBColor(147, 51, 234),  # rgb(147, 51, 234)
+        'red': RGBColor(220, 38, 38),      # rgb(220, 38, 38)
+        'yellow': RGBColor(250, 204, 21),  # rgb(250, 204, 21)
+    }
+
     @staticmethod
     def parse_color(color_str: str) -> Optional[RGBColor]:
         """
@@ -116,3 +126,16 @@ class ColorParser:
         g = int(color[1] * alpha + 255 * (1 - alpha))
         b = int(color[2] * alpha + 255 * (1 - alpha))
         return RGBColor(r, g, b)
+
+    @staticmethod
+    def get_color_by_name(name: str) -> RGBColor:
+        """
+        根据颜色名称获取预定义颜色
+
+        Args:
+            name: 颜色名称
+
+        Returns:
+            RGBColor对象
+        """
+        return ColorParser.COLOR_MAP.get(name.lower(), ColorParser.PRIMARY_COLOR)

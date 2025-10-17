@@ -60,6 +60,7 @@ class FontManager:
     DEFAULT_FONTS = {
         'h1': 'Source Han Sans CN Bold',      # 主标题：思源黑体 Bold
         'h2': 'Source Han Sans CN',            # 副标题：思源黑体
+        'h3': 'Microsoft YaHei',               # 三级标题：微软雅黑
         'p': 'DengXian',                       # 正文：等线
         'body': 'DengXian',                    # body默认：等线
         'default': 'Microsoft YaHei',          # 最终回退

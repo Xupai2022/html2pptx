@@ -92,7 +92,7 @@
 		overflow: visible;
     }
     .stat-box {
-		max-height: 300px;
+	max-height: 300px;
     	min-height:200px;
         background-color: rgba(10, 66, 117, 0.06);
         border-radius: 10px;

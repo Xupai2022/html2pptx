@@ -27,6 +27,7 @@ class StyleComputer:
     SELECTOR_WEIGHTS = {
         'inline': 1000,     # 内联样式
         'id': 100,         # ID选择器
+        'tailwind': 100,   # Tailwind类（更高优先级）
         'class': 10,       # 类选择器
         'tag': 1,          # 标签选择器
         'universal': 0,    # 通用选择器
@@ -179,7 +180,7 @@ class StyleComputer:
                     'source': f"#{element_id}"
                 })
 
-        # 3. 类选择器
+        # 3. 类选择器（包括Tailwind CSS类）
         classes = element.get('class', [])
         if classes:
             # 复合类选择器
@@ -193,7 +194,7 @@ class StyleComputer:
                     'source': compound_class
                 })
 
-            # 单个类选择器
+            # 单个类选择器（包括Tailwind CSS类）
             for cls in classes:
                 class_style = self.css_parser.get_style(f".{cls}")
                 if class_style:
@@ -203,6 +204,16 @@ class StyleComputer:
                         'style': class_style,
                         'source': f".{cls}"
                     })
+                else:
+                    # 尝试解析Tailwind CSS类
+                    tailwind_style = self._parse_tailwind_class(cls)
+                    if tailwind_style:
+                        rules.append({
+                            'type': 'tailwind',
+                            'specificity': self.SELECTOR_WEIGHTS['tailwind'],
+                            'style': tailwind_style,
+                            'source': f"tailwind.{cls}"
+                        })
 
         # 4. 标签选择器
         tag_name = element.name
@@ -289,6 +300,70 @@ class StyleComputer:
                 computed_style[property_name] = default_value
 
         return computed_style
+
+    def _parse_tailwind_class(self, class_name: str) -> Optional[Dict[str, str]]:
+        """
+        解析Tailwind CSS类，返回对应的CSS属性
+
+        Args:
+            class_name: Tailwind CSS类名
+
+        Returns:
+            CSS样式字典，如果不是Tailwind类则返回None
+        """
+        # 使用CSS解析器的Tailwind映射
+        if hasattr(self.css_parser, 'parse_element_classes'):
+            return self.css_parser.parse_element_classes({'class': [class_name]})
+
+        # 手动解析一些常用的Tailwind类
+        style = {}
+
+        # 字体大小类
+        if class_name in ['text-xs', 'text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl']:
+            if hasattr(self.css_parser, 'tailwind_font_sizes'):
+                font_size = self.css_parser.tailwind_font_sizes.get(class_name)
+                if font_size:
+                    style['font-size'] = font_size
+
+        # 颜色类
+        elif class_name.startswith('text-'):
+            if hasattr(self.css_parser, 'tailwind_colors'):
+                color = self.css_parser.tailwind_colors.get(class_name)
+                if color:
+                    style['color'] = color
+
+        # 网格列类
+        elif class_name.startswith('grid-cols-'):
+            if hasattr(self.css_parser, 'tailwind_grid_columns'):
+                columns = self.css_parser.tailwind_grid_columns.get(class_name)
+                if columns:
+                    style['grid-template-columns'] = f"repeat({columns}, 1fr)"
+
+        # 间距类
+        elif class_name.startswith('gap-'):
+            if hasattr(self.css_parser, 'tailwind_spacing'):
+                gap = self.css_parser.tailwind_spacing.get(class_name)
+                if gap:
+                    style['gap'] = gap
+
+        # 文本对齐类
+        elif class_name in ['text-left', 'text-center', 'text-right', 'text-justify']:
+            alignment = class_name.replace('text-', '')
+            style['text-align'] = alignment
+
+        # 字体粗细类
+        elif class_name in ['font-light', 'font-normal', 'font-medium', 'font-semibold', 'font-bold']:
+            weight_map = {
+                'font-light': '300',
+                'font-normal': '400',
+                'font-medium': '500',
+                'font-semibold': '600',
+                'font-bold': '700'
+            }
+            if class_name in weight_map:
+                style['font-weight'] = weight_map[class_name]
+
+        return style if style else None
 
     def _parse_inline_style(self, style_str: str) -> Dict[str, str]:
         """
