@@ -15,15 +15,27 @@ logger = setup_logger(__name__)
 class PPTXBuilder:
     """PPTX构建器"""
 
-    def __init__(self):
-        """初始化PPTX构建器"""
-        self.prs = Presentation()
+    def __init__(self, existing_presentation=None):
+        """
+        初始化PPTX构建器
 
-        # 设置幻灯片尺寸为16:9 (1920x1080)
-        self.prs.slide_width = UnitConverter.px_to_emu(1920)
-        self.prs.slide_height = UnitConverter.px_to_emu(1080)
-
-        logger.info("初始化PPTX,尺寸: 1920x1080")
+        Args:
+            existing_presentation: 可选的现有Presentation对象
+        """
+        if existing_presentation:
+            self.prs = existing_presentation
+            # 确保尺寸设置正确
+            if self.prs.slide_width != UnitConverter.px_to_emu(1920):
+                self.prs.slide_width = UnitConverter.px_to_emu(1920)
+            if self.prs.slide_height != UnitConverter.px_to_emu(1080):
+                self.prs.slide_height = UnitConverter.px_to_emu(1080)
+            logger.info("使用现有PPTX,尺寸: 1920x1080")
+        else:
+            self.prs = Presentation()
+            # 设置幻灯片尺寸为16:9 (1920x1080)
+            self.prs.slide_width = UnitConverter.px_to_emu(1920)
+            self.prs.slide_height = UnitConverter.px_to_emu(1080)
+            logger.info("初始化PPTX,尺寸: 1920x1080")
 
     def add_blank_slide(self):
         """

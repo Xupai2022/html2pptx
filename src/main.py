@@ -31,18 +31,24 @@ logger = setup_logger(__name__)
 class HTML2PPTX:
     """HTML转PPTX转换器"""
 
-    def __init__(self, html_path: str):
+    def __init__(self, html_path: str, existing_presentation=None):
         """
         初始化转换器
 
         Args:
             html_path: HTML文件路径
+            existing_presentation: 可选的现有Presentation对象，用于批量转换
         """
         self.html_path = html_path
         self.html_parser = HTMLParser(html_path)
         # 使用完整的HTML soup来初始化CSS解析器，以便解析head中的style标签
         self.css_parser = CSSParser(self.html_parser.full_soup)
-        self.pptx_builder = PPTXBuilder()
+
+        # 如果提供了现有presentation，使用它；否则创建新的
+        if existing_presentation:
+            self.pptx_builder = PPTXBuilder(existing_presentation)
+        else:
+            self.pptx_builder = PPTXBuilder()
 
         # 初始化全局字体管理器和样式计算器
         self.font_manager = get_font_manager(self.css_parser)
