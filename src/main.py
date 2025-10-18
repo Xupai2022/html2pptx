@@ -89,11 +89,18 @@ class HTML2PPTX:
             shape_converter.add_top_bar()
 
             # 2. 添加标题和副标题
-            title = self.html_parser.get_title(slide_html)
-            subtitle = self.html_parser.get_subtitle(slide_html)
-            if title:
+            title_info = self.html_parser.get_title_info(slide_html)
+            if title_info:
                 # content-section的padding-top是20px
-                title_end_y = text_converter.convert_title(title, subtitle, x=80, y=20)
+                title_end_y = text_converter.convert_title(
+                    title_info['text'],
+                    title_info['subtitle'],
+                    x=80,
+                    y=20,
+                    is_cover=title_info.get('is_cover', False),
+                    title_classes=title_info.get('classes', []),
+                    h1_element=title_info.get('h1_element')
+                )
                 # space-y-10的第一个子元素紧接标题区域（无上间距）
                 y_offset = title_end_y
             else:
@@ -218,6 +225,12 @@ class HTML2PPTX:
             下一个元素的Y坐标
         """
         container_classes = container.get('class', [])
+
+        # 检测封面页容器（优先级最高）
+        if 'cover-content' in container_classes or 'cover-info' in container_classes:
+            logger.info(f"识别为封面页容器: {container_classes}，不添加背景")
+            # 封面页容器不添加背景，直接处理内容
+            return self._convert_cover_container(container, pptx_slide, y_offset)
 
         # 根据class路由到对应的处理方法
         # 优先检测grid布局（包含grid类）
@@ -2244,6 +2257,121 @@ class HTML2PPTX:
                     'text': text_elem.get_text(strip=True)
                 }
                 current_y = text_converter.convert_numbered_list(numbered_item, 80, current_y)
+
+        return current_y
+
+    def _convert_cover_container(self, container, pptx_slide, y_start):
+        """
+        转换封面页容器（cover-content, cover-info）
+        不添加背景，直接处理内容
+
+        Args:
+            container: 封面页容器元素
+            pptx_slide: PPTX幻灯片
+            y_start: 起始Y坐标
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info(f"处理封面页容器: {container.get('class', [])}")
+
+        # 获取容器类名以确定布局
+        container_classes = container.get('class', [])
+        text_converter = TextConverter(pptx_slide, self.css_parser)
+
+        # 处理容器内的所有p标签
+        paragraphs = container.find_all('p')
+        current_y = y_start
+
+        for p in paragraphs:
+            text = p.get_text(strip=True)
+            if not text:
+                continue
+
+            # 获取p标签的类名
+            p_classes = p.get('class', [])
+
+            # 封面页的段落需要居中对齐
+            # 创建文本框
+            left = UnitConverter.px_to_emu(80)
+            top = UnitConverter.px_to_emu(current_y)
+            width = UnitConverter.px_to_emu(1760)
+            height = UnitConverter.px_to_emu(40)  # 默认高度
+
+            text_box = pptx_slide.shapes.add_textbox(left, top, width, height)
+            text_frame = text_box.text_frame
+            text_frame.text = text
+            text_frame.word_wrap = True
+            text_frame.margin_top = 0
+            text_frame.margin_bottom = 0
+            text_frame.margin_left = 0
+
+            # 设置字体样式
+            style_computer = get_style_computer(self.css_parser)
+            font_manager = get_font_manager(self.css_parser)
+
+            # 获取字体大小
+            p_font_size_pt = style_computer.get_font_size_pt(p)
+
+            for paragraph in text_frame.paragraphs:
+                # 居中对齐
+                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                for run in paragraph.runs:
+                    run.font.size = Pt(p_font_size_pt)
+                    run.font.name = font_manager.get_font('p')
+                    # 检查是否有primary-color类
+                    if 'primary-color' in p_classes:
+                        run.font.color.rgb = ColorParser.get_primary_color()
+
+            # 计算实际高度并更新Y坐标
+            p_font_size_px = UnitConverter.pt_to_px(p_font_size_pt)
+            line_height = int(p_font_size_px * 1.5)
+
+            # 根据容器类型调整间距
+            if 'cover-content' in container_classes:
+                # cover-content内的段落间距较小
+                current_y += line_height
+            elif 'cover-info' in container_classes:
+                # cover-info内的段落间距为mb-6 = 24px
+                if p != paragraphs[-1]:  # 不是最后一个段落
+                    current_y += line_height + 24
+                else:
+                    current_y += line_height
+
+            logger.info(f"添加封面页段落: {text}")
+
+        # 处理装饰图标（如果有的话）
+        icon = container.find('i', class_='fa-shield-alt')
+        if icon:
+            logger.info("找到封面页盾牌图标")
+            # 图标居中对齐
+            icon_size = 80  # text-5xl = 5rem = 80px
+            icon_left = UnitConverter.px_to_emu(960 - icon_size // 2)  # 居中
+            icon_top = UnitConverter.px_to_emu(current_y)
+            icon_width = UnitConverter.px_to_emu(icon_size)
+            icon_height = UnitConverter.px_to_emu(icon_size)
+
+            # 创建图标文本框
+            icon_box = pptx_slide.shapes.add_textbox(
+                icon_left, icon_top, icon_width, icon_height
+            )
+            icon_frame = icon_box.text_frame
+            icon_frame.text = "🛡️"  # 使用盾牌emoji
+            icon_frame.margin_top = 0
+            icon_frame.margin_bottom = 0
+            icon_frame.margin_left = 0
+
+            # 设置图标样式
+            for paragraph in icon_frame.paragraphs:
+                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                for run in paragraph.runs:
+                    run.font.size = Pt(icon_size * 0.75)  # 80px = 60pt
+                    run.font.color.rgb = ColorParser.get_primary_color()
+                    run.font.name = "Arial"
+
+            logger.info("添加封面页盾牌图标")
+            # 添加图标后的间距
+            current_y += icon_size + 40
 
         return current_y
 

@@ -166,6 +166,8 @@ class BatchConverter:
             from src.converters.text_converter import TextConverter
             from src.converters.table_converter import TableConverter
             from src.converters.shape_converter import ShapeConverter
+            from src.utils.font_manager import get_font_manager
+            from src.utils.style_computer import get_style_computer
 
             text_converter = TextConverter(pptx_slide, converter.css_parser)
             table_converter = TableConverter(pptx_slide, converter.css_parser)
@@ -175,11 +177,18 @@ class BatchConverter:
             shape_converter.add_top_bar()
 
             # 2. 添加标题和副标题
-            title = html_parser.get_title(slide_html)
-            subtitle = html_parser.get_subtitle(slide_html)
-            if title:
+            title_info = html_parser.get_title_info(slide_html)
+            if title_info:
                 # content-section的padding-top是20px
-                title_end_y = text_converter.convert_title(title, subtitle, x=80, y=20)
+                title_end_y = text_converter.convert_title(
+                    title_info['text'],
+                    title_info['subtitle'],
+                    x=80,
+                    y=20,
+                    is_cover=title_info.get('is_cover', False),
+                    title_classes=title_info.get('classes', []),
+                    h1_element=title_info.get('h1_element')
+                )
                 # space-y-10的第一个子元素紧接标题区域（无上间距）
                 y_offset = title_end_y
             else:

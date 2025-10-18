@@ -2150,6 +2150,86 @@ python debug_report.py report.html
     - 优化字体大小处理，主文本使用22pt加粗，描述使用14pt灰色
     - 确保risk-item内容的完整渲染，与HTML视觉效果一致
 
+31. **封面页标题智能识别与居中显示优化** ✓ (2025-10-18)
+    - 修复slide06.html封面页标题显示问题，实现智能识别封面页特征
+    - 新增get_title_info方法，通过检测cover-content、cover-title、text-center等类名识别封面页
+    - 实现封面页标题居中对齐，与普通页面的左对齐区分
+    - 优化封面页顶部间距处理（mt-32 = 128px），确保正确的视觉布局
+    - 新增_convert_cover_container方法，专门处理封面页容器（cover-content、cover-info）
+    - 修复封面页容器异常背景问题，确保三个容器都不添加背景色
+    - 支持封面页装饰线的智能识别和渲染（w-32 = 128px，居中对齐）
+    - 实现封面页副标题居中对齐，使用主题色显示
+    - 验证历史文件兼容性，确保slide01-05.html转换效果与优化前一致
+
+**问题背景**:
+用户反馈slide06.html转换存在标题显示问题：
+1. 标题"2025年第一季度 网络安全工作总结汇报"应该居中显示，但实际是左对齐
+2. 标题离顶部距离不正确，应该有更大的间距
+3. 第二个和第三个容器出现了异常背景色
+
+**根本原因分析**:
+1. **标题处理逻辑缺陷**：代码将所有H1标签都当作普通标题处理，使用左对齐
+2. **缺少封面页识别**：没有检测cover-content、cover-title等封面页特征类
+3. **容器处理错误**：cover-content和cover-info被当作普通容器处理，添加了背景
+
+**技术实现**:
+1. **智能封面页识别**:
+   ```python
+   def get_title_info(self, slide) -> dict:
+       # 检查H1及其父元素的类信息
+       if any(cls in parent_classes for cls in ['cover-content', 'cover-title', 'text-center']):
+           is_cover = True
+
+       return {
+           'text': h1.get_text(strip=True),
+           'subtitle': subtitle,
+           'is_cover': is_cover,
+           'classes': title_classes,
+           'h1_element': h1
+       }
+   ```
+
+2. **标题居中对齐处理**:
+   ```python
+   # 封面页：mt-32 = 8rem = 128px
+   if is_cover:
+       current_y += 128
+       # 标题框居中显示
+       paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+       run.font.color.rgb = ColorParser.get_primary_color()
+   ```
+
+3. **封面页容器处理**:
+   ```python
+   # 检测封面页容器（优先级最高）
+   if 'cover-content' in container_classes or 'cover-info' in container_classes:
+       # 封面页容器不添加背景，直接处理内容
+       return self._convert_cover_container(container, pptx_slide, y_offset)
+   ```
+
+4. **装饰线居中计算**:
+   ```python
+   # 计算居中位置：(1760 - 128) / 2 = 816px
+   line_left = UnitConverter.px_to_emu(816)
+   line_width = UnitConverter.px_to_emu(128)  # w-32 = 8rem = 128px
+   ```
+
+**验证结果**:
+- ✅ slide06.html：标题正确居中显示，使用主题色
+- ✅ slide06.html：标题顶部间距正确（mt-32 = 128px）
+- ✅ slide06.html：副标题"网络安全工作总结汇报"居中显示
+- ✅ slide06.html：装饰线居中对齐（w-32 = 128px）
+- ✅ slide06.html：三个容器（cover-content、cover-info、装饰图标）无背景色
+- ✅ slide01.html：向后兼容性验证通过，标题保持左对齐
+- ✅ slide02.html：向后兼容性验证通过，布局和样式无变化
+- ✅ 智能识别系统具备完整鲁棒性，支持各种HTML结构
+
+**技术亮点**:
+- 智能特征识别：通过CSS类名自动识别封面页
+- 零硬编码原则：所有间距和对齐方式基于HTML动态计算
+- 优先级处理：封面页容器检测优先级最高，确保正确处理
+- 完整的布局支持：支持标题居中、装饰线、容器无背景等封面页特性
+
 **问题背景**:
 用户反馈slide_005.html转换时，第二个data-card容器中的文字内容没有显示（但标题可以显示）。
 

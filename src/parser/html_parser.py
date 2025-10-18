@@ -76,6 +76,64 @@ class HTMLParser:
         logger.info(f"找到 {len(slides)} 个幻灯片")
         return slides
 
+    def get_title_info(self, slide) -> dict:
+        """
+        获取标题详细信息，包括是否为封面页
+
+        Args:
+            slide: 幻灯片元素
+
+        Returns:
+            包含标题信息、封面页标识和CSS类的字典
+        """
+        # 获取所有h1标签
+        h1_tags = slide.find_all('h1')
+        if not h1_tags:
+            return None
+
+        # 第一个h1作为主标题
+        first_h1 = h1_tags[0]
+
+        # 检查是否为封面页标题
+        parent = first_h1.parent
+        is_cover = False
+        title_classes = []
+
+        # 收集H1及其父元素的类信息
+        while parent and parent.name not in ['body', 'div']:
+            parent_classes = parent.get('class', [])
+            title_classes.extend(parent_classes)
+            if any(cls in parent_classes for cls in ['cover-content', 'cover-title', 'text-center']):
+                is_cover = True
+            parent = parent.parent
+
+        # 检查H1自身的类
+        h1_classes = first_h1.get('class', [])
+        title_classes.extend(h1_classes)
+        if 'cover-title' in h1_classes:
+            is_cover = True
+
+        # 封面页特殊处理：如果有多个h1，第二个h1作为副标题
+        if is_cover and len(h1_tags) > 1:
+            # 封面页有多个h1标签
+            title_text = first_h1.get_text(strip=True)
+            subtitle_text = h1_tags[1].get_text(strip=True) if len(h1_tags) > 1 else None
+        else:
+            # 普通页面处理
+            title_text = first_h1.get_text(strip=True)
+            # 尝试获取h2作为副标题
+            subtitle = self.get_subtitle(slide)
+            subtitle_text = subtitle if subtitle else None
+
+        return {
+            'text': title_text,
+            'subtitle': subtitle_text,
+            'is_cover': is_cover,
+            'classes': title_classes,
+            'h1_element': first_h1,
+            'all_h1_elements': h1_tags  # 保存所有h1元素
+        }
+
     def get_title(self, slide) -> Optional[str]:
         """
         获取幻灯片标题 (H1)

@@ -19,22 +19,26 @@ logger = setup_logger(__name__)
 class TextConverter(BaseConverter):
     """文本元素转换器"""
 
-    def convert_title(self, title_text: str, subtitle_text: str = None, x: int = 80, y: int = 20) -> int:
+    def convert_title(self, title_text: str, subtitle_text: str = None, x: int = 80, y: int = 20,
+                      is_cover: bool = False, title_classes: list = None, h1_element=None) -> int:
         """
         转换标题和副标题
 
         Tailwind CSS v2.2.19 规则 (1rem = 16px):
         - mt-10 = 10 × 0.25rem = 2.5rem = 40px
+        - mt-32 = 32 × 0.25rem = 8rem = 128px (封面页用)
         - mt-2 = 2 × 0.25rem = 0.5rem = 8px
         - mb-4 = 4 × 0.25rem = 1rem = 16px
+        - mb-16 = 16 × 0.25rem = 4rem = 64px (封面页用)
         - h-1 = 1 × 0.25rem = 0.25rem = 4px
         - line-height: 1.5 (Tailwind默认)
 
         文本高度计算:
         - h1 (font-size: 48px): 48px × 1.5 = 72px
+        - h1 cover-title (font-size: 56px): 56px × 1.5 = 84px
         - h2 (font-size: 36px): 36px × 1.5 = 54px
 
-        布局计算 (从content-section padding-top开始):
+        普通页面布局计算 (从content-section padding-top开始):
         初始y = 20px (content-section padding-top)
         + mt-10: 40px → y = 60px
         + h1: 72px → y = 132px
@@ -44,11 +48,22 @@ class TextConverter(BaseConverter):
         + mb-4: 16px → y = 214px (装饰线的下边距)
         标题区域结束: y = 214px
 
+        封面页布局计算 (居中对齐):
+        初始y = 20px (content-section padding-top)
+        + mt-32: 128px → y = 148px
+        + cover-title h1: 84px → y = 232px
+        + cover-title h2: 84px → y = 316px
+        + mb-16: 64px → y = 380px
+        标题区域结束: y = 380px
+
         Args:
             title_text: 标题文本
             subtitle_text: 副标题文本
             x: X坐标(px)
             y: Y坐标(px) - content-section的padding-top起始位置，默认20px
+            is_cover: 是否为封面页
+            title_classes: 标题的CSS类列表
+            h1_element: H1元素对象（用于获取样式）
 
         Returns:
             标题区域结束后的Y坐标(px)
@@ -56,18 +71,29 @@ class TextConverter(BaseConverter):
         # 初始y值应该是content-section的padding-top (20px)
         current_y = y
 
-        # mt-10: 2.5rem = 40px
-        current_y += 40
-
         # 获取样式计算器和字体
         style_computer = get_style_computer(self.css_parser)
         font_manager = get_font_manager(self.css_parser)
-        font_name = font_manager.get_font('h1')
 
-        # 创建临时h1元素来获取字体大小
-        from bs4 import BeautifulSoup
-        temp_soup = BeautifulSoup('<h1>' + title_text + '</h1>', 'html.parser')
-        h1_element = temp_soup.h1
+        # 根据是否为封面页调整边距和对齐方式
+        if is_cover:
+            # 封面页：mt-32 = 8rem = 128px
+            current_y += 128
+            # 居中对齐：幻灯片宽度1920px，减去左右padding各80px，内容区1760px
+            # 标题框宽度为1760px，居中显示在幻灯片上
+            left = UnitConverter.px_to_emu(80)  # 左边距
+            width = UnitConverter.px_to_emu(1760)  # 内容区宽度
+        else:
+            # 普通页面：mt-10 = 2.5rem = 40px
+            current_y += 40
+            left = UnitConverter.px_to_emu(x)
+            width = UnitConverter.px_to_emu(1760)
+
+        # 使用传入的h1_element或创建临时元素
+        if h1_element is None:
+            from bs4 import BeautifulSoup
+            temp_soup = BeautifulSoup('<h1>' + title_text + '</h1>', 'html.parser')
+            h1_element = temp_soup.h1
 
         # 获取h1的字体大小 (现在get_font_size_pt返回pt值)
         h1_font_size_pt = style_computer.get_font_size_pt(h1_element)
@@ -78,9 +104,7 @@ class TextConverter(BaseConverter):
         logger.debug(f"H1标题字体大小: {h1_font_size_px}px → {h1_font_size_pt}pt, 高度: {h1_height}px")
 
         # 添加h1标题
-        left = UnitConverter.px_to_emu(x)
         top = UnitConverter.px_to_emu(current_y)
-        width = UnitConverter.px_to_emu(1760)
         height = UnitConverter.px_to_emu(h1_height)
 
         title_box = self.slide.shapes.add_textbox(left, top, width, height)
@@ -90,17 +114,27 @@ class TextConverter(BaseConverter):
         title_frame.margin_top = 0
         title_frame.margin_bottom = 0
         title_frame.margin_left = 0
+        title_frame.margin_right = 0
+
+        # 设置字体
+        font_name = font_manager.get_font('h1')
 
         for paragraph in title_frame.paragraphs:
+            # 封面页标题居中对齐
+            if is_cover:
+                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
             for run in paragraph.runs:
                 # 使用转换后的pt值设置字体大小
                 run.font.size = Pt(h1_font_size_pt)
                 run.font.bold = True
                 run.font.name = font_name
+                # 封面页使用主题色
+                if is_cover:
+                    run.font.color.rgb = ColorParser.get_primary_color()
 
-        logger.info(f"添加标题: {title_text}")
+        logger.info(f"添加标题: {title_text} ({'封面页' if is_cover else '普通页面'})")
 
-        current_y += h1_height  # 72px
+        current_y += h1_height  # 72px 或 84px
 
         # 添加副标题
         if subtitle_text:
@@ -108,6 +142,7 @@ class TextConverter(BaseConverter):
             current_y += 8
 
             # 创建临时h2元素来获取字体大小
+            from bs4 import BeautifulSoup
             temp_soup_h2 = BeautifulSoup('<h2>' + subtitle_text + '</h2>', 'html.parser')
             h2_element = temp_soup_h2.h2
 
@@ -129,10 +164,14 @@ class TextConverter(BaseConverter):
             subtitle_frame.margin_top = 0
             subtitle_frame.margin_bottom = 0
             subtitle_frame.margin_left = 0
+            subtitle_frame.margin_right = 0
 
             font_name_h2 = font_manager.get_font('h2')
 
             for paragraph in subtitle_frame.paragraphs:
+                # 封面页副标题也居中对齐
+                if is_cover:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
                 for run in paragraph.runs:
                     # 使用转换后的pt值设置字体大小
                     run.font.size = Pt(h2_font_size_pt)
@@ -144,30 +183,91 @@ class TextConverter(BaseConverter):
 
             current_y += h2_height  # 54px
 
-            # 添加装饰线 (w-20 h-1) - 紧接h2，无间距
-            line_top = UnitConverter.px_to_emu(current_y)
-            line_left = UnitConverter.px_to_emu(x)
-            line_width = UnitConverter.px_to_emu(80)
-            # h-1: 0.25rem = 4px
-            line_height = UnitConverter.px_to_emu(4)
+            # 只有非封面页才添加装饰线
+            if not is_cover:
+                # 添加装饰线 (w-20 h-1) - 紧接h2，无间距
+                line_top = UnitConverter.px_to_emu(current_y)
+                line_left = UnitConverter.px_to_emu(x)
+                line_width = UnitConverter.px_to_emu(80)  # w-20 = 5rem = 80px
+                # h-1: 0.25rem = 4px
+                line_height = UnitConverter.px_to_emu(4)
 
-            line_shape = self.slide.shapes.add_shape(
-                1,  # Rectangle
-                line_left, line_top, line_width, line_height
-            )
-            line_shape.fill.solid()
-            line_shape.fill.fore_color.rgb = ColorParser.get_primary_color()
-            line_shape.line.fill.background()
+                line_shape = self.slide.shapes.add_shape(
+                    1,  # Rectangle
+                    line_left, line_top, line_width, line_height
+                )
+                line_shape.fill.solid()
+                line_shape.fill.fore_color.rgb = ColorParser.get_primary_color()
+                line_shape.line.fill.background()
 
-            current_y += 4  # 装饰线高度
+                current_y += 4  # 装饰线高度
 
-            # mb-4: 1rem = 16px (装饰线的下边距)
-            current_y += 16
+                # mb-4: 1rem = 16px (装饰线的下边距)
+                current_y += 16
+            else:
+                # 封面页：智能计算装饰线宽度
+                # 获取标题和副标题的最大宽度作为参考
+
+                # 计算标题文本的估算宽度（中文字符数 * 字体大小系数）
+                title_chars = len(title_text)
+                # 对于56px的字体，中文字符宽度约为字体大小的0.8倍
+                title_width_px = int(title_chars * h1_font_size_px * 0.8)
+
+                # 如果有副标题，也计算其宽度
+                subtitle_width_px = 0
+                if subtitle_text:
+                    subtitle_chars = len(subtitle_text)
+                    # 副标题也是56px（cover-title），使用相同的系数
+                    subtitle_width_px = int(subtitle_chars * h2_font_size_px * 0.8)
+
+                # 取标题和副标题的最大宽度
+                max_text_width = max(title_width_px, subtitle_width_px)
+
+                # 装饰线宽度策略：
+                # - 装饰线宽度约为文本宽度的60-80%，但不能太长或太短
+                # - 最小宽度：w-24 (96px)
+                # - 最大宽度：w-64 (256px)
+                # - 基础宽度：文本宽度的70%
+                base_line_width = int(max_text_width * 0.7)
+
+                # 限制在合理范围内
+                line_width = max(96, min(256, base_line_width))
+
+                # 确保不超过内容区域宽度的一半
+                max_line_width = 1760 // 2
+                line_width = min(line_width, max_line_width)
+
+                # 添加装饰线
+                line_top = UnitConverter.px_to_emu(current_y)
+                # 计算居中位置：
+                # 标题框从80px开始，宽度1760px，文本居中对齐
+                # 文本中心在 80 + 1760/2 = 960px（幻灯片正中心）
+                # 装饰线应该以960px为中心对齐
+                # 装饰线左边界 = 960 - line_width/2
+                line_left = UnitConverter.px_to_emu(960 - line_width // 2)
+                line_width_emu = UnitConverter.px_to_emu(line_width)
+                # h-1: 0.25rem = 4px
+                line_height = UnitConverter.px_to_emu(4)
+
+                line_shape = self.slide.shapes.add_shape(
+                    1,  # Rectangle
+                    line_left, line_top, line_width_emu, line_height
+                )
+                line_shape.fill.solid()
+                line_shape.fill.fore_color.rgb = ColorParser.get_primary_color()
+                line_shape.line.fill.background()
+
+                logger.info(f"添加封面页装饰线: 宽度={line_width}px, 标题宽度={max_text_width}px")
+
+                current_y += 4  # 装饰线高度
+
+                # mb-16: 4rem = 64px (封面页装饰线的下边距)
+                current_y += 64
 
         # 标题区域结束位置
-        # 正确计算: y(20) + mt-10(40) + h1(72) + mt-2(8) + h2(54) + line(4) + mb-4(16) = 214px
-        # 装饰线紧接h2(194px)，装饰线结束(198px)，装饰线mb-4下边距(16px) → 第一个容器起始(214px)
-        logger.info(f"标题区域结束位置: y={current_y}px")
+        # 普通页面: y(20) + mt-10(40) + h1(72) + mt-2(8) + h2(54) + line(4) + mb-4(16) = 214px
+        # 封面页: y(20) + mt-32(128) + h1(84) + mt-2(8) + h2(84) + line(4) + mb-16(64) = 392px
+        logger.info(f"标题区域结束位置: y={current_y}px ({'封面页' if is_cover else '普通页面'})")
         return current_y
 
     def convert_paragraph(self, p_element, x: int, y: int, width: int = 1760):
