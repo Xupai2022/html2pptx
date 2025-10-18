@@ -92,6 +92,20 @@ class BatchConverter:
                 logger.info(f"\n处理第 {i+1} 个文件: {os.path.basename(html_file)}")
 
                 try:
+                    # 清理全局缓存，避免不同HTML文件间的样式污染
+                    from src.utils.style_computer import _style_computer_instance
+                    from src.utils.font_manager import _font_manager_instance
+                    from src.utils.font_size_extractor import _font_size_extractor_instance
+
+                    if _style_computer_instance is not None:
+                        _style_computer_instance.clear_cache()
+                    if _font_manager_instance is not None:
+                        _font_manager_instance._cached_fonts.clear()
+                    if _font_size_extractor_instance is not None:
+                        _font_size_extractor_instance.clear_cache()
+
+                    logger.debug(f"已清理缓存，准备处理: {html_file}")
+
                     # 创建转换器，传入共享的Presentation对象
                     converter = HTML2PPTX(
                         html_path=html_file,

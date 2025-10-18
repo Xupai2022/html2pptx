@@ -54,6 +54,12 @@ class HTML2PPTX:
         self.font_manager = get_font_manager(self.css_parser)
         self.style_computer = get_style_computer(self.css_parser)
 
+        # 设置HTML文件ID，避免缓存冲突
+        if hasattr(self.style_computer, 'set_html_file_id'):
+            self.style_computer.set_html_file_id(html_path)
+        if hasattr(self.style_computer.font_size_extractor, 'set_html_file_id'):
+            self.style_computer.font_size_extractor.set_html_file_id(html_path)
+
     def convert(self, output_path: str):
         """
         执行转换
@@ -101,21 +107,37 @@ class HTML2PPTX:
             content_section = slide_html.find('div', class_='content-section')
 
             if space_y_container:
+                logger.info("找到space-y-10容器，开始处理直接子元素")
                 # 按顺序遍历直接子元素
                 is_first_container = True
+                container_count = 0
                 for container in space_y_container.find_all(recursive=False):
-                    if not container.name:
+                    if not container.name or container.name in ['nav', 'script', 'style']:
                         continue
 
+                    container_count += 1
                     container_classes = container.get('class', [])
+                    logger.info(f"处理容器 #{container_count}: tag={container.name}, class={container_classes}")
 
                     # space-y-10: 第一个元素无上间距，后续元素有40px间距
                     if not is_first_container:
                         y_offset += 40  # space-y-10间距
+                        logger.info(f"添加space-y-10间距40px，当前y_offset={y_offset}")
                     is_first_container = False
 
                     # 根据class路由到对应的处理方法
-                    y_offset = self._process_container(container, pptx_slide, y_offset, shape_converter)
+                    try:
+                        old_y = y_offset
+                        y_offset = self._process_container(container, pptx_slide, y_offset, shape_converter)
+                        logger.info(f"容器处理完成，y_offset从{old_y}变为{y_offset}")
+                        if y_offset == old_y:
+                            logger.warning(f"警告：容器{container_classes}的y_offset没有变化，可能内容未正确处理")
+                    except Exception as e:
+                        logger.error(f"处理容器时出错: {e}, container={container_classes}")
+                        import traceback
+                        logger.error(f"错误堆栈: {traceback.format_exc()}")
+                        # 继续处理下一个容器
+                        continue
             else:
                 # 新的HTML结构：直接处理content-section的直接子元素（跳过标题区域）
                 logger.info("未找到space-y-10容器，处理content-section的直接子元素")
@@ -201,15 +223,20 @@ class HTML2PPTX:
         # 优先检测grid布局（包含grid类）
         if 'grid' in container_classes:
             # 网格容器（新的Tailwind结构）
+            logger.info(f"识别为grid容器: {container_classes}")
             return self._convert_grid_container(container, pptx_slide, y_offset, shape_converter)
         elif 'stats-container' in container_classes:
             # 顶层stats-container（不在stat-card内）
+            logger.info(f"识别为stats-container: {container_classes}")
             return self._convert_stats_container(container, pptx_slide, y_offset)
         elif 'stat-card' in container_classes:
+            logger.info(f"识别为stat-card: {container_classes}")
             return self._convert_stat_card(container, pptx_slide, y_offset)
         elif 'data-card' in container_classes:
+            logger.info(f"识别为data-card: {container_classes}")
             return self._convert_data_card(container, pptx_slide, shape_converter, y_offset)
         elif 'strategy-card' in container_classes:
+            logger.info(f"识别为strategy-card: {container_classes}")
             return self._convert_strategy_card(container, pptx_slide, y_offset)
         elif 'risk-card' in container_classes:
             return self._convert_risk_card(container, pptx_slide, shape_converter, y_offset)
@@ -2903,11 +2930,7 @@ class HTML2PPTX:
     def _convert_stat_card(self, card, pptx_slide, y_start: int) -> int:
         """转换统计卡片(.stat-card) - 支持多种内部结构"""
 
-        # 防止重复处理：检查是否已经在其他容器中处理过
-        if hasattr(card, '_processed'):
-            logger.debug("stat-card已处理过，跳过")
-            return y_start
-        card._processed = True
+        logger.info(f"开始处理stat-card，y_start={y_start}")
 
         # 0. 检查是否包含bullet-point结构
         bullet_points = card.find_all('div', class_='bullet-point')
@@ -2929,15 +2952,16 @@ class HTML2PPTX:
         if stats_container:
             logger.info("stat-card包含stats-container,处理嵌套的stat-box结构")
 
-            # 估算stat-card高度用于添加背景
+            # 获取所有的stat-box
             stat_boxes = stats_container.find_all('div', class_='stat-box')
             num_boxes = len(stat_boxes)
 
-            # 动态获取列数
-            num_columns = 4
+            # 动态获取列数 - 优先检查内联样式
+            num_columns = 3  # 默认3列（slide01.html使用3列）
             inline_style = stats_container.get('style', '')
             if 'grid-template-columns' in inline_style:
                 import re
+                # 查找 repeat(n, 1fr) 或直接的 1fr 1fr 1fr 格式
                 repeat_match = re.search(r'repeat\((\d+),', inline_style)
                 if repeat_match:
                     num_columns = int(repeat_match.group(1))
@@ -2945,27 +2969,34 @@ class HTML2PPTX:
                     fr_count = len(re.findall(r'1fr', inline_style))
                     if fr_count > 0:
                         num_columns = fr_count
+                logger.info(f"从内联样式解析出列数: {num_columns}")
             else:
+                # 从CSS类获取列数
                 num_columns = self.css_parser.get_grid_columns('.stats-container')
+                logger.info(f"从CSS类解析出列数: {num_columns}")
 
             # 从CSS读取约束
             stat_card_padding_top = 20
             stat_card_padding_bottom = 20
             stats_container_gap = 20
-            stat_box_height = 220  # TODO阶段2: 改为动态计算
+
+            # 动态计算每个stat-box的高度
+            # 根据内容计算：图标(36px) + 标题(24px) + 描述文本(约50px) + padding(20px) = 130px
+            # 但为了确保显示完整，使用一个更安全的估算值
+            stat_box_height = 150  # 增加高度以确保内容显示完整
 
             # 计算stats-container的实际高度
             num_rows = (num_boxes + num_columns - 1) // num_columns
             stats_container_height = num_rows * stat_box_height + (num_rows - 1) * stats_container_gap
 
             # 计算stat-card总高度（包括自身padding）
-            # stat-card = padding-top + (可选标题35px) + stats-container + padding-bottom
             has_title = card.find('p', class_='primary-color') is not None
             title_height = 35 if has_title else 0
 
             card_height = stat_card_padding_top + title_height + stats_container_height + stat_card_padding_bottom
 
-            logger.info(f"stat-card高度计算: padding={stat_card_padding_top+stat_card_padding_bottom}px, "
+            logger.info(f"stat-card动态高度计算: boxes={num_boxes}, columns={num_columns}, rows={num_rows}")
+            logger.info(f"stat-card高度组成: padding={stat_card_padding_top+stat_card_padding_bottom}px, "
                        f"标题={title_height}px, stats-container={stats_container_height}px, 总高度={card_height}px")
 
             # 添加stat-card背景
@@ -3917,12 +3948,6 @@ class HTML2PPTX:
         处理action-item结构：圆形数字图标 + 标题 + 描述
         """
 
-        # 防止重复处理：检查是否已经在其他容器中处理过
-        if hasattr(card, '_processed'):
-            logger.debug("strategy-card已处理过，跳过")
-            return y_start
-        card._processed = True
-
         logger.info("处理strategy-card")
         x_base = 80
 
@@ -4705,26 +4730,61 @@ class HTML2PPTX:
         else:
             logger.info(f"data-card使用标准处理流程（grid: {'是' if grid_container else '否'}, bullet-point: {'是' if grid_container and grid_container.find_all('div', class_='bullet-point') else '否'}）")
 
-        # 添加data-card背景色
-        bg_color_str = 'rgba(10, 66, 117, 0.03)'  # 从CSS获取的背景色
-        from pptx.enum.shapes import MSO_SHAPE
-        # 估算高度
+        # 智能判断data-card是否应该有背景色
+        # 从当前HTML的CSS解析器获取实际的背景色定义
+        bg_color_str = self.css_parser.get_background_color('.data-card')
+        should_add_bg = False
         estimated_height = 200
-        bg_shape = pptx_slide.shapes.add_shape(
-            MSO_SHAPE.ROUNDED_RECTANGLE,
-            UnitConverter.px_to_emu(x_base),
-            UnitConverter.px_to_emu(y_start),
-            UnitConverter.px_to_emu(1760),
-            UnitConverter.px_to_emu(estimated_height)
-        )
-        bg_shape.fill.solid()
-        bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
-        if bg_rgb:
-            if alpha < 1.0:
-                bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
-            bg_shape.fill.fore_color.rgb = bg_rgb
-        bg_shape.line.fill.background()
-        logger.info(f"添加data-card背景色: {bg_color_str}")
+
+        if bg_color_str and bg_color_str != 'transparent' and bg_color_str != 'none':
+            should_add_bg = True
+            logger.info(f"data-card应该添加背景色: {bg_color_str}")
+
+            # 动态计算所需高度
+            # 基础padding: 15px上 + 15px下 = 30px (从slide_003的CSS得出)
+            # 或者 10px上 + 10px下 = 20px (从slide01的CSS得出)
+            # 使用通用的计算方法
+            estimated_height = 30  # 默认padding
+
+            # 检查标题高度
+            p_elem = card.find('p', class_='primary-color')
+            if p_elem:
+                estimated_height += 35
+
+            # 检查bullet-point数量
+            bullet_points = card.find_all('div', class_='bullet-point')
+            if bullet_points:
+                estimated_height += len(bullet_points) * 35
+                estimated_height += (len(bullet_points) - 1) * 8  # bullet-point间距
+
+            # 检查是否包含h3标题
+            h3_elem = card.find('h3')
+            if h3_elem:
+                estimated_height += 40
+
+            # 确保最小高度
+            estimated_height = max(estimated_height, 200)
+            logger.info(f"data-card动态计算高度: {estimated_height}px")
+
+            # 添加背景色
+            from pptx.enum.shapes import MSO_SHAPE
+            bg_shape = pptx_slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                UnitConverter.px_to_emu(x_base),
+                UnitConverter.px_to_emu(y_start),
+                UnitConverter.px_to_emu(1760),
+                UnitConverter.px_to_emu(estimated_height)
+            )
+            bg_shape.fill.solid()
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+            if bg_rgb:
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                bg_shape.fill.fore_color.rgb = bg_rgb
+            bg_shape.line.fill.background()
+            logger.info(f"添加data-card背景色: {bg_color_str}, 高度={estimated_height}px")
+        else:
+            logger.info(f"data-card没有定义背景色，只添加左边框")
 
         # 注意：左边框的高度需要在计算完实际内容后再添加
         # 暂时记录起始位置，稍后添加边框

@@ -206,6 +206,10 @@ class BatchHTML2PPTXMerger:
         temp_converter.style_computer = get_style_computer(css_parser)
         # 清理样式计算器缓存，避免不同HTML文件间的样式污染
         temp_converter.style_computer.clear_cache()
+        # 设置HTML文件ID
+        temp_converter.style_computer.set_html_file_id(str(html_file))
+        temp_converter.font_manager.css_parser = css_parser
+        temp_converter.font_size_extractor.set_html_file_id(str(html_file))
 
         return temp_converter._convert_stats_container(container, pptx_slide, y_start)
 
@@ -218,6 +222,10 @@ class BatchHTML2PPTXMerger:
         temp_converter.html_path = str(html_file)
         # 清理样式计算器缓存，避免不同HTML文件间的样式污染
         temp_converter.style_computer.clear_cache()
+        # 设置HTML文件ID
+        temp_converter.style_computer.set_html_file_id(str(html_file))
+        temp_converter.font_manager.css_parser = css_parser
+        temp_converter.font_size_extractor.set_html_file_id(str(html_file))
 
         return temp_converter._convert_stat_card(card, pptx_slide, y_start)
 
@@ -230,6 +238,10 @@ class BatchHTML2PPTXMerger:
         temp_converter.html_path = str(html_file)
         # 清理样式计算器缓存，避免不同HTML文件间的样式污染
         temp_converter.style_computer.clear_cache()
+        # 设置HTML文件ID
+        temp_converter.style_computer.set_html_file_id(str(html_file))
+        temp_converter.font_manager.css_parser = css_parser
+        temp_converter.font_size_extractor.set_html_file_id(str(html_file))
 
         return temp_converter._convert_data_card(card, pptx_slide, shape_converter, y_start)
 
@@ -242,6 +254,10 @@ class BatchHTML2PPTXMerger:
         temp_converter.html_path = str(html_file)
         # 清理样式计算器缓存，避免不同HTML文件间的样式污染
         temp_converter.style_computer.clear_cache()
+        # 设置HTML文件ID
+        temp_converter.style_computer.set_html_file_id(str(html_file))
+        temp_converter.font_manager.css_parser = css_parser
+        temp_converter.font_size_extractor.set_html_file_id(str(html_file))
 
         return temp_converter._convert_strategy_card(card, pptx_slide, y_start)
 
@@ -254,6 +270,10 @@ class BatchHTML2PPTXMerger:
         temp_converter.html_path = str(html_file)
         # 清理样式计算器缓存，避免不同HTML文件间的样式污染
         temp_converter.style_computer.clear_cache()
+        # 设置HTML文件ID
+        temp_converter.style_computer.set_html_file_id(str(html_file))
+        temp_converter.font_manager.css_parser = css_parser
+        temp_converter.font_size_extractor.set_html_file_id(str(html_file))
 
         return temp_converter._convert_bottom_info(bottom_container, pptx_slide, y_start)
 

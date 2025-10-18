@@ -47,6 +47,19 @@ class FontSizeExtractor:
         """
         self.css_parser = css_parser
         self._font_size_cache = {}  # 字体大小缓存
+        self._html_file_id = None  # HTML文件标识，用于缓存键
+
+    def set_html_file_id(self, html_file_path: str):
+        """
+        设置HTML文件标识，用于缓存键
+
+        Args:
+            html_file_path: HTML文件路径
+        """
+        import os
+        self._html_file_id = os.path.basename(html_file_path)
+        # 清理缓存，因为文件标识已改变
+        self.clear_cache()
 
     def extract_font_size(self, element: Tag, parent_font_size: int = None) -> Optional[int]:
         """
@@ -69,9 +82,10 @@ class FontSizeExtractor:
         if not element:
             return None
 
-        # 生成缓存键
+        # 生成缓存键，包含HTML文件标识以避免跨文件冲突
         element_id = id(element)
-        cache_key = f"{element_id}_{parent_font_size}"
+        file_id = self._html_file_id or 'unknown'
+        cache_key = f"{file_id}_{element_id}_{parent_font_size}"
 
         if cache_key in self._font_size_cache:
             return self._font_size_cache[cache_key]

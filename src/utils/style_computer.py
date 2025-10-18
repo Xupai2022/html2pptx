@@ -53,6 +53,19 @@ class StyleComputer:
         self.css_parser = css_parser
         self.font_size_extractor = FontSizeExtractor(css_parser)
         self._style_cache = {}  # 样式缓存
+        self._html_file_id = None  # HTML文件标识，用于缓存键
+
+    def set_html_file_id(self, html_file_path: str):
+        """
+        设置HTML文件标识，用于缓存键
+
+        Args:
+            html_file_path: HTML文件路径
+        """
+        import os
+        self._html_file_id = os.path.basename(html_file_path)
+        # 清理缓存，因为文件标识已改变
+        self.clear_cache()
 
     def compute_computed_style(self, element: Tag, parent_element: Tag = None) -> Dict[str, str]:
         """
@@ -74,10 +87,11 @@ class StyleComputer:
         if not element:
             return {}
 
-        # 生成缓存键
+        # 生成缓存键，包含HTML文件标识以避免跨文件冲突
         element_id = id(element)
         parent_id = id(parent_element) if parent_element else None
-        cache_key = f"{element_id}_{parent_id}"
+        file_id = self._html_file_id or 'unknown'
+        cache_key = f"{file_id}_{element_id}_{parent_id}"
 
         if cache_key in self._style_cache:
             return self._style_cache[cache_key]
