@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>风险资产深度剖析</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 12px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .risk-item { display: flex; align-items: flex-start; margin-bottom: 12px; }
+  .risk-icon { color: #dc2626; margin-right: 10px; min-width: 20px; margin-top: 5px; }
+  .risk-level { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 20px; font-weight: 600; margin-left: 10px; }
+  .risk-high { background-color: rgba(220, 38, 38, 0.1); color: #dc2626; }
+  .risk-medium { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+  .risk-low { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>风险资产深度剖析</h1>
+      <h2 class="text-gray-600">典型高风险资产案例展示</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 高风险资产统计 -->
+    <div class="grid grid-cols-3 gap-6 mb-6">
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">高风险资产总数</h3>
+        <p class="text-4xl font-bold text-red-600">8个</p>
+        <p class="text-lg text-gray-600 mt-2">需立即处理</p>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">风险分布</h3>
+        <div class="flex items-center space-x-4 mt-2">
+          <div class="flex items-center">
+            <span class="risk-level risk-high">高危4</span>
+          </div>
+          <div class="flex items-center">
+            <span class="risk-level risk-medium">中危12</span>
+          </div>
+          <div class="flex items-center">
+            <span class="risk-level risk-low">低危19</span>
+          </div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">云存储风险</h3>
+        <p class="text-4xl font-bold text-red-600">3个</p>
+        <p class="text-lg text-gray-600 mt-2">占云存储16.7%</p>
+      </div>
+    </div>
+
+    <!-- 核心风险资产详情 -->
+    <div class="grid grid-cols-2 gap-6 flex-1">
+      <div class="data-card">
+        <h3>关键风险资产</h3>
+        <div class="risk-item">
+          <i class="fas fa-cloud bullet-icon"></i>
+          <div>
+            <p><strong>galaxy-tech-backups.s3.amazonaws.com</strong><span class="risk-level risk-high">高危</span></p>
+            <p class="text-sm text-gray-600">云存储桶配置错误，可公开访问</p>
+          </div>
+        </div>
+        <div class="risk-item">
+          <i class="fas fa-code bullet-icon"></i>
+          <div>
+            <p><strong>api.galaxy-tech.com/v1/users</strong><span class="risk-level risk-high">高危</span></p>
+            <p class="text-sm text-gray-600">敏感接口暴露+SQL注入漏洞</p>
+          </div>
+        </div>
+        <div class="risk-item">
+          <i class="fas fa-globe bullet-icon"></i>
+          <div>
+            <p><strong>test.galaxy-tech.com</strong><span class="risk-level risk-high">高危</span></p>
+            <p class="text-sm text-gray-600">未打补丁WordPress，存在RCE漏洞</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <h3>最新发现威胁（近一周）</h3>
+        <div class="risk-item">
+          <i class="fas fa-file-alt bullet-icon"></i>
+          <div>
+            <p><strong>logs.galaxy-tech.com/aws_keys.log</strong><span class="risk-level risk-high">CVSS 10.0</span></p>
+            <p class="text-sm text-gray-600">日志文件暴露有效AWS访问密钥</p>
+          </div>
+        </div>
+        <div class="risk-item">
+          <i class="fas fa-server bullet-icon"></i>
+          <div>
+            <p><strong>jenkins.build.galaxy-tech.com</strong><span class="risk-level risk-high">CVSS 9.8</span></p>
+            <p class="text-sm text-gray-600">构建服务器存在未授权访问漏洞</p>
+          </div>
+        </div>
+        <div class="risk-item">
+          <i class="fas fa-network-wired bullet-icon"></i>
+          <div>
+            <p><strong>vpn-backup.galaxy-tech.com</strong><span class="risk-level risk-high">CVSS 8.6</span></p>
+            <p class="text-sm text-gray-600">暴露含共享密钥的配置文件</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 影响范围分析 -->
+    <div class="data-card mt-6">
+      <h3>影响范围分析</h3>
+      <div class="grid grid-cols-4 gap-4">
+        <div class="bullet-point">
+          <i class="fas fa-database bullet-icon"></i>
+          <p><strong>敏感数据暴露</strong>：客户信息、备份文件</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-terminal bullet-icon"></i>
+          <p><strong>远程代码执行</strong>：服务器完全接管风险</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-key bullet-icon"></i>
+          <p><strong>凭据泄露</strong>：AWS密钥、VPN配置</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-triangle bullet-icon"></i>
+          <p><strong>已知CVE利用</strong>：存在在野利用报告</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">5</div>
+</div>
+</body>
+</html>

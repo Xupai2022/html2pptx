@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>新增高危资产警示</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .risk-card { background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: all 0.3s ease; }
+  .risk-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .cvss-score { font-size: 48px; font-weight: bold; color: #ef4444; }
+  .cvss-label { font-size: 18px; color: #666; margin-top: 5px; }
+  .risk-title { font-size: 26px; font-weight: 600; color: #333; margin-bottom: 10px; }
+  .risk-desc { font-size: 22px; color: #666; line-height: 1.5; }
+  .severity-critical { color: #dc2626; }
+  .severity-high { color: #ea580c; }
+  .severity-medium { color: #d97706; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>新增高危资产警示</h1>
+      <h2 class="text-gray-600">最新发现的严重风险与CVSS评分</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 高危风险卡片 -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <!-- AWS密钥日志暴露 -->
+      <div class="risk-card">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="risk-title">
+              <i class="fas fa-key severity-critical mr-2"></i>
+              AWS密钥日志暴露
+            </div>
+            <div class="risk-desc">logs.galaxy-tech.com/aws_keys.log 日志文件临时暴露，内含有效AWS访问密钥</div>
+            <div class="mt-3">
+              <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">立即处理</span>
+            </div>
+          </div>
+          <div class="text-center ml-4">
+            <div class="cvss-score">10.0</div>
+            <div class="cvss-label">CVSS评分</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Jenkins未授权访问 -->
+      <div class="risk-card">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="risk-title">
+              <i class="fas fa-server severity-high mr-2"></i>
+              Jenkins未授权访问
+            </div>
+            <div class="risk-desc">jenkins.build.galaxy-tech.com 构建服务器存在未授权访问漏洞</div>
+            <div class="mt-3">
+              <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">紧急处理</span>
+            </div>
+          </div>
+          <div class="text-center ml-4">
+            <div class="cvss-score">9.8</div>
+            <div class="cvss-label">CVSS评分</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VPN配置文件暴露 -->
+      <div class="risk-card">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="risk-title">
+              <i class="fas fa-network-wired severity-high mr-2"></i>
+              VPN配置文件暴露
+            </div>
+            <div class="risk-desc">vpn-backup.galaxy-tech.com 暴露含共享密钥的配置文件</div>
+            <div class="mt-3">
+              <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">紧急处理</span>
+            </div>
+          </div>
+          <div class="text-center ml-4">
+            <div class="cvss-score">8.6</div>
+            <div class="cvss-label">CVSS评分</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 合作伙伴门户XSS -->
+      <div class="risk-card">
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <div class="risk-title">
+              <i class="fas fa-globe severity-medium mr-2"></i>
+              合作伙伴门户漏洞
+            </div>
+            <div class="risk-desc">partners.galaxy-tech.com 存在跨站脚本漏洞，可能影响用户数据</div>
+            <div class="mt-3">
+              <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">优先处理</span>
+            </div>
+          </div>
+          <div class="text-center ml-4">
+            <div class="cvss-score">6.1</div>
+            <div class="cvss-label">CVSS评分</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 风险总结 -->
+    <div class="data-card">
+      <h3 class="primary-color mb-4">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        风险影响评估
+      </h3>
+      <div class="bullet-point">
+        <i class="fas fa-clock bullet-icon"></i>
+        <p>以上风险均为过去一周内新增发现，需要立即响应处理</p>
+      </div>
+      <div class="bullet-point">
+        <i class="fas fa-shield-virus bullet-icon"></i>
+        <p>AWS密钥暴露风险等级最高（CVSS 10.0），可能导致云资源完全失控</p>
+      </div>
+      <div class="bullet-point">
+        <i class="fas fa-user-lock bullet-icon"></i>
+        <p>Jenkins未授权访问可能被利用进行供应链攻击，影响整个构建流程</p>
+      </div>
+      <div class="bullet-point">
+        <i class="fas fa-lock-open bullet-icon"></i>
+        <p>VPN配置暴露可能导致内部网络边界被突破，造成横向移动风险</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">7</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>第三方与供应链风险评估</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .risk-high { color: #dc2626; }
+  .risk-medium { color: #ea580c; }
+  .risk-low { color: #ca8a04; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>第三方与供应链风险评估</h1>
+      <h2 class="text-gray-600">外部依赖带来的安全挑战</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：关键指标卡片 -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">证书/SSL资产总数</h3>
+        <p class="text-4xl font-bold text-gray-800">147个</p>
+        <p class="text-lg text-gray-600 mt-2">需要持续监控</p>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-2">中低危证书/SSL资产</h3>
+        <p class="text-4xl font-bold text-orange-600">28个</p>
+        <p class="text-lg text-gray-600 mt-2">占比19.0%</p>
+      </div>
+    </div>
+
+    <!-- 第三方服务风险列表 -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="data-card">
+        <h3 class="text-2xl font-bold primary-color mb-4">第三方服务风险点</h3>
+        <div class="bullet-point">
+          <i class="fas fa-cloud bullet-icon risk-high"></i>
+          <p><span class="font-semibold">AWS S3存储桶</span> - 配置错误导致公开访问</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-comments bullet-icon risk-medium"></i>
+          <p><span class="font-semibold">在线客服组件</span> - 存在XSS漏洞</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-code-branch bullet-icon risk-medium"></i>
+          <p><span class="font-semibold">开源组件</span> - 存在DoS漏洞</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-globe bullet-icon risk-high"></i>
+          <p><span class="font-semibold">CDN提供商</span> - 配置错误潜在风险</p>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <h3 class="text-2xl font-bold primary-color mb-4">供应链风险源</h3>
+        <div class="bullet-point">
+          <i class="fas fa-building bullet-icon risk-high"></i>
+          <p><span class="font-semibold">被收购公司遗留网站</span> - 缺乏维护，大量漏洞</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-link bullet-icon risk-medium"></i>
+          <p><span class="font-semibold">第三方API集成</span> - 认证机制薄弱</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-box bullet-icon risk-medium"></i>
+          <p><span class="font-semibold">外部软件包</span> - 版本过时未更新</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-server bullet-icon risk-low"></i>
+          <p><span class="font-semibold">云服务商配置</span> - 权限管理不当</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 核心风险总结 -->
+    <div class="flex-1">
+      <div class="data-card">
+        <h3 class="text-2xl font-bold primary-color mb-4">关键发现与建议</h3>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-triangle bullet-icon"></i>
+          <p>外部依赖已成为主要攻击面，需建立完善的第三方安全评估机制</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-shield-alt bullet-icon"></i>
+          <p>建议实施供应链安全审计，定期评估第三方服务安全状况</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-clock bullet-icon"></i>
+          <p>28个中低危证书/SSL资产需建立自动化监控和预警机制</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">9</div>
+</div>
+</body>
+</html>

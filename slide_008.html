@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>已知漏洞（CVE）风险暴露</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+  .cve-card { background: linear-gradient(135deg, rgba(10, 66, 117, 0.05) 0%, rgba(10, 66, 117, 0.02) 100%); border-radius: 8px; padding: 20px; margin-bottom: 15px; border-left: 4px solid rgb(10, 66, 117); }
+  .cve-badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 600; margin-right: 10px; }
+  .critical { background-color: rgba(220, 38, 38, 0.1); color: rgb(220, 38, 38); }
+  .high { background-color: rgba(251, 146, 60, 0.1); color: rgb(251, 146, 60); }
+  .medium { background-color: rgba(251, 191, 36, 0.1); color: rgb(251, 191, 36); }
+  .exploited { background-color: rgba(220, 38, 38, 0.15); color: rgb(220, 38, 38); padding: 2px 8px; border-radius: 4px; font-size: 14px; font-weight: 600; margin-left: 10px; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>已知漏洞（CVE）风险暴露</h1>
+      <h2 class="text-gray-600">受影响资产与在野利用分析</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 统计卡片 -->
+      <div class="grid grid-cols-3 gap-6 mb-6">
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">受影响资产数量</h3>
+              <p class="text-4xl font-bold primary-color">4</p>
+              <p class="text-sm text-gray-500 mt-1">个资产</p>
+            </div>
+            <i class="fas fa-bug text-4xl primary-color opacity-30"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">高危漏洞数量</h3>
+              <p class="text-4xl font-bold text-orange-600">2</p>
+              <p class="text-sm text-gray-500 mt-1">需立即修复</p>
+            </div>
+            <i class="fas fa-exclamation-triangle text-4xl text-orange-600 opacity-30"></i>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-gray-600 text-lg mb-2">在野利用情报</h3>
+              <p class="text-4xl font-bold text-red-600">2</p>
+              <p class="text-sm text-gray-500 mt-1">已知被利用</p>
+            </div>
+            <i class="fas fa-shield-virus text-4xl text-red-600 opacity-30"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图表区域 -->
+      <div class="flex gap-6 mb-6">
+        <!-- CVSS评分分布 -->
+        <div class="flex-1">
+          <h3 class="text-xl font-semibold mb-4 primary-color">CVSS评分分布</h3>
+          <svg width="100%" height="250" viewBox="0 0 400 250">
+            <!-- Y轴 -->
+            <line x1="40" y1="30" x2="40" y2="200" stroke="#ccc" stroke-width="1"/>
+            <!-- X轴 -->
+            <line x1="40" y1="200" x2="380" y2="200" stroke="#ccc" stroke-width="1"/>
+            
+            <!-- 柱状图 -->
+            <!-- 9.0-10.0 1个 -->
+            <rect x="80" y="140" width="60" height="60" fill="rgba(220, 38, 38, 0.7)"/>
+            <text x="110" y="130" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(220, 38, 38)">1</text>
+            <text x="110" y="220" text-anchor="middle" font-size="12" fill="#666">9.0-10.0</text>
+            
+            <!-- 7.0-8.9 1个 -->
+            <rect x="160" y="140" width="60" height="60" fill="rgba(251, 146, 60, 0.7)"/>
+            <text x="190" y="130" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(251, 146, 60)">1</text>
+            <text x="190" y="220" text-anchor="middle" font-size="12" fill="#666">7.0-8.9</text>
+            
+            <!-- 4.0-6.9 2个 -->
+            <rect x="240" y="80" width="60" height="120" fill="rgba(251, 191, 36, 0.7)"/>
+            <text x="270" y="70" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(251, 191, 36)">2</text>
+            <text x="270" y="220" text-anchor="middle" font-size="12" fill="#666">4.0-6.9</text>
+            
+            <!-- 0.0-3.9 0个 -->
+            <rect x="320" y="190" width="60" height="10" fill="rgba(10, 66, 117, 0.3)"/>
+            <text x="350" y="180" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">0</text>
+            <text x="350" y="220" text-anchor="middle" font-size="12" fill="#666">0.0-3.9</text>
+            
+            <!-- Y轴标签 -->
+            <text x="30" y="205" text-anchor="end" font-size="12" fill="#666">0</text>
+            <text x="30" y="145" text-anchor="end" font-size="12" fill="#666">1</text>
+            <text x="30" y="85" text-anchor="end" font-size="12" fill="#666">2</text>
+            <text x="30" y="35" text-anchor="end" font-size="12" fill="#666">3</text>
+          </svg>
+        </div>
+
+        <!-- 在野利用情况 -->
+        <div class="flex-1">
+          <h3 class="text-xl font-semibold mb-4 primary-color">在野利用情况</h3>
+          <svg width="100%" height="250" viewBox="0 0 400 250">
+            <!-- 饼图 -->
+            <g transform="translate(150, 125)">
+              <!-- 已知在野利用 2个 (50%) -->
+              <path d="M 0,-80 A 80,80 0 0,1 80,0 L 0,0 Z" fill="rgba(220, 38, 38, 0.3)" stroke="rgb(220, 38, 38)" stroke-width="2"/>
+              <!-- 无在野利用报告 2个 (50%) -->
+              <path d="M 80,0 A 80,80 0 1,1 0,-80 L 0,0 Z" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="2"/>
+              
+              <!-- 中心圆 -->
+              <circle cx="0" cy="0" r="40" fill="white"/>
+              <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="24" font-weight="bold" fill="rgb(10, 66, 117)">4</text>
+              <text x="0" y="20" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#666">总CVE</text>
+            </g>
+            
+            <!-- 图例 -->
+            <g transform="translate(280, 80)">
+              <rect x="0" y="0" width="15" height="15" fill="rgba(220, 38, 38, 0.3)" stroke="rgb(220, 38, 38)" stroke-width="1"/>
+              <text x="20" y="12" font-size="14" fill="#333">已知在野利用 2个 (50%)</text>
+              
+              <rect x="0" y="25" width="15" height="15" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="1"/>
+              <text x="20" y="37" font-size="14" fill="#333">无在野利用报告 2个 (50%)</text>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <!-- CVE漏洞列表 -->
+      <div class="data-card">
+        <h3 class="text-xl font-semibold mb-4 primary-color">关键CVE漏洞详情</h3>
+        <div class="space-y-3">
+          <div class="cve-card">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center mb-2">
+                  <span class="cve-badge critical">CVE-2024-12345</span>
+                  <span class="cve-badge high">CVSS 9.8</span>
+                  <span class="exploited">在野利用</span>
+                </div>
+                <p class="text-lg font-medium mb-1">Apache Log4j 远程代码执行漏洞</p>
+                <p class="text-base text-gray-600">受影响资产: test.galaxy-tech.com</p>
+              </div>
+              <i class="fas fa-exclamation-circle text-3xl text-red-600"></i>
+            </div>
+          </div>
+          
+          <div class="cve-card">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center mb-2">
+                  <span class="cve-badge critical">CVE-2023-45678</span>
+                  <span class="cve-badge high">CVSS 9.1</span>
+                  <span class="exploited">在野利用</span>
+                </div>
+                <p class="text-lg font-medium mb-1">Apache HTTP Server 高危漏洞</p>
+                <p class="text-base text-gray-600">受影响资产: legacy.old-company.com</p>
+              </div>
+              <i class="fas fa-exclamation-circle text-3xl text-red-600"></i>
+            </div>
+          </div>
+          
+          <div class="cve-card">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center mb-2">
+                  <span class="cve-badge medium">CVE-2023-87654</span>
+                  <span class="cve-badge medium">CVSS 6.5</span>
+                </div>
+                <p class="text-lg font-medium mb-1">WordPress 插件漏洞</p>
+                <p class="text-base text-gray-600">受影响资产: wp.galaxy-tech.com</p>
+              </div>
+              <i class="fas fa-shield-alt text-3xl text-yellow-600"></i>
+            </div>
+          </div>
+          
+          <div class="cve-card">
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <div class="flex items-center mb-2">
+                  <span class="cve-badge medium">CVE-2023-54321</span>
+                  <span class="cve-badge medium">CVSS 5.8</span>
+                </div>
+                <p class="text-lg font-medium mb-1">API 认证绕过漏洞</p>
+                <p class="text-base text-gray-600">受影响资产: api.galaxy-tech.com</p>
+              </div>
+              <i class="fas fa-shield-alt text-3xl text-yellow-600"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">8</div>
+</div>
+</body>
+</html>

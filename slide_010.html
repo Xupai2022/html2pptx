@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>综合建议与下一步行动计划</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 12px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .priority-tag { display: inline-block; padding: 4px 12px; border-radius: 4px; font-size: 18px; font-weight: 600; margin-left: 10px; }
+  .priority-high { background-color: rgba(239, 68, 68, 0.1); color: rgb(239, 68, 68); }
+  .priority-medium { background-color: rgba(251, 146, 60, 0.1); color: rgb(251, 146, 60); }
+  .priority-low { background-color: rgba(250, 204, 21, 0.1); color: rgb(209, 177, 0); }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>综合建议与下一步行动计划</h1>
+      <h2 class="text-gray-600">针对性修复与持续监控建议</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：修复优先级排序 -->
+    <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-3">紧急修复（24小时内）</h3>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-circle bullet-icon text-red-600"></i>
+          <p>修复AWS密钥日志文件暴露<span class="priority-tag priority-high">CVSS 10.0</span></p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-circle bullet-icon text-red-600"></i>
+          <p>关闭Jenkins未授权访问<span class="priority-tag priority-high">CVSS 9.8</span></p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-circle bullet-icon text-red-600"></i>
+          <p>移除VPN配置文件<span class="priority-tag priority-high">CVSS 8.6</span></p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-3">高优先级（3天内）</h3>
+        <div class="bullet-point">
+          <i class="fas fa-shield-alt bullet-icon"></i>
+          <p>修复S3存储桶公开访问配置</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-shield-alt bullet-icon"></i>
+          <p>修补WordPress RCE漏洞</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-shield-alt bullet-icon"></i>
+          <p>修复API SQL注入漏洞</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 具体修复措施 -->
+    <div class="data-card mb-6">
+      <h3 class="text-2xl font-bold primary-color mb-3">具体修复措施</h3>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon text-green-600"></i>
+          <p><strong>立即撤销</strong>暴露的AWS访问密钥，轮换所有相关凭证</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon text-green-600"></i>
+          <p><strong>配置S3存储桶</strong>ACL权限，启用服务器端加密</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon text-green-600"></i>
+          <p><strong>更新WordPress</strong>到最新版本，移除不必要的插件</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon text-green-600"></i>
+          <p><strong>实施API网关</strong>添加身份验证和速率限制</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 监控计划与时间节点 -->
+    <div class="grid grid-cols-2 gap-6">
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-3">持续监控计划</h3>
+        <div class="bullet-point">
+          <i class="fas fa-clock bullet-icon"></i>
+          <p><strong>每日扫描</strong>：新增资产和风险变化</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-clock bullet-icon"></i>
+          <p><strong>每周评估</strong>：漏洞优先级和修复进度</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-clock bullet-icon"></i>
+          <p><strong>每月审计</strong>：资产清单更新和责任确认</p>
+        </div>
+      </div>
+      <div class="stat-card">
+        <h3 class="text-2xl font-bold primary-color mb-3">关键时间节点</h3>
+        <div class="bullet-point">
+          <i class="fas fa-calendar-alt bullet-icon"></i>
+          <p><strong>Day 1</strong>：完成紧急风险隔离</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-calendar-alt bullet-icon"></i>
+          <p><strong>Day 3</strong>：高风险资产修复完成</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-calendar-alt bullet-icon"></i>
+          <p><strong>Day 7</strong>：建立自动化监控体系</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">10</div>
+</div>
+</body>
+</html>
