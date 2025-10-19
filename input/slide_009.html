@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>第三方与供应链风险评估</title>
+<title>安全事件处置情况</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -18,15 +18,14 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
-  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
   .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
   .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
   .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
-  .risk-high { color: #dc2626; }
-  .risk-medium { color: #ea580c; }
-  .risk-low { color: #ca8a04; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
 </style>
 </head>
 <body>
@@ -35,84 +34,115 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>第三方与供应链风险评估</h1>
-      <h2 class="text-gray-600">外部依赖带来的安全挑战</h2>
+      <h1>安全事件处置情况</h1>
+      <h2 class="text-gray-600">319起事件，41分钟平均响应</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：关键指标卡片 -->
-    <div class="grid grid-cols-2 gap-6 mb-6">
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">证书/SSL资产总数</h3>
-        <p class="text-4xl font-bold text-gray-800">147个</p>
-        <p class="text-lg text-gray-600 mt-2">需要持续监控</p>
-      </div>
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">中低危证书/SSL资产</h3>
-        <p class="text-4xl font-bold text-orange-600">28个</p>
-        <p class="text-lg text-gray-600 mt-2">占比19.0%</p>
-      </div>
-    </div>
-
-    <!-- 第三方服务风险列表 -->
-    <div class="grid grid-cols-2 gap-6 mb-6">
-      <div class="data-card">
-        <h3 class="text-2xl font-bold primary-color mb-4">第三方服务风险点</h3>
-        <div class="bullet-point">
-          <i class="fas fa-cloud bullet-icon risk-high"></i>
-          <p><span class="font-semibold">AWS S3存储桶</span> - 配置错误导致公开访问</p>
+    <!-- 内容区域：图表垂直排列 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 事件总数与响应时间 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-shield-virus bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">安全事件处置概况</h3>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-comments bullet-icon risk-medium"></i>
-          <p><span class="font-semibold">在线客服组件</span> - 存在XSS漏洞</p>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="600" height="200" viewBox="0 0 600 200">
+            <!-- 事件总数 -->
+            <rect x="50" y="50" width="200" height="100" fill="rgb(10, 66, 117)" rx="8"/>
+            <text x="150" y="90" text-anchor="middle" font-size="36" font-weight="bold" fill="white">319</text>
+            <text x="150" y="115" text-anchor="middle" font-size="18" fill="white">事件总数</text>
+            <!-- 响应时间 -->
+            <rect x="350" y="50" width="200" height="100" fill="#10b981" rx="8"/>
+            <text x="450" y="90" text-anchor="middle" font-size="36" font-weight="bold" fill="white">41分钟</text>
+            <text x="450" y="115" text-anchor="middle" font-size="18" fill="white">平均响应时间</text>
+          </svg>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-code-branch bullet-icon risk-medium"></i>
-          <p><span class="font-semibold">开源组件</span> - 存在DoS漏洞</p>
-        </div>
-        <div class="bullet-point">
-          <i class="fas fa-globe bullet-icon risk-high"></i>
-          <p><span class="font-semibold">CDN提供商</span> - 配置错误潜在风险</p>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">✅ 处置成果</p>
+          <p>运营期间新增安全事件319起，全部完成闭环处置，处置率100%。响应及时率61.12%，严重级别事件均在30分钟内响应。</p>
         </div>
       </div>
 
-      <div class="data-card">
-        <h3 class="text-2xl font-bold primary-color mb-4">供应链风险源</h3>
-        <div class="bullet-point">
-          <i class="fas fa-building bullet-icon risk-high"></i>
-          <p><span class="font-semibold">被收购公司遗留网站</span> - 缺乏维护，大量漏洞</p>
+      <!-- 事件等级分布 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-chart-pie bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">事件等级分布</h3>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-link bullet-icon risk-medium"></i>
-          <p><span class="font-semibold">第三方API集成</span> - 认证机制薄弱</p>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="600" height="250" viewBox="0 0 600 250">
+            <!-- 饼图 -->
+            <g transform="translate(200, 125)">
+              <!-- 严重 25起 (7.8%) -->
+              <path d="M 0,0 L 100,0 A 100,100 0 0,1 97.81,20.87 z" fill="#dc2626"/>
+              <!-- 高危 269起 (84.3%) -->
+              <path d="M 0,0 L 97.81,20.87 A 100,100 0 1,1 -97.81,20.87 z" fill="#ea580c"/>
+              <!-- 中低危 22起 (6.9%) -->
+              <path d="M 0,0 L -97.81,20.87 A 100,100 0 0,1 100,0 z" fill="#eab308"/>
+              
+              <!-- 中心圆 -->
+              <circle cx="0" cy="0" r="50" fill="white"/>
+              <text x="0" y="0" text-anchor="middle" font-size="24" font-weight="bold" fill="rgb(10, 66, 117)">319</text>
+              <text x="0" y="25" text-anchor="middle" font-size="14" fill="#666">总事件</text>
+            </g>
+            
+            <!-- 图例 -->
+            <g transform="translate(350, 50)">
+              <rect x="0" y="0" width="20" height="20" fill="#dc2626"/>
+              <text x="30" y="15" font-size="18" fill="#333">严重 25起 (7.8%)</text>
+              
+              <rect x="0" y="40" width="20" height="20" fill="#ea580c"/>
+              <text x="30" y="55" font-size="18" fill="#333">高危 269起 (84.3%)</text>
+              
+              <rect x="0" y="80" width="20" height="20" fill="#eab308"/>
+              <text x="30" y="95" font-size="18" fill="#333">中低危 22起 (6.9%)</text>
+            </g>
+          </svg>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-box bullet-icon risk-medium"></i>
-          <p><span class="font-semibold">外部软件包</span> - 版本过时未更新</p>
-        </div>
-        <div class="bullet-point">
-          <i class="fas fa-server bullet-icon risk-low"></i>
-          <p><span class="font-semibold">云服务商配置</span> - 权限管理不当</p>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">⚠️ 风险分布特点</p>
+          <p>高危事件占比84.3%，为主要风险类型。严重事件虽数量较少，但需重点关注。所有事件均已得到快速有效处置。</p>
         </div>
       </div>
-    </div>
 
-    <!-- 核心风险总结 -->
-    <div class="flex-1">
+      <!-- 事件类型分析 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-bug bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">主要事件类型</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="600" height="200" viewBox="0 0 600 200">
+            <!-- 系统服务漏洞占比 -->
+            <rect x="50" y="50" width="400" height="40" fill="#e5e7eb" rx="20"/>
+            <rect x="50" y="50" width="279.6" height="40" fill="rgb(10, 66, 117)" rx="20"/>
+            <text x="250" y="75" text-anchor="middle" font-size="24" font-weight="bold" fill="white">69.9%</text>
+            <text x="250" y="110" text-anchor="middle" font-size="20" fill="#333">系统服务漏洞</text>
+            
+            <!-- 其他类型 -->
+            <rect x="50" y="120" width="400" height="40" fill="#e5e7eb" rx="20"/>
+            <rect x="50" y="120" width="120.4" height="40" fill="#64748b" rx="20"/>
+            <text x="250" y="145" text-anchor="middle" font-size="24" font-weight="bold" fill="white">30.1%</text>
+            <text x="250" y="180" text-anchor="middle" font-size="20" fill="#333">木马病毒、内网暴破等</text>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">📊 事件类型分析</p>
+          <p>系统服务漏洞事件占比69.9%，为主要事件类型。木马病毒、内网暴破等占30.1%。已建立针对性响应机制和防护措施。</p>
+        </div>
+      </div>
+
+      <!-- 趋势分析 -->
       <div class="data-card">
-        <h3 class="text-2xl font-bold primary-color mb-4">关键发现与建议</h3>
-        <div class="bullet-point">
-          <i class="fas fa-exclamation-triangle bullet-icon"></i>
-          <p>外部依赖已成为主要攻击面，需建立完善的第三方安全评估机制</p>
+        <div class="flex items-center mb-3">
+          <i class="fas fa-chart-line bullet-icon text-2xl"></i>
+          <h3 class="text-2xl font-semibold primary-color">处置成效与改进方向</h3>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-shield-alt bullet-icon"></i>
-          <p>建议实施供应链安全审计，定期评估第三方服务安全状况</p>
-        </div>
-        <div class="bullet-point">
-          <i class="fas fa-clock bullet-icon"></i>
-          <p>28个中低危证书/SSL资产需建立自动化监控和预警机制</p>
-        </div>
+        <p class="mb-2">• <strong>处置效率：</strong>319起事件全部闭环，平均响应41分钟，严重事件30分钟内响应</p>
+        <p class="mb-2">• <strong>主要挑战：</strong>高危事件占比高，系统服务漏洞为主要风险点</p>
+        <p>• <strong>持续改进：</strong>加强漏洞预防管理，完善EDR部署，优化异常检测规则，提升响应及时率</p>
       </div>
     </div>
   </div>

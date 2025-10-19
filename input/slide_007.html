@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>新增高危资产警示</title>
+<title>威胁监测与防护实绩</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -18,21 +18,14 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
-  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
   .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
   .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
   .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
-  .risk-card { background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(239, 68, 68, 0.02) 100%); border-left: 4px solid #ef4444; border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: all 0.3s ease; }
-  .risk-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-  .cvss-score { font-size: 48px; font-weight: bold; color: #ef4444; }
-  .cvss-label { font-size: 18px; color: #666; margin-top: 5px; }
-  .risk-title { font-size: 26px; font-weight: 600; color: #333; margin-bottom: 10px; }
-  .risk-desc { font-size: 22px; color: #666; line-height: 1.5; }
-  .severity-critical { color: #dc2626; }
-  .severity-high { color: #ea580c; }
-  .severity-medium { color: #d97706; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
 </style>
 </head>
 <body>
@@ -41,115 +34,98 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>新增高危资产警示</h1>
-      <h2 class="text-gray-600">最新发现的严重风险与CVSS评分</h2>
+      <h1>威胁监测与防护实绩</h1>
+      <h2 class="text-gray-600">196.15万次攻击拦截</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 高危风险卡片 -->
-    <div class="grid grid-cols-2 gap-6 mb-6">
-      <!-- AWS密钥日志暴露 -->
-      <div class="risk-card">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="risk-title">
-              <i class="fas fa-key severity-critical mr-2"></i>
-              AWS密钥日志暴露
-            </div>
-            <div class="risk-desc">logs.galaxy-tech.com/aws_keys.log 日志文件临时暴露，内含有效AWS访问密钥</div>
-            <div class="mt-3">
-              <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">立即处理</span>
-            </div>
-          </div>
-          <div class="text-center ml-4">
-            <div class="cvss-score">10.0</div>
-            <div class="cvss-label">CVSS评分</div>
-          </div>
+    <!-- 内容区域：图表垂直排列 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 外部攻击拦截总次数 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-shield-virus bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">外部攻击拦截总次数</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="500" height="180" viewBox="0 0 500 180">
+            <!-- 大型数字展示 -->
+            <rect x="50" y="30" width="400" height="100" fill="rgba(10, 66, 117, 0.1)" rx="10"/>
+            <text x="250" y="95" text-anchor="middle" font-size="56" font-weight="bold" fill="rgb(10, 66, 117)">196.15万</text>
+            <text x="250" y="120" text-anchor="middle" font-size="22" fill="#666">攻击成功拦截</text>
+            <!-- 防护图标 -->
+            <circle cx="440" cy="80" r="25" fill="rgb(10, 66, 117)"/>
+            <path d="M 430 80 L 435 85 L 450 70" stroke="white" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">🛡️ 防护成果</p>
+          <p>运营期间总共监测到196.15万次外部攻击，全部成功拦截，业务影响为零。</p>
         </div>
       </div>
 
-      <!-- Jenkins未授权访问 -->
-      <div class="risk-card">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="risk-title">
-              <i class="fas fa-server severity-high mr-2"></i>
-              Jenkins未授权访问
-            </div>
-            <div class="risk-desc">jenkins.build.galaxy-tech.com 构建服务器存在未授权访问漏洞</div>
-            <div class="mt-3">
-              <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">紧急处理</span>
-            </div>
-          </div>
-          <div class="text-center ml-4">
-            <div class="cvss-score">9.8</div>
-            <div class="cvss-label">CVSS评分</div>
-          </div>
+      <!-- 月均攻击次数 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-chart-bar bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">月均攻击频次</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="600" height="200" viewBox="0 0 600 200">
+            <!-- 柱状图 -->
+            <rect x="100" y="60" width="400" height="80" fill="rgb(10, 66, 117)" rx="5"/>
+            <!-- 数值标注 -->
+            <text x="300" y="50" text-anchor="middle" font-size="36" font-weight="bold" fill="rgb(10, 66, 117)">24.51万</text>
+            <text x="300" y="110" text-anchor="middle" font-size="28" font-weight="bold" fill="white">次/月</text>
+            <text x="300" y="170" text-anchor="middle" font-size="20" fill="#666">月均攻击拦截量</text>
+            <!-- 饼状图装饰 -->
+            <circle cx="150" cy="100" r="8" fill="#ef4444"/>
+            <circle cx="450" cy="100" r="8" fill="#ef4444"/>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">📊 攻击趋势</p>
+          <p>平均每月24.51万次攻击，攻击类型主要集中在信息泄露（32.1%）和爬虫工具（30.39%）。</p>
         </div>
       </div>
 
-      <!-- VPN配置文件暴露 -->
-      <div class="risk-card">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="risk-title">
-              <i class="fas fa-network-wired severity-high mr-2"></i>
-              VPN配置文件暴露
-            </div>
-            <div class="risk-desc">vpn-backup.galaxy-tech.com 暴露含共享密钥的配置文件</div>
-            <div class="mt-3">
-              <span class="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium">紧急处理</span>
-            </div>
-          </div>
-          <div class="text-center ml-4">
-            <div class="cvss-score">8.6</div>
-            <div class="cvss-label">CVSS评分</div>
-          </div>
+      <!-- 实时威胁告警 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-bell bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">实时威胁告警</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="500" height="180" viewBox="0 0 500 180">
+            <!-- 仪表盘 -->
+            <path d="M 100 150 A 100 100 0 0 1 400 150" fill="none" stroke="#e5e7eb" stroke-width="20" stroke-linecap="round"/>
+            <path d="M 100 150 A 100 100 0 0 1 250 50" fill="none" stroke="rgb(10, 66, 117)" stroke-width="20" stroke-linecap="round"/>
+            <!-- 指针 -->
+            <line x1="250" y1="150" x2="180" y2="100" stroke="#ef4444" stroke-width="6" stroke-linecap="round"/>
+            <circle cx="250" cy="150" r="10" fill="#ef4444"/>
+            <!-- 数值 -->
+            <text x="250" y="110" text-anchor="middle" font-size="42" font-weight="bold" fill="rgb(10, 66, 117)">8464</text>
+            <text x="250" y="135" text-anchor="middle" font-size="20" fill="#666">次实时告警</text>
+            <!-- 刻度 -->
+            <text x="100" y="170" text-anchor="middle" font-size="16" fill="#999">0</text>
+            <text x="400" y="170" text-anchor="middle" font-size="16" fill="#999">10000+</text>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">⚡ 响应及时性</p>
+          <p>通过云端安全分析，形成8464次实时威胁告警，严重安全事件30分钟内通告，一般事件1小时内通告。</p>
         </div>
       </div>
 
-      <!-- 合作伙伴门户XSS -->
-      <div class="risk-card">
-        <div class="flex items-start justify-between">
-          <div class="flex-1">
-            <div class="risk-title">
-              <i class="fas fa-globe severity-medium mr-2"></i>
-              合作伙伴门户漏洞
-            </div>
-            <div class="risk-desc">partners.galaxy-tech.com 存在跨站脚本漏洞，可能影响用户数据</div>
-            <div class="mt-3">
-              <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium">优先处理</span>
-            </div>
-          </div>
-          <div class="text-center ml-4">
-            <div class="cvss-score">6.1</div>
-            <div class="cvss-label">CVSS评分</div>
-          </div>
+      <!-- 趋势分析总结 -->
+      <div class="data-card">
+        <div class="flex items-center mb-3">
+          <i class="fas fa-analytics bullet-icon text-2xl"></i>
+          <h3 class="text-2xl font-semibold primary-color">防护成效分析</h3>
         </div>
-      </div>
-    </div>
-
-    <!-- 风险总结 -->
-    <div class="data-card">
-      <h3 class="primary-color mb-4">
-        <i class="fas fa-exclamation-triangle mr-2"></i>
-        风险影响评估
-      </h3>
-      <div class="bullet-point">
-        <i class="fas fa-clock bullet-icon"></i>
-        <p>以上风险均为过去一周内新增发现，需要立即响应处理</p>
-      </div>
-      <div class="bullet-point">
-        <i class="fas fa-shield-virus bullet-icon"></i>
-        <p>AWS密钥暴露风险等级最高（CVSS 10.0），可能导致云资源完全失控</p>
-      </div>
-      <div class="bullet-point">
-        <i class="fas fa-user-lock bullet-icon"></i>
-        <p>Jenkins未授权访问可能被利用进行供应链攻击，影响整个构建流程</p>
-      </div>
-      <div class="bullet-point">
-        <i class="fas fa-lock-open bullet-icon"></i>
-        <p>VPN配置暴露可能导致内部网络边界被突破，造成横向移动风险</p>
+        <p class="mb-2">• <strong>拦截成功率：</strong>196.15万次攻击100%成功拦截，业务影响为零</p>
+        <p class="mb-2">• <strong>响应效率：</strong>319起安全事件全部闭环处置，处置率100%</p>
+        <p>• <strong>持续防护：</strong>建立三维协同防护体系，云端、边界、主机全方位监测</p>
       </div>
     </div>
   </div>
