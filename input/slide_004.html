@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>资产发现总览</title>
+<title>安全运营报告</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,134 +34,74 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>资产发现总览</h1>
-      <h2 class="text-gray-600">资产数量、新增与风险分布</h2>
+      <h1>监管通报与重要时期保障</h1>
+      <h2 class="text-gray-600">100%及时处置，0重大事件</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
     <!-- 内容区域 -->
     <div class="flex-1 overflow-hidden">
-      <!-- 关键指标卡片 -->
-      <div class="grid grid-cols-3 gap-6 mb-6">
-        <div class="stat-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-gray-600 text-lg mb-2">已发现资产总数</h3>
-              <p class="text-4xl font-bold primary-color">147</p>
-              <p class="text-sm text-gray-500 mt-1">个资产</p>
-            </div>
-            <i class="fas fa-server text-4xl primary-color opacity-30"></i>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-gray-600 text-lg mb-2">新增资产（过去7天）</h3>
-              <p class="text-4xl font-bold primary-color">12</p>
-              <p class="text-sm text-gray-500 mt-1">个新增</p>
-            </div>
-            <i class="fas fa-chart-line text-4xl primary-color opacity-30"></i>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-gray-600 text-lg mb-2">存在风险的资产</h3>
-              <p class="text-4xl font-bold text-orange-600">35</p>
-              <p class="text-sm text-gray-500 mt-1">占比 23.8%</p>
-            </div>
-            <i class="fas fa-exclamation-triangle text-4xl text-orange-600 opacity-30"></i>
-          </div>
-        </div>
-      </div>
-
-      <!-- 图表区域 -->
-      <div class="flex gap-6 mb-6">
-        <!-- 饼图 -->
-        <div class="flex-1">
-          <h3 class="text-xl font-semibold mb-4 primary-color">资产风险分布</h3>
-          <svg width="100%" height="250" viewBox="0 0 400 250">
-            <!-- 饼图 -->
-            <g transform="translate(150, 125)">
-              <!-- 无风险资产 112个 (76.2%) -->
-              <path d="M 0,-80 A 80,80 0 1,1 -61.44,51.42 L 0,0 Z" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="2"/>
-              <!-- 存在风险资产 35个 (23.8%) -->
-              <path d="M -61.44,51.42 A 80,80 0 0,1 0,-80 L 0,0 Z" fill="rgba(251, 146, 60, 0.3)" stroke="rgb(251, 146, 60)" stroke-width="2"/>
-              
-              <!-- 中心圆 -->
-              <circle cx="0" cy="0" r="40" fill="white"/>
-              <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="24" font-weight="bold" fill="rgb(10, 66, 117)">147</text>
-              <text x="0" y="20" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#666">总资产</text>
-            </g>
-            
-            <!-- 图例 -->
-            <g transform="translate(280, 80)">
-              <rect x="0" y="0" width="15" height="15" fill="rgba(10, 66, 117, 0.2)" stroke="rgb(10, 66, 117)" stroke-width="1"/>
-              <text x="20" y="12" font-size="14" fill="#333">无风险资产 112个 (76.2%)</text>
-              
-              <rect x="0" y="25" width="15" height="15" fill="rgba(251, 146, 60, 0.3)" stroke="rgb(251, 146, 60)" stroke-width="1"/>
-              <text x="20" y="37" font-size="14" fill="#333">存在风险资产 35个 (23.8%)</text>
-            </g>
-          </svg>
-        </div>
-
-        <!-- 柱状图 -->
-        <div class="flex-1">
-          <h3 class="text-xl font-semibold mb-4 primary-color">资产类型分布</h3>
-          <svg width="100%" height="250" viewBox="0 0 400 250">
-            <!-- Y轴 -->
-            <line x1="40" y1="30" x2="40" y2="200" stroke="#ccc" stroke-width="1"/>
-            <!-- X轴 -->
-            <line x1="40" y1="200" x2="380" y2="200" stroke="#ccc" stroke-width="1"/>
-            
-            <!-- 柱状图 -->
-            <!-- 子域名 87个 -->
-            <rect x="60" y="80" width="50" height="120" fill="rgba(10, 66, 117, 0.6)"/>
-            <text x="85" y="70" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">87</text>
-            <text x="85" y="220" text-anchor="middle" font-size="12" fill="#666">子域名</text>
-            
-            <!-- Web应用 45个 -->
-            <rect x="130" y="120" width="50" height="80" fill="rgba(10, 66, 117, 0.5)"/>
-            <text x="155" y="110" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">45</text>
-            <text x="155" y="220" text-anchor="middle" font-size="12" fill="#666">Web应用</text>
-            
-            <!-- API端点 32个 -->
-            <rect x="200" y="140" width="50" height="60" fill="rgba(10, 66, 117, 0.4)"/>
-            <text x="225" y="130" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">32</text>
-            <text x="225" y="220" text-anchor="middle" font-size="12" fill="#666">API端点</text>
-            
-            <!-- 云存储 18个 -->
-            <rect x="270" y="160" width="50" height="40" fill="rgba(251, 146, 60, 0.5)"/>
-            <text x="295" y="150" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(251, 146, 60)">18</text>
-            <text x="295" y="220" text-anchor="middle" font-size="12" fill="#666">云存储</text>
-            
-            <!-- 其他 15个 -->
-            <rect x="340" y="170" width="50" height="30" fill="rgba(10, 66, 117, 0.3)"/>
-            <text x="365" y="160" text-anchor="middle" font-size="14" font-weight="bold" fill="rgb(10, 66, 117)">15</text>
-            <text x="365" y="220" text-anchor="middle" font-size="12" fill="#666">其他</text>
-          </svg>
-        </div>
-      </div>
-
-      <!-- 关键发现 -->
       <div class="data-card">
-        <h3 class="text-xl font-semibold mb-3 primary-color">关键发现</h3>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="bullet-point">
-            <i class="fas fa-exclamation-circle bullet-icon text-orange-600"></i>
-            <p>5个资产无法确定所有者，需要进一步跟进</p>
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">监管通报应对</p>
+            <p>单位核心系统7*24H对外提供服务</p>
+            <p>所有系统已按监管要求完成预防与应急保障措施</p>
           </div>
-          <div class="bullet-point">
-            <i class="fas fa-plus-circle bullet-icon text-green-600"></i>
-            <p>过去7天新增12个资产，可能为新项目或影子IT</p>
+          <div class="text-5xl font-bold text-blue-600 ml-8">
+            <i class="fas fa-shield-alt"></i>
           </div>
-          <div class="bullet-point">
-            <i class="fas fa-shield-alt bullet-icon text-blue-600"></i>
-            <p>76.2%的资产当前无已知安全风险</p>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">重要时期保障成果</p>
+            <p>节假日期间、攻防演习等重要时期重保</p>
+            <p>安全事件100%及时有效处置，重大安全事件0发生</p>
           </div>
-          <div class="bullet-point">
-            <i class="fas fa-cloud bullet-icon text-purple-600"></i>
-            <p>云存储资产风险占比最高，需重点关注</p>
+          <div class="text-5xl font-bold text-green-600 ml-8">
+            100%
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">事件处置时效</p>
+            <p>运营期间新增安全事件319起，全部闭环处置</p>
+            <p>事件响应平均用时41分钟，处置率100%</p>
+          </div>
+          <div class="text-5xl font-bold primary-color ml-8">
+            41分钟
+          </div>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">外部攻击防护</p>
+            <p>监测到196.15万次外部攻击均被成功拦截</p>
+            <p>业务影响为零，确保系统稳定运行</p>
+          </div>
+          <div class="text-4xl font-bold text-orange-600 ml-8">
+            <i class="fas fa-shield-virus"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">风险资产闭环管理</p>
+            <p>157个风险资产问题已完成闭环整改</p>
+            <p>闭环率100%，形成完整的安全防护闭环</p>
+          </div>
+          <div class="text-4xl font-bold text-green-600 ml-8">
+            <i class="fas fa-check-circle"></i>
           </div>
         </div>
       </div>

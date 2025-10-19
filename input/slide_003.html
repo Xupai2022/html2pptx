@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>核心摘要</title>
+<title>安全运营报告</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,53 +34,73 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>核心摘要</h1>
-      <h2 class="text-gray-600">资产总览与关键风险指标</h2>
+      <h1>安全运营目标达成概览</h1>
+      <h2 class="text-gray-600">核心指标完成情况</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：关键指标卡片 -->
-    <div class="grid grid-cols-2 gap-6 mb-6">
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">已发现资产总数</h3>
-        <p class="text-4xl font-bold text-gray-800">147个</p>
-        <p class="text-lg text-gray-600 mt-2">过去7天新增12个</p>
-      </div>
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">存在风险的资产</h3>
-        <p class="text-4xl font-bold text-gray-800">35个</p>
-        <p class="text-lg text-gray-600 mt-2">占总资产的23.8%</p>
-      </div>
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">高风险资产</h3>
-        <p class="text-4xl font-bold text-red-600">8个</p>
-        <p class="text-lg text-gray-600 mt-2">需立即处理的关键风险</p>
-      </div>
-      <div class="stat-card">
-        <h3 class="text-2xl font-bold primary-color mb-2">资产健康度</h3>
-        <p class="text-4xl font-bold text-green-600">76.2%</p>
-        <p class="text-lg text-gray-600 mt-2">112个资产无已知风险</p>
-      </div>
-    </div>
-
-    <!-- 核心发现说明 -->
-    <div class="flex-1">
+    <!-- 内容区域 -->
+    <div class="flex-1 overflow-hidden">
       <div class="data-card">
-        <div class="bullet-point">
-          <i class="fas fa-exclamation-triangle bullet-icon"></i>
-          <p>发现8个高危资产涉及敏感数据暴露和严重远程代码执行漏洞，需要立即响应</p>
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">重要时期保障目标</p>
+            <p>安全事件100%及时有效处置</p>
+            <p>重大安全事件0发生</p>
+          </div>
+          <div class="text-5xl font-bold text-green-600 ml-8">
+            <i class="fas fa-shield-alt"></i>
+          </div>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-chart-line bullet-icon"></i>
-          <p>子域名资产占比最高（87个，59.2%），云存储资产风险集中（3个高风险）</p>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">网络防护率</p>
+            <p>所有服务内资产已纳入防火墙保护</p>
+          </div>
+          <div class="text-5xl font-bold primary-color ml-8">
+            100%
+          </div>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-shield-alt bullet-icon"></i>
-          <p>基础安全状况良好，大部分资产（112个）当前未发现已知安全风险</p>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">风险资产闭环率</p>
+            <p>157个风险资产全部完成闭环整改</p>
+          </div>
+          <div class="text-5xl font-bold primary-color ml-8">
+            100%
+          </div>
         </div>
-        <div class="bullet-point">
-          <i class="fas fa-users bullet-icon"></i>
-          <p>5个资产无法确定维护团队，需要进一步明确责任归属</p>
+      </div>
+
+      <div class="data-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">外部攻击拦截</p>
+            <p>成功拦截196.15万次外部攻击</p>
+            <p>业务影响为零</p>
+          </div>
+          <div class="text-4xl font-bold text-orange-600 ml-8">
+            <i class="fas fa-shield-virus"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="data-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">安全事件处置</p>
+            <p>319起安全事件全部快速响应</p>
+            <p>严重事件30分钟内响应，处置率100%</p>
+          </div>
+          <div class="text-4xl font-bold text-blue-600 ml-8">
+            <i class="fas fa-check-circle"></i>
+          </div>
         </div>
       </div>
     </div>
