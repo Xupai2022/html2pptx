@@ -260,6 +260,28 @@ class HTML2PPTX:
         """
         container_classes = container.get('class', [])
 
+        # 对于空class或未知class的容器，先检查其内部结构
+        if not container_classes or set(container_classes) <= set(['']):
+            logger.info(f"容器为空class或未知class: {container_classes}，检查内部结构...")
+            # 检查是否包含特定结构的子元素
+            has_data_card = container.find('div', class_='data-card') is not None
+            has_stat_card = container.find('div', class_='stat-card') is not None
+            has_grid = container.find('div', class_='grid') is not None
+            has_h3 = container.find('h3') is not None
+
+            if has_grid and has_stat_card:
+                # 包含grid和stat-card的容器
+                logger.info(f"容器包含grid和stat-card结构，递归处理子元素")
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+            elif has_data_card or has_stat_card:
+                # 包含特定卡片，递归处理
+                logger.info(f"容器包含卡片结构 (data-card: {has_data_card}, stat-card: {has_stat_card})，递归处理子元素")
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+            elif has_h3:
+                # 只包含标题，可能是普通的段落容器
+                logger.info(f"容器只包含标题，作为普通内容处理")
+                # 继续走后续的检测逻辑
+
         # 检测封面页容器（优先级最高）
         if 'cover-content' in container_classes or 'cover-info' in container_classes:
             logger.info(f"识别为封面页容器: {container_classes}，不添加背景")
@@ -453,8 +475,21 @@ class HTML2PPTX:
                 # 普通flex容器
                 return self._convert_flex_container(container, pptx_slide, y_offset, shape_converter)
 
-            # 未知容器类型，记录警告但尝试处理
-            logger.warning(f"遇到未知容器类型: {container_classes}，尝试降级处理")
+            # 未知容器类型，检查其内部结构
+            logger.warning(f"遇到未知容器类型: {container_classes}，检查内部结构...")
+
+            # 检查是否包含特定结构的子元素
+            has_data_card = container.find('div', class_='data-card') is not None
+            has_stat_card = container.find('div', class_='stat-card') is not None
+            has_grid = container.find('div', class_='grid') is not None
+
+            if has_data_card or has_stat_card or has_grid:
+                # 如果包含特定结构，递归处理其子元素
+                logger.info(f"容器内包含特殊结构 (data-card: {has_data_card}, stat-card: {has_stat_card}, grid: {has_grid})，递归处理子元素")
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+
+            # 真正的未知容器，使用降级处理
+            logger.warning(f"容器不包含特殊结构，使用降级处理")
             return self._convert_generic_card(container, pptx_slide, y_offset, card_type='unknown')
 
     def _convert_grid_container(self, container, pptx_slide, y_start, shape_converter):
