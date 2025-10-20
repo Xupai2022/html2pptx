@@ -78,10 +78,10 @@ class ChartCapture:
         else:
             output_path = Path(output_path)
 
-        # 检查缓存
-        if output_path.exists():
-            logger.info(f"使用缓存的SVG截图: {output_path}")
-            return str(output_path)
+        # 彻底禁用缓存 - 总是重新截图
+        # if output_path.exists():
+        #     logger.info(f"使用缓存的SVG截图: {output_path}")
+        #     return str(output_path)
 
         try:
             async with async_playwright() as p:
@@ -167,7 +167,7 @@ class ChartCapture:
         html_path: str,
         svg_index: int = 0,
         output_path: str = None,
-        wait_time: int = 2000
+        wait_time: int = 1000
     ) -> Optional[str]:
         """
         按索引截取SVG图表
@@ -197,40 +197,25 @@ class ChartCapture:
         else:
             output_path = Path(output_path)
 
-        # 检查缓存
-        if output_path.exists():
-            logger.info(f"使用缓存的SVG截图: {output_path}")
-            return str(output_path)
+        # 彻底禁用缓存 - 总是重新截图
+        # if output_path.exists():
+        #     logger.info(f"使用缓存的SVG截图: {output_path}")
+        #     return str(output_path)
 
         try:
+            # 简化：总是创建新的浏览器实例，避免上下文失效问题
+            logger.debug("创建新的浏览器实例")
             async with async_playwright() as p:
-                # 启动浏览器（复用现有逻辑）
-                browser = None
-
-                if self.use_system_chrome:
-                    try:
-                        browser = await p.chromium.launch(
-                            headless=True,
-                            channel="chrome"
-                        )
-                    except Exception:
-                        browser = None
-
-                if browser is None:
-                    try:
-                        browser = await p.chromium.launch(headless=True)
-                    except Exception as chromium_error:
-                        error_msg = str(chromium_error)
-                        if "Executable doesn't exist" in error_msg or "playwright install" in error_msg:
-                            logger.error("浏览器不可用!")
-                            return None
-                        else:
-                            raise chromium_error
-
-                # 创建页面
-                page = await browser.new_page(
+                browser = await p.chromium.launch(
+                    headless=True,
+                    timeout=5000
+                )
+                context = await browser.new_context(
                     viewport={'width': 1920, 'height': 1080}
                 )
+                page = await context.new_page()
+                page.set_default_timeout(5000)
+                page.set_default_navigation_timeout(10000)
 
                 # 加载HTML
                 file_url = html_path.as_uri()
@@ -245,26 +230,27 @@ class ChartCapture:
                     svg_element = svg_elements[svg_index]
                     logger.info(f"截取第 {svg_index} 个SVG元素")
 
-                    # 等待SVG渲染完成
+                    # 等待SVG渲染
                     await page.wait_for_timeout(wait_time)
-                    logger.info(f"等待SVG渲染 {wait_time}ms")
 
-                    # 截取SVG元素
+                    # 截图
                     screenshot_bytes = await svg_element.screenshot(
                         path=str(output_path),
                         type='png'
                     )
                     logger.info(f"SVG截图成功: {output_path}")
+
+                    # 关闭浏览器
+                    await browser.close()
+                    return str(output_path)
                 else:
-                    logger.error(f"SVG索引 {svg_index} 超出范围(总共 {len(svg_elements)} 个)")
+                    logger.error(f"SVG索引 {svg_index} 超出范围")
                     await browser.close()
                     return None
 
-                # 关闭浏览器
-                await browser.close()
-
-                return str(output_path)
-
+        except asyncio.TimeoutError:
+            logger.error(f"SVG截图超时")
+            return None
         except Exception as e:
             logger.error(f"SVG截图失败: {e}")
             return None
@@ -297,7 +283,7 @@ class ChartCapture:
         html_path: str,
         svg_index: int = 0,
         output_path: str = None,
-        wait_time: int = 2000
+        wait_time: int = 1000
     ) -> Optional[str]:
         """
         同步按索引截取SVG(内部调用异步方法)
@@ -314,6 +300,147 @@ class ChartCapture:
         return asyncio.run(
             self.capture_svg_by_index_async(html_path, svg_index, output_path, wait_time)
         )
+
+    async def capture_svg_by_signature_async(
+        self,
+        html_path: str,
+        svg_index: int = 0,
+        svg_signature: str = None,
+        output_path: str = None,
+        wait_time: int = 1000
+    ) -> Optional[str]:
+        """
+        按索引和签名截取SVG图表（避免重复问题）
+
+        Args:
+            html_path: HTML文件路径
+            svg_index: SVG元素索引(从0开始)
+            svg_signature: SVG签名，用于生成唯一缓存键
+            output_path: 输出路径,不指定则自动生成
+            wait_time: 等待时间(毫秒)
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        if not PLAYWRIGHT_AVAILABLE:
+            logger.error("Playwright未安装,无法截图")
+            return None
+
+        html_path = Path(html_path).absolute()
+        if not html_path.exists():
+            logger.error(f"HTML文件不存在: {html_path}")
+            return None
+
+        # 生成输出路径
+        if output_path is None:
+            # 使用签名生成缓存键，确保每个SVG有独立的缓存
+            cache_key = self._get_cache_key_with_signature(str(html_path), svg_index, svg_signature)
+            output_path = self.cache_dir / f"svg_{cache_key}.png"
+        else:
+            output_path = Path(output_path)
+
+        # 彻底禁用缓存 - 总是重新截图
+        # if output_path.exists():
+        #     logger.info(f"使用缓存的SVG截图: {output_path}")
+        #     return str(output_path)
+
+        try:
+            # 简化：总是创建新的浏览器实例
+            logger.debug("创建新的浏览器实例")
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(
+                    headless=True,
+                    timeout=5000
+                )
+                context = await browser.new_context(
+                    viewport={'width': 1920, 'height': 1080}
+                )
+                page = await context.new_page()
+                page.set_default_timeout(5000)
+                page.set_default_navigation_timeout(10000)
+
+                # 加载HTML
+                file_url = html_path.as_uri()
+                await page.goto(file_url, wait_until='networkidle')
+                logger.info(f"加载HTML: {html_path}")
+
+                # 获取所有SVG元素
+                svg_elements = await page.query_selector_all("svg")
+                logger.info(f"找到 {len(svg_elements)} 个SVG元素")
+
+                if svg_index < len(svg_elements):
+                    svg_element = svg_elements[svg_index]
+                    logger.info(f"截取第 {svg_index} 个SVG元素（签名: {svg_signature}）")
+
+                    # 等待SVG渲染
+                    await page.wait_for_timeout(wait_time)
+
+                    # 截图
+                    screenshot_bytes = await svg_element.screenshot(
+                        path=str(output_path),
+                        type='png'
+                    )
+                    logger.info(f"SVG截图成功: {output_path}")
+
+                    # 关闭浏览器
+                    await browser.close()
+                    return str(output_path)
+                else:
+                    logger.error(f"SVG索引 {svg_index} 超出范围")
+                    await browser.close()
+                    return None
+
+        except asyncio.TimeoutError:
+            logger.error(f"SVG截图超时")
+            return None
+        except Exception as e:
+            logger.error(f"SVG截图失败: {e}")
+            return None
+
+    def capture_svg_by_signature(
+        self,
+        html_path: str,
+        svg_index: int = 0,
+        svg_signature: str = None,
+        output_path: str = None,
+        wait_time: int = 2000
+    ) -> Optional[str]:
+        """
+        同步按索引和签名截取SVG(内部调用异步方法)
+
+        Args:
+            html_path: HTML文件路径
+            svg_index: SVG元素索引
+            svg_signature: SVG签名
+            output_path: 输出路径
+            wait_time: 等待时间(毫秒)
+
+        Returns:
+            截图文件路径,失败返回None
+        """
+        return asyncio.run(
+            self.capture_svg_by_signature_async(html_path, svg_index, svg_signature, output_path, wait_time)
+        )
+
+    def _get_cache_key_with_signature(self, html_path: str, svg_index: int, svg_signature: str) -> str:
+        """
+        生成带SVG签名的缓存键
+
+        Args:
+            html_path: HTML文件路径
+            svg_index: SVG索引
+            svg_signature: SVG签名
+
+        Returns:
+            缓存键(hash)
+        """
+        import hashlib
+
+        # 组合HTML路径、索引和签名生成唯一键
+        key_str = f"{html_path}:svg_{svg_index}:{svg_signature}"
+        cache_key = hashlib.md5(key_str.encode()).hexdigest()[:16]
+        logger.debug(f"生成缓存键: {cache_key} (索引: {svg_index}, 签名: {svg_signature})")
+        return cache_key
 
     async def capture_chart_async(
         self,

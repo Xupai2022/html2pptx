@@ -9,6 +9,16 @@ import glob
 from pathlib import Path
 from datetime import datetime
 import shutil
+import signal
+import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+
+# 设置控制台编码为UTF-8（Windows）
+if sys.platform == 'win32':
+    import locale
+    os.system('chcp 65001 >nul')
+    sys.stdout.reconfigure(encoding='utf-8')
+    sys.stderr.reconfigure(encoding='utf-8')
 
 # 添加src目录到路径
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
@@ -25,8 +35,20 @@ logger = logging.getLogger(__name__)
 class BatchConverter:
     """批量转换器 - 完整样式保留版"""
 
-    def __init__(self):
+    def __init__(self, timeout_seconds: int = 30, svg_timeout_seconds: int = 5):
+        """
+        初始化批量转换器
+
+        Args:
+            timeout_seconds: 每个HTML文件的处理超时时间（秒）
+            svg_timeout_seconds: 每个SVG的处理超时时间（秒）
+        """
         self.output_dir = Path("output")
+        self.timeout_seconds = timeout_seconds
+        self.svg_timeout_seconds = svg_timeout_seconds
+        self.processed_count = 0
+        self.failed_count = 0
+        self.start_time = None
 
     def find_slide_files(self):
         """
@@ -57,6 +79,7 @@ class BatchConverter:
         """
         将所有HTML文件转换为单个PPTX文件
         使用共享的Presentation对象确保样式一致性
+        带有超时控制
         """
         try:
             # 查找HTML文件
@@ -69,7 +92,13 @@ class BatchConverter:
             # 创建输出目录
             self.create_output_directory()
 
+            # 初始化计数器
+            self.start_time = time.time()
+            self.processed_count = 0
+            self.failed_count = 0
+
             logger.info(f"\n开始批量转换 {len(html_files)} 个HTML文件...")
+            logger.info(f"超时设置: 文件处理 {self.timeout_seconds}秒, SVG处理 {self.svg_timeout_seconds}秒")
 
             # 创建一个共享的Presentation对象
             # 这确保了所有幻灯片使用相同的样式和格式
@@ -89,60 +118,119 @@ class BatchConverter:
 
             # 处理每个HTML文件
             for i, html_file in enumerate(html_files):
-                logger.info(f"\n处理第 {i+1} 个文件: {os.path.basename(html_file)}")
+                logger.info(f"\n处理第 {i+1}/{len(html_files)} 个文件: {os.path.basename(html_file)}")
+                logger.info(f"进度: 成功 {self.processed_count}, 失败 {self.failed_count}")
 
-                try:
-                    # 清理全局缓存，避免不同HTML文件间的样式污染
-                    from src.utils.style_computer import _style_computer_instance
-                    from src.utils.font_manager import _font_manager_instance
-                    from src.utils.font_size_extractor import _font_size_extractor_instance
+                # 使用线程池执行器来处理超时
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    try:
+                        # 提交任务
+                        future = executor.submit(
+                            self._process_single_html,
+                            html_file,
+                            shared_presentation
+                        )
 
-                    if _style_computer_instance is not None:
-                        _style_computer_instance.clear_cache()
-                    if _font_manager_instance is not None:
-                        _font_manager_instance._cached_fonts.clear()
-                    if _font_size_extractor_instance is not None:
-                        _font_size_extractor_instance.clear_cache()
+                        # 等待任务完成，带超时
+                        result = future.result(timeout=self.timeout_seconds)
 
-                    logger.debug(f"已清理缓存，准备处理: {html_file}")
+                        if result:
+                            total_slides_processed += 1
+                            self.processed_count += 1
+                            logger.info(f"  [✓] 成功处理 ({time.time() - self.start_time:.1f}s)")
+                        else:
+                            self.failed_count += 1
+                            logger.error(f"  [✗] 处理失败")
 
-                    # 创建转换器，传入共享的Presentation对象
-                    converter = HTML2PPTX(
-                        html_path=html_file,
-                        existing_presentation=shared_presentation
-                    )
+                    except FutureTimeoutError:
+                        self.failed_count += 1
+                        logger.error(f"  [✗] 处理超时（>{self.timeout_seconds}秒），跳过")
+                        # 取消任务
+                        future.cancel()
 
-                    # 使用特殊的批量转换方法
-                    # 这里我们需要修改convert方法以支持批量模式
-                    self._convert_html_to_shared_presentation(converter, html_file)
-
-                    total_slides_processed += 1
-                    logger.info(f"  [OK] 已处理")
-
-                except Exception as e:
-                    logger.error(f"  [ERROR] 处理失败: {str(e)}")
-                    import traceback
-                    traceback.print_exc()
-                    continue
+                    except Exception as e:
+                        self.failed_count += 1
+                        logger.error(f"  [✗] 处理异常: {str(e)}")
+                        import traceback
+                        traceback.print_exc()
 
             # 保存最终文件
+            elapsed_time = time.time() - self.start_time
             if total_slides_processed > 0:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 output_file = self.output_dir / f"merged_presentation_{timestamp}.pptx"
                 shared_presentation.save(output_file)
 
-                logger.info(f"\n[SUCCESS] 批量转换完成！")
-                logger.info(f"输出文件: {output_file}")
-                logger.info(f"总处理幻灯片数: {total_slides_processed}")
-                logger.info(f"最终PPTX幻灯片数: {len(shared_presentation.slides)}")
-            else:
-                logger.error("没有成功处理任何HTML文件")
+                # 清理PNG截图文件
+                self._cleanup_svg_screenshots()
 
+                logger.info(f"\n" + "="*60)
+                logger.info(f"[SUCCESS] 批量转换完成！")
+                logger.info(f"输出文件: {output_file}")
+                logger.info(f"总文件数: {len(html_files)}")
+                logger.info(f"成功处理: {self.processed_count}")
+                logger.info(f"处理失败: {self.failed_count}")
+                logger.info(f"总耗时: {elapsed_time:.1f}秒")
+                logger.info(f"平均每文件: {elapsed_time/max(1, self.processed_count):.1f}秒")
+                logger.info(f"最终PPTX幻灯片数: {len(shared_presentation.slides)}")
+                logger.info("="*60)
+            else:
+                logger.error("\n没有成功处理任何HTML文件")
+
+        except KeyboardInterrupt:
+            logger.error("\n用户中断批量转换")
+            raise
         except Exception as e:
-            logger.error(f"批量转换失败: {str(e)}")
+            logger.error(f"\n批量转换失败: {str(e)}")
             import traceback
             traceback.print_exc()
             raise
+
+    def _process_single_html(self, html_file, shared_presentation) -> bool:
+        """
+        处理单个HTML文件（在独立线程中运行）
+
+        Args:
+            html_file: HTML文件路径
+            shared_presentation: 共享的Presentation对象
+
+        Returns:
+            是否成功
+        """
+        try:
+            # 清理全局缓存，避免不同HTML文件间的样式污染
+            from src.utils.style_computer import _style_computer_instance
+            from src.utils.font_manager import _font_manager_instance
+            from src.utils.font_size_extractor import _font_size_extractor_instance
+
+            if _style_computer_instance is not None:
+                _style_computer_instance.clear_cache()
+            if _font_manager_instance is not None:
+                _font_manager_instance._cached_fonts.clear()
+            if _font_size_extractor_instance is not None:
+                _font_size_extractor_instance.clear_cache()
+
+            # 设置SVG超时
+            if hasattr(self, 'svg_timeout_seconds'):
+                # 设置全局SVG超时（通过修改chart_capture的默认值）
+                import src.utils.chart_capture
+                original_wait_time = getattr(src.utils.chart_capture.ChartCapture, 'default_wait_time', 1000)
+                src.utils.chart_capture.ChartCapture.default_wait_time = self.svg_timeout_seconds * 1000
+
+            # 创建转换器，传入共享的Presentation对象
+            converter = HTML2PPTX(
+                html_path=html_file,
+                existing_presentation=shared_presentation
+            )
+
+            # 使用特殊的批量转换方法
+            self._convert_html_to_shared_presentation(converter, html_file)
+
+            return True
+
+        except Exception as e:
+            logger.error(f"处理HTML失败: {e}")
+            return False
 
     def _convert_html_to_shared_presentation(self, converter, html_file):
         """
@@ -253,11 +341,81 @@ class BatchConverter:
             if page_num:
                 shape_converter.add_page_number(page_num)
 
+    def _cleanup_svg_screenshots(self):
+        """清理PNG截图文件"""
+        try:
+            # 查找所有PNG截图文件
+            png_pattern = "svg_screenshot_*.png"
+            png_files = glob.glob(png_pattern)
+
+            if png_files:
+                logger.info(f"\n清理 {len(png_files)} 个PNG截图文件...")
+                deleted_count = 0
+                failed_count = 0
+
+                for png_file in png_files:
+                    try:
+                        os.remove(png_file)
+                        deleted_count += 1
+                    except Exception as e:
+                        logger.warning(f"  删除失败: {png_file} - {e}")
+                        failed_count += 1
+
+                logger.info(f"  成功删除: {deleted_count} 个文件")
+                if failed_count > 0:
+                    logger.warning(f"  删除失败: {failed_count} 个文件")
+            else:
+                logger.debug("  未找到PNG截图文件")
+
+        except Exception as e:
+            logger.error(f"清理PNG截图文件失败: {e}")
+
 
 def main():
     """主函数"""
+    import argparse
+
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(
+        description='HTML批量转PPTX工具（完整样式保留版）',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python batch_convert.py                    # 使用默认超时（30秒）
+  python batch_convert.py -t 60              # 设置文件处理超时60秒
+  python batch_convert.py -t 60 -s 10        # 文件超时60秒，SVG超时10秒
+  python batch_convert.py --fast             # 快速模式（15秒/3秒）
+        """
+    )
+    parser.add_argument(
+        '-t', '--timeout',
+        type=int,
+        default=30,
+        help='每个HTML文件的处理超时时间（秒，默认30）'
+    )
+    parser.add_argument(
+        '-s', '--svg-timeout',
+        type=int,
+        default=5,
+        help='每个SVG的处理超时时间（秒，默认5）'
+    )
+    parser.add_argument(
+        '--fast',
+        action='store_true',
+        help='快速模式（等同于 -t 15 -s 3）'
+    )
+
+    args = parser.parse_args()
+
+    # 快速模式
+    if args.fast:
+        args.timeout = 15
+        args.svg_timeout = 3
+
     print("=" * 60)
     print("HTML批量转PPTX工具（完整样式保留版）")
+    print("=" * 60)
+    print(f"超时设置: 文件 {args.timeout}秒, SVG {args.svg_timeout}秒")
     print("=" * 60)
 
     # 检查input目录
@@ -275,16 +433,22 @@ def main():
         return
 
     print(f"\n找到 {len(html_files)} 个HTML文件:")
-    for f in html_files:
+    for i, f in enumerate(html_files[:10]):  # 最多显示10个
         print(f"  - {os.path.basename(f)}")
+    if len(html_files) > 10:
+        print(f"  ... 还有 {len(html_files) - 10} 个文件")
 
     # 创建转换器并执行转换
-    converter = BatchConverter()
+    converter = BatchConverter(
+        timeout_seconds=args.timeout,
+        svg_timeout_seconds=args.svg_timeout
+    )
 
     try:
         converter.convert_all_to_single_pptx()
     except KeyboardInterrupt:
         print("\n\n用户中断转换")
+        sys.exit(1)
     except Exception as e:
         print(f"\n错误：{str(e)}")
         sys.exit(1)

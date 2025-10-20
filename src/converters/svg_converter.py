@@ -27,7 +27,7 @@ logger = setup_logger(__name__)
 class SvgConverter(BaseConverter):
     """SVG图表转换器"""
 
-    def __init__(self, slide, css_parser, html_path: str = None):
+    def __init__(self, slide, css_parser, html_path: str = None, use_stable_chart_capture: bool = False):
         """
         初始化SVG转换器
 
@@ -35,10 +35,19 @@ class SvgConverter(BaseConverter):
             slide: PPTX幻灯片对象
             css_parser: CSS解析器
             html_path: HTML文件路径（用于截图）
+            use_stable_chart_capture: 是否使用稳定的截图版本
         """
         super().__init__(slide, css_parser)
         self.html_path = html_path
-        self.chart_capturer = ChartCapture()
+        self.generated_png_files = []  # 记录生成的PNG文件路径
+
+        if use_stable_chart_capture:
+            from src.utils.chart_capture_working import get_working_capturer
+            self.chart_capturer = get_working_capturer()
+            logger.info("使用工作的图表截图版本")
+        else:
+            self.chart_capturer = ChartCapture()
+            logger.info("使用标准的图表截图版本")
 
     def convert(self, element, **kwargs):
         """
@@ -110,10 +119,10 @@ class SvgConverter(BaseConverter):
                 screenshot_success = True
                 logger.info(f"SVG图表 {chart_index} 截图成功，尺寸: {target_width}x{actual_height}")
 
-        # 优雅降级到内容提取
+        # 不使用降级渲染，截图失败则跳过
         if not screenshot_success:
-            logger.warning(f"SVG图表 {chart_index} 截图失败，降级到内容提取")
-            actual_height = self._render_svg_fallback(svg_element, x, y, target_width, target_height)
+            logger.error(f"SVG图表 {chart_index} 截图失败，跳过")
+            return 0
 
         return actual_height
 
@@ -127,33 +136,53 @@ class SvgConverter(BaseConverter):
         Returns:
             (宽度, 高度)
         """
-        # 尝试从viewBox获取
+        # 优先从width和height属性获取
+        width_str = svg_element.get('width', '')
+        height_str = svg_element.get('height', '')
+
+        # 如果有明确的width和height属性，使用它们
+        if width_str and height_str:
+            width = self._parse_dimension(width_str)
+            height = self._parse_dimension(height_str)
+            if width > 0 and height > 0:
+                logger.info(f"使用SVG属性尺寸: {width}x{height}")
+                return width, height
+
+        # 如果没有width/height或解析失败，尝试从viewBox获取
         viewbox = svg_element.get('viewBox')
         if viewbox:
             try:
                 values = viewbox.split()
                 if len(values) >= 4:
-                    width = int(float(values[2]))
-                    height = int(float(values[3]))
-                    return width, height
-            except (ValueError, IndexError):
-                pass
+                    # viewBox格式: min-x min-y width height
+                    vb_width = float(values[2])
+                    vb_height = float(values[3])
 
-        # 尝试从width和height属性获取
-        width_str = svg_element.get('width', '400')
-        height_str = svg_element.get('height', '250')
+                    # 如果viewBox的宽高比合理，直接使用
+                    if vb_width > 0 and vb_height > 0:
+                        # 对于没有明确尺寸的SVG，使用合理的默认尺寸
+                        # 但保持viewBox的宽高比
+                        if vb_width > vb_height:
+                            # 横向SVG，最大宽度400
+                            width = 400
+                            height = int(400 * vb_height / vb_width)
+                        elif vb_height > vb_width:
+                            # 纵向SVG，最大高度300
+                            height = 300
+                            width = int(300 * vb_width / vb_height)
+                        else:
+                            # 正方形
+                            size = min(400, int(vb_width))
+                            width = height = size
 
-        # 清理单位
-        width = self._parse_dimension(width_str)
-        height = self._parse_dimension(height_str)
+                        logger.info(f"从viewBox推导尺寸: {width}x{height} (viewBox: {vb_width}x{vb_height})")
+                        return width, height
+            except (ValueError, IndexError) as e:
+                logger.warning(f"解析viewBox失败: {e}")
 
-        # 使用默认值
-        if width <= 0:
-            width = 400
-        if height <= 0:
-            height = 250
-
-        return width, height
+        # 最后使用默认值
+        logger.warning("无法获取SVG尺寸，使用默认值400x250")
+        return 400, 250
 
     def _parse_dimension(self, dimension_str: str) -> int:
         """
@@ -181,98 +210,224 @@ class SvgConverter(BaseConverter):
                 return int(value)
             elif dimension_str.endswith('em'):
                 return int(value * 16)  # 假设1em=16px
+            elif dimension_str.endswith('rem'):
+                return int(value * 16)  # 假设1rem=16px
             elif dimension_str.endswith('%'):
-                return int(value * 4)  # 相对于某个基准
+                # 百分比需要基于父容器，这里返回0让调用方处理
+                logger.warning(f"SVG尺寸不支持百分比单位: {dimension_str}")
+                return 0
+            elif dimension_str.endswith('pt'):
+                return int(value * 96 / 72)  # 1pt = 96/72px
+            elif dimension_str.endswith('pc'):
+                return int(value * 16)  # 1pc = 16px
+            elif dimension_str.endswith('in'):
+                return int(value * 96)  # 1in = 96px
+            elif dimension_str.endswith('cm'):
+                return int(value * 96 / 2.54)  # 1cm = 96/2.54px
+            elif dimension_str.endswith('mm'):
+                return int(value * 96 / 25.4)  # 1mm = 96/25.4px
             else:
+                # 无单位，假设为像素
                 return int(value)
 
         return 0
 
-    def _capture_svg_screenshot(self, svg_element, chart_index: int, container) -> Optional[str]:
+    def _generate_svg_signature(self, svg_element) -> str:
         """
-        截取SVG截图
+        生成SVG的唯一签名，用于缓存和识别
 
         Args:
             svg_element: SVG元素
-            chart_index: 图表索引
+
+        Returns:
+            SVG签名字符串
+        """
+        import hashlib
+
+        # 收集SVG的关键特征
+        features = []
+
+        # 1. viewBox
+        viewbox = svg_element.get('viewBox', '')
+        if viewbox:
+            features.append(f"vb:{viewbox}")
+
+        # 2. width和height
+        width = svg_element.get('width', '')
+        height = svg_element.get('height', '')
+        if width:
+            features.append(f"w:{width}")
+        if height:
+            features.append(f"h:{height}")
+
+        # 3. 子元素统计
+        child_counts = {}
+        for child in svg_element.children:
+            if hasattr(child, 'name') and child.name:
+                child_counts[child.name] = child_counts.get(child.name, 0) + 1
+
+        # 按元素名排序并添加到特征
+        for elem_name in sorted(child_counts.keys()):
+            features.append(f"{elem_name}:{child_counts[elem_name]}")
+
+        # 4. 文本内容（如果有）
+        texts = svg_element.find_all('text')
+        if texts:
+            text_content = ' '.join([t.get_text(strip=True)[:50] for t in texts])
+            if text_content:
+                features.append(f"text:{text_content}")
+
+        # 5. 特殊属性（如class, id等）
+        for attr in ['class', 'id']:
+            val = svg_element.get(attr, '')
+            if val:
+                features.append(f"{attr}:{val}")
+
+        # 生成签名
+        signature_str = '|'.join(features)
+        signature_hash = hashlib.md5(signature_str.encode()).hexdigest()[:12]
+
+        logger.debug(f"SVG特征: {signature_str}")
+        logger.debug(f"SVG签名哈希: {signature_hash}")
+
+        return signature_hash
+
+    def _is_same_svg(self, svg1, svg2) -> bool:
+        """
+        比较两个SVG元素是否相同（基于内容特征）
+
+        Args:
+            svg1: 第一个SVG元素
+            svg2: 第二个SVG元素
+
+        Returns:
+            是否为同一个SVG
+        """
+        # 比较viewBox
+        vb1 = svg1.get('viewBox', '')
+        vb2 = svg2.get('viewBox', '')
+        if vb1 != vb2:
+            return False
+
+        # 比较width和height
+        w1 = svg1.get('width', '')
+        w2 = svg2.get('width', '')
+        h1 = svg1.get('height', '')
+        h2 = svg2.get('height', '')
+        if w1 != w2 or h1 != h2:
+            return False
+
+        # 比较主要子元素的数量和类型
+        children1 = []
+        for child in svg1.children:
+            if hasattr(child, 'name') and child.name:
+                children1.append(child.name)
+
+        children2 = []
+        for child in svg2.children:
+            if hasattr(child, 'name') and child.name:
+                children2.append(child.name)
+
+        # 简单的元素数量比较
+        from collections import Counter
+        return Counter(children1) == Counter(children2)
+
+    def _capture_svg_screenshot(self, svg_element, chart_index: int, container) -> Optional[str]:
+        """
+        截取SVG截图（禁用缓存，确保获取当前HTML的实际图片）
+
+        Args:
+            svg_element: SVG元素
+            chart_index: 图表索引（在容器中的索引）
             container: 容器元素
 
         Returns:
             截图路径，失败返回None
         """
         try:
-            # 方案1：尝试基于父容器和SVG索引的组合选择器
-            # 获取容器在父容器中的位置
-            parent_containers = container.parent.find_all('div', class_='flex-1') if container.parent else []
-            container_index = parent_containers.index(container) if container in parent_containers else 0
+            # 计算SVG在整个HTML中的实际索引
+            # 找到所有在它之前的SVG元素
+            from bs4 import BeautifulSoup
+            import os
 
-            logger.info(f"容器索引: {container_index}, SVG索引: {chart_index}")
+            # 读取HTML文件
+            with open(self.html_path, 'r', encoding='utf-8') as f:
+                html_content = f.read()
 
-            # 生成唯一的选择器，基于容器中的SVG内容
-            # 检查SVG的特征来创建唯一选择器
-            viewbox = svg_element.get('viewBox', '')
-            svg_content = str(svg_element)[:200]  # 取前200个字符作为内容标识
+            soup = BeautifulSoup(html_content, 'html.parser')
+            all_svgs = soup.find_all('svg')
 
-            # 尝试使用XPath选择器
-            # 基于viewBox或内容特征创建XPath
-            if viewbox:
-                # 使用viewBox作为特征
-                xpath_selector = f"//div[@class='flex-1'][{container_index + 1}]//svg[@viewBox='{viewbox}']"
-                logger.info(f"使用XPath选择器: {xpath_selector}")
-                result = self.chart_capturer.capture_svg(
-                    self.html_path,
-                    xpath_selector,
-                    wait_time=2000
-                )
-                if result:
-                    return result
+            # 找到当前SVG在整个HTML中的索引
+            actual_svg_index = None
+            # 通过比较SVG的特征来找到正确的索引
+            current_signature = self._generate_svg_signature(svg_element)
 
-            # 方案2：基于容器内的所有SVG数量，使用更精确的索引
-            # 找到父级flex容器（包含多个图表的容器）
-            parent_flex = None
-            current = container
-            while current:
-                if 'flex' in current.get('class', []) and 'gap-6' in current.get('class', []):
-                    parent_flex = current
+            for i, svg in enumerate(all_svgs):
+                soup_signature = self._generate_svg_signature(svg)
+                if soup_signature == current_signature:
+                    actual_svg_index = i
                     break
-                current = current.parent
 
-            if parent_flex:
-                # 获取父flex容器中的所有SVG
-                all_svg_in_flex = parent_flex.find_all('svg')
-                logger.info(f"父flex容器中有 {len(all_svg_in_flex)} 个SVG")
+            # 如果找不到匹配的，使用传入的索引
+            if actual_svg_index is None:
+                logger.warning(f"未找到匹配的SVG，使用传入索引: {chart_index}")
+                actual_svg_index = chart_index
 
-                # 找到当前SVG在整个flex容器中的索引
-                global_svg_index = all_svg_in_flex.index(svg_element)
-                logger.info(f"SVG在flex容器中的全局索引: {global_svg_index}")
+            logger.info(f"开始SVG截图，容器索引: {chart_index}, 实际HTML索引: {actual_svg_index}")
 
-                return self.chart_capturer.capture_svg_by_index(
-                    self.html_path,
-                    global_svg_index,
-                    wait_time=2000
-                )
+            # 生成唯一的输出路径（使用当前HTML文件名+时间戳）
+            import time
+            html_basename = os.path.basename(self.html_path)
+            unique_id = f"{html_basename}_{actual_svg_index}_{int(time.time() * 1000)}"
 
-            # 方案3：降级到普通选择器
-            svg_classes = svg_element.get('class', [])
-            if svg_classes:
-                selector = '.'.join(['svg'] + svg_classes)
-                logger.info(f"使用CSS选择器截取SVG: {selector}")
-                return self.chart_capturer.capture_svg(
-                    self.html_path,
-                    selector,
-                    wait_time=2000
-                )
-
-            # 最后尝试直接截取第一个SVG
-            logger.info("使用默认选择器截取SVG")
-            return self.chart_capturer.capture_svg(
+            # 第1层：快速截图（等待0.5秒）
+            logger.debug("尝试快速截图（500ms）")
+            png_path = f"svg_screenshot_{unique_id}.png"
+            self.generated_png_files.append(png_path)  # 记录文件路径
+            result = self.chart_capturer.capture_svg_by_index(
                 self.html_path,
-                "svg",
-                wait_time=2000
+                actual_svg_index,  # 使用实际索引
+                output_path=png_path,  # 禁用缓存
+                wait_time=500
             )
+            if result:
+                logger.info(f"快速截图成功: {result}")
+                return result
+
+            # 第2层：标准截图（等待1.5秒）
+            logger.debug("尝试标准截图（1500ms）")
+            png_path = f"svg_screenshot_{unique_id}_2.png"
+            self.generated_png_files.append(png_path)  # 记录文件路径
+            result = self.chart_capturer.capture_svg_by_index(
+                self.html_path,
+                actual_svg_index,  # 使用实际索引
+                output_path=png_path,  # 禁用缓存
+                wait_time=1500
+            )
+            if result:
+                logger.info(f"标准截图成功: {result}")
+                return result
+
+            # 第3层：慢速截图（等待3秒）
+            logger.debug("尝试慢速截图（3000ms）")
+            png_path = f"svg_screenshot_{unique_id}_3.png"
+            self.generated_png_files.append(png_path)  # 记录文件路径
+            result = self.chart_capturer.capture_svg_by_index(
+                self.html_path,
+                actual_svg_index,  # 使用实际索引
+                output_path=png_path,  # 禁用缓存
+                wait_time=3000
+            )
+            if result:
+                logger.info(f"慢速截图成功: {result}")
+                return result
+
+            # 所有截图方案都失败
+            logger.error(f"SVG截图失败（索引: {chart_index}）")
+            return None
 
         except Exception as e:
-            logger.error(f"SVG截图失败: {e}")
+            logger.error(f"SVG截图异常: {e}")
             return None
 
     def _insert_svg_screenshot(
@@ -285,15 +440,15 @@ class SvgConverter(BaseConverter):
         height: int
     ) -> int:
         """
-        插入SVG截图到PPTX，保持宽高比
+        插入SVG截图到PPTX，使用原始尺寸
 
         Args:
             pptx_slide: PPTX幻灯片
             screenshot_path: 截图路径
             x: X坐标
             y: Y坐标
-            width: 期望宽度
-            height: 期望高度
+            width: 期望宽度（忽略，使用截图原始尺寸）
+            height: 期望高度（忽略，使用截图原始尺寸）
 
         Returns:
             实际高度
@@ -305,85 +460,33 @@ class SvgConverter(BaseConverter):
                     actual_width, actual_height = img.size
 
                 logger.info(f"截图实际尺寸: {actual_width}x{actual_height}px")
-                logger.info(f"期望插入尺寸: {width}x{height}px")
+                logger.info(f"期望插入尺寸: {width}x{height}px（将被忽略）")
 
-                # 计算保持宽高比的尺寸
-                scaled_height = int(width * actual_height / actual_width)
-                logger.info(f"实际插入尺寸: {width}x{scaled_height}px")
+                # 使用截图的原始尺寸，不进行缩放
+                final_width = actual_width
+                final_height = actual_height
+
+                logger.info(f"实际插入尺寸: {final_width}x{final_height}px（使用原始尺寸）")
             else:
-                logger.warning("PIL库不可用，使用原始尺寸")
-                scaled_height = height
+                logger.warning("PIL库不可用，使用期望尺寸")
+                final_width = width
+                final_height = height
 
-            # 添加图片，使用保持宽高比的尺寸
+            # 添加图片，使用原始尺寸
             pic = pptx_slide.shapes.add_picture(
                 screenshot_path,
                 UnitConverter.px_to_emu(x),
                 UnitConverter.px_to_emu(y),
-                UnitConverter.px_to_emu(width),
-                UnitConverter.px_to_emu(scaled_height)
+                UnitConverter.px_to_emu(final_width),
+                UnitConverter.px_to_emu(final_height)
             )
 
-            return scaled_height
+            return final_height
 
         except Exception as e:
             logger.error(f"插入SVG截图失败: {e}")
-            return height
-
-    def _render_svg_fallback(
-        self,
-        svg_element,
-        x: int,
-        y: int,
-        width: int,
-        height: int
-    ) -> int:
-        """
-        SVG截图失败时的降级渲染
-
-        Args:
-            svg_element: SVG元素
-            x: X坐标
-            y: Y坐标
-            width: 宽度
-            height: 高度
-
-        Returns:
-            实际高度
-        """
-        logger.info("使用降级方案渲染SVG内容")
-
-        try:
-            # 添加占位符矩形
-            placeholder = self.slide.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE,
-                UnitConverter.px_to_emu(x),
-                UnitConverter.px_to_emu(y),
-                UnitConverter.px_to_emu(width),
-                UnitConverter.px_to_emu(height)
-            )
-
-            # 设置样式
-            placeholder.fill.solid()
-            placeholder.fill.fore_color.rgb = RGBColor(240, 240, 240)
-            placeholder.line.color.rgb = RGBColor(200, 200, 200)
-            placeholder.line.width = Pt(1)
-
-            # 添加文本
-            text_frame = placeholder.text_frame
-            text_frame.text = "SVG图表\n（无法显示）"
-            text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-
-            for paragraph in text_frame.paragraphs:
-                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
-                for run in paragraph.runs:
-                    run.font.size = Pt(16)
-                    run.font.color.rgb = RGBColor(100, 100, 100)
-
-            return height
-
-        except Exception as e:
-            logger.error(f"SVG降级渲染失败: {e}")
-            return height
+            # 不使用降级渲染，直接返回
+            return 0
 
     def convert_multiple_svgs(
         self,
@@ -443,6 +546,26 @@ class SvgConverter(BaseConverter):
             max_height = max(max_height, chart_height)
 
         return max_height
+
+    def cleanup_temp_files(self):
+        """
+        清理生成的临时PNG文件
+        """
+        import os
+        for png_path in self.generated_png_files:
+            try:
+                if os.path.exists(png_path):
+                    os.remove(png_path)
+                    logger.info(f"已删除临时文件: {png_path}")
+            except Exception as e:
+                logger.warning(f"删除临时文件失败 {png_path}: {e}")
+        self.generated_png_files.clear()
+
+    def __del__(self):
+        """
+        析构函数，自动清理临时文件
+        """
+        self.cleanup_temp_files()
 
 
 # 导入必要的RGBColor和其他常量
