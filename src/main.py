@@ -31,24 +31,32 @@ logger = setup_logger(__name__)
 class HTML2PPTX:
     """HTML转PPTX转换器"""
 
-    def __init__(self, html_path: str, existing_presentation=None):
+    def __init__(self, html_path: str, existing_presentation=None, template_file: str = None, use_shared_presentation=None, use_stable_chart_capture=False):
         """
         初始化转换器
 
         Args:
             html_path: HTML文件路径
             existing_presentation: 可选的现有Presentation对象，用于批量转换
+            template_file: 模板文件路径（兼容旧版本）
+            use_shared_presentation: 共享的Presentation对象（用于批量转换）
+            use_stable_chart_capture: 是否使用稳定的截图版本
         """
         self.html_path = html_path
         self.html_parser = HTMLParser(html_path)
         # 使用完整的HTML soup来初始化CSS解析器，以便解析head中的style标签
         self.css_parser = CSSParser(self.html_parser.full_soup)
 
-        # 如果提供了现有presentation，使用它；否则创建新的
-        if existing_presentation:
+        # 优先使用use_shared_presentation，其次是existing_presentation
+        if use_shared_presentation:
+            self.pptx_builder = PPTXBuilder(use_shared_presentation)
+        elif existing_presentation:
             self.pptx_builder = PPTXBuilder(existing_presentation)
         else:
             self.pptx_builder = PPTXBuilder()
+
+        # 保存稳定版本标志
+        self.use_stable_chart_capture = use_stable_chart_capture
 
         # 初始化全局字体管理器和样式计算器
         self.font_manager = get_font_manager(self.css_parser)
@@ -59,6 +67,9 @@ class HTML2PPTX:
             self.style_computer.set_html_file_id(html_path)
         if hasattr(self.style_computer.font_size_extractor, 'set_html_file_id'):
             self.style_computer.font_size_extractor.set_html_file_id(html_path)
+
+        # 记录所有SVG转换器实例，用于清理临时文件
+        self.svg_converters = []
 
     def convert(self, output_path: str):
         """
@@ -207,9 +218,32 @@ class HTML2PPTX:
         # 保存PPTX
         self.pptx_builder.save(output_path)
 
+        # 清理所有临时PNG文件
+        self._cleanup_temp_files()
+
         logger.info("=" * 50)
         logger.info(f"转换完成! 输出: {output_path}")
         logger.info("=" * 50)
+
+    def _cleanup_temp_files(self):
+        """
+        清理所有临时文件
+        """
+        # 清理所有SVG转换器生成的临时PNG文件
+        for svg_converter in self.svg_converters:
+            svg_converter.cleanup_temp_files()
+        self.svg_converters.clear()
+
+        # 清理当前目录下可能残留的临时PNG文件
+        import os
+        import glob
+        pattern = "svg_screenshot_*.png"
+        for png_file in glob.glob(pattern):
+            try:
+                os.remove(png_file)
+                logger.info(f"已删除残留临时文件: {png_file}")
+            except Exception as e:
+                logger.warning(f"删除残留临时文件失败 {png_file}: {e}")
 
     def _process_container(self, container, pptx_slide, y_offset, shape_converter):
         """
@@ -284,7 +318,8 @@ class HTML2PPTX:
             if svgs_in_container:
                 logger.info(f"检测到容器包含 {len(svgs_in_container)} 个SVG元素")
                 # 初始化SVG转换器
-                svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path)
+                svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path, self.use_stable_chart_capture)
+                self.svg_converters.append(svg_converter)  # 记录实例
 
                 # 如果是单个SVG，直接转换
                 if len(svgs_in_container) == 1:
@@ -317,16 +352,50 @@ class HTML2PPTX:
                             y_offset += 40
 
                     # 转换SVG
+                    # 使用SVG的原始尺寸，不进行缩放
+                    svg_width, svg_height = svg_converter._get_svg_dimensions(svg_elem)
+                    logger.info(f"SVG原始尺寸: {svg_width}x{svg_height}px")
+
+                    # 检查父容器是否有flex居中布局
+                    parent = svg_elem.parent
+                    is_centered = False
+                    if parent and 'class' in parent.attrs:
+                        classes = parent.get('class', [])
+                        if any('justify-center' in str(c) for c in classes):
+                            is_centered = True
+                            logger.info(f"检测到SVG居中布局: {classes}")
+
+                    # 使用SVG原始尺寸
+                    chart_width = svg_width
+
+                    # 如果是居中布局，计算居中位置
+                    left = 80  # 默认左边距
+                    if is_centered:
+                        # 计算居中位置：(幻灯片宽度 - SVG宽度) / 2
+                        left = (1920 - chart_width) / 2
+                        logger.info(f"SVG居中显示，左边距: {left}px")
+
                     chart_height = svg_converter.convert_svg(
                         svg_elem,
                         container,
-                        80,
+                        left,
                         y_offset,
-                        1760,
+                        chart_width,
                         0
                     )
 
-                    return y_offset + chart_height + 20
+                    # 更新y_offset，继续处理容器中的其他元素
+                    y_offset += chart_height + 20
+
+                    # 移除已处理的SVG元素，继续处理其他元素
+                    svg_elem.decompose()
+
+                    # 移除已处理的标题（如果有）
+                    if h3_elem:
+                        h3_elem.decompose()
+
+                    # 继续处理容器中的其他元素
+                    return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
                 else:
                     # 多个SVG，使用水平布局
                     chart_height = svg_converter.convert_multiple_svgs(
@@ -336,7 +405,12 @@ class HTML2PPTX:
                         1760,
                         gap=24
                     )
-                    return y_offset + chart_height + 20
+
+                    # 更新y_offset，继续处理容器中的其他元素
+                    y_offset += chart_height + 20
+
+                    # 继续处理容器中的其他元素
+                    return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
 
             # 检测是否包含多个数字列表项（如多个toc-item）
             toc_items = container.find_all('div', class_='toc-item')
@@ -1966,7 +2040,8 @@ class HTML2PPTX:
         logger.info("处理包含SVG图表的flex容器")
 
         # 初始化SVG转换器
-        svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path)
+        svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path, self.use_stable_chart_capture)
+        self.svg_converters.append(svg_converter)  # 记录实例
 
         # 获取所有直接子元素（应该是图表容器）
         chart_containers = []
@@ -2129,14 +2204,14 @@ class HTML2PPTX:
             if svg_elem:
                 logger.info(f"处理第 {i+1} 个SVG图表")
 
-                # 转换SVG图表
+                # 转换SVG图表 - 每个容器只有一个SVG，所以索引应该是0
                 chart_height = svg_converter.convert_svg(
                     svg_elem,
                     chart_container,
                     chart_x,
                     chart_y,
                     chart_width,
-                    i
+                    0  # 每个容器只有一个SVG，索引总是0
                 )
 
                 # 更新最大高度（包含标题）
@@ -5030,7 +5105,9 @@ class HTML2PPTX:
                         run.font.name = self.font_manager.get_font('body')
 
                 current_y += 35  # 段落后间距
-                logger.info(f"渲染data-card内容: {text[:30]}...")  # 只记录前30个字符
+                # 过滤特殊字符，避免Windows控制台乱码
+                clean_text = text[:30].replace('•', '*').replace('•', '*')
+                logger.info(f"渲染data-card内容: {clean_text}...")  # 只记录前30个字符
 
         # 进度条
         progress_bars = card.find_all('div', class_='progress-container')
@@ -6735,6 +6812,64 @@ class HTML2PPTX:
 
         # 降级处理为普通段落
         return self._convert_generic_card(container, pptx_slide, y_start, card_type='numbered_list')
+
+    def convert_to_pptx_shared(self, output_dir: str = "output", output_filename: str = None):
+        """
+        转换HTML到PPTX（共享模式，用于批量转换）
+        不创建新的PPTX文件，只将内容添加到共享的presentation中
+
+        Args:
+            output_dir: 输出目录（仅用于日志）
+            output_filename: 输出文件名（仅用于日志）
+
+        Returns:
+            生成的幻灯片数量
+        """
+        logger.info(f"转换HTML文件到共享PPTX: {self.html_path}")
+
+        # 获取所有幻灯片
+        slides = self.html_parser.get_slides()
+        slide_count = 0
+
+        for slide_html in slides:
+            logger.info(f"\n处理幻灯片...")
+            slide_count += 1
+
+            # 创建空白幻灯片
+            pptx_slide = self.pptx_builder.add_blank_slide()
+
+            # 初始化转换器
+            text_converter = TextConverter(pptx_slide, self.css_parser)
+            table_converter = TableConverter(pptx_slide, self.css_parser)
+            shape_converter = ShapeConverter(pptx_slide, self.css_parser)
+
+            # 1. 添加顶部装饰条
+            shape_converter.add_top_bar()
+
+            # 2. 添加标题和副标题
+            title_info = self.html_parser.get_title_info(slide_html)
+            if title_info:
+                # content-section的padding-top是20px
+                title_end_y = text_converter.convert_title(
+                    title_info['text'],
+                    title_info['subtitle'],
+                    x=80,
+                    y=20
+                )
+            else:
+                title_end_y = 100
+
+            # 3. 转换主要内容
+            main_content = self.html_parser.get_main_content(slide_html)
+            if main_content:
+                self._convert_content_container(main_content, pptx_slide, title_end_y + 20, shape_converter)
+
+            # 4. 添加页码
+            self._add_page_number(pptx_slide, slide_count)
+
+            logger.info(f"成功处理幻灯片 {slide_count}")
+
+        return slide_count
 
 
 def main():

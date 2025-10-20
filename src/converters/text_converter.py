@@ -103,6 +103,11 @@ class TextConverter(BaseConverter):
 
         logger.debug(f"H1标题字体大小: {h1_font_size_px}px → {h1_font_size_pt}pt, 高度: {h1_height}px")
 
+        # 获取h1的颜色样式
+        h1_style = style_computer.compute_computed_style(h1_element)
+        h1_inline_style = self._extract_inline_style(h1_element)
+        h1_color_str = h1_style.get('color') or h1_inline_style.get('color')
+
         # 添加h1标题
         top = UnitConverter.px_to_emu(current_y)
         height = UnitConverter.px_to_emu(h1_height)
@@ -128,9 +133,22 @@ class TextConverter(BaseConverter):
                 run.font.size = Pt(h1_font_size_pt)
                 run.font.bold = True
                 run.font.name = font_name
-                # 封面页使用主题色
-                if is_cover:
+
+                # 应用颜色：优先使用HTML中定义的颜色，否则根据页面类型使用默认颜色
+                if h1_color_str:
+                    # HTML中定义了颜色
+                    color = ColorParser.parse_color(h1_color_str)
+                    if color:
+                        run.font.color.rgb = color
+                        logger.debug(f"应用H1自定义颜色: {h1_color_str}")
+                elif is_cover:
+                    # 封面页使用主题色
                     run.font.color.rgb = ColorParser.get_primary_color()
+                    logger.debug("封面页H1使用主题色")
+                else:
+                    # 普通页面也使用主题色（保持与HTML一致）
+                    run.font.color.rgb = ColorParser.get_primary_color()
+                    logger.debug("普通页面H1使用主题色")
 
         logger.info(f"添加标题: {title_text} ({'封面页' if is_cover else '普通页面'})")
 
@@ -154,6 +172,11 @@ class TextConverter(BaseConverter):
 
             logger.debug(f"H2副标题字体大小: {h2_font_size_px}px → {h2_font_size_pt}pt, 高度: {h2_height}px")
 
+            # 获取h2的颜色样式
+            h2_style = style_computer.compute_computed_style(h2_element)
+            h2_inline_style = self._extract_inline_style(h2_element)
+            h2_color_str = h2_style.get('color') or h2_inline_style.get('color')
+
             subtitle_top = UnitConverter.px_to_emu(current_y)
             subtitle_box = self.slide.shapes.add_textbox(
                 left, subtitle_top, width, UnitConverter.px_to_emu(h2_height)
@@ -176,8 +199,19 @@ class TextConverter(BaseConverter):
                     # 使用转换后的pt值设置字体大小
                     run.font.size = Pt(h2_font_size_pt)
                     run.font.bold = True
-                    run.font.color.rgb = ColorParser.get_primary_color()
                     run.font.name = font_name_h2
+
+                    # 应用颜色：优先使用HTML中定义的颜色，否则使用主题色
+                    if h2_color_str:
+                        # HTML中定义了颜色
+                        color = ColorParser.parse_color(h2_color_str)
+                        if color:
+                            run.font.color.rgb = color
+                            logger.debug(f"应用H2自定义颜色: {h2_color_str}")
+                    else:
+                        # 使用主题色
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        logger.debug("H2使用主题色")
 
             logger.info(f"添加副标题: {subtitle_text}")
 
@@ -340,6 +374,9 @@ class TextConverter(BaseConverter):
             # 检查class属性
             classes = element.get('class', [])
             if 'primary-color' in classes:
+                style_dict['color'] = 'rgb(10, 66, 117)'
+            # 对于h1和h2标签，应用默认的主题色
+            elif element.name in ['h1', 'h2']:
                 style_dict['color'] = 'rgb(10, 66, 117)'
 
         return style_dict

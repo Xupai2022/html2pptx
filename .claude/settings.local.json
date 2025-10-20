@@ -14,7 +14,14 @@
       "Bash(git restore:*)",
       "Bash(del:*)",
       "Bash(cat:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(call:*)",
+      "Bash(set PYTHONIOENCODING=utf-8:*)",
+      "Bash(timeout:*)",
+      "Bash(playwright:*)",
+      "Bash(iconv:*)",
+      "Read(//tmp/html2pptx_charts/**)",
+      "Read(//d/**)"
     ],
     "deny": [],
     "ask": []
