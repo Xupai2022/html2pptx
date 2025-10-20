@@ -140,15 +140,16 @@ class SvgConverter(BaseConverter):
         width_str = svg_element.get('width', '')
         height_str = svg_element.get('height', '')
 
-        # 如果有明确的width和height属性，使用它们
-        if width_str and height_str:
-            width = self._parse_dimension(width_str)
-            height = self._parse_dimension(height_str)
-            if width > 0 and height > 0:
-                logger.info(f"使用SVG属性尺寸: {width}x{height}")
-                return width, height
+        # 解析width和height
+        width = self._parse_dimension(width_str) if width_str else 0
+        height = self._parse_dimension(height_str) if height_str else 0
 
-        # 如果没有width/height或解析失败，尝试从viewBox获取
+        # 如果有明确的width和height属性，且不是百分比
+        if width_str and height_str and width > 0 and height > 0:
+            logger.info(f"使用SVG属性尺寸: {width}x{height}")
+            return width, height
+
+        # 如果width/height是百分比或解析失败，尝试从viewBox获取
         viewbox = svg_element.get('viewBox')
         if viewbox:
             try:
@@ -160,22 +161,30 @@ class SvgConverter(BaseConverter):
 
                     # 如果viewBox的宽高比合理，直接使用
                     if vb_width > 0 and vb_height > 0:
-                        # 对于没有明确尺寸的SVG，使用合理的默认尺寸
-                        # 但保持viewBox的宽高比
-                        if vb_width > vb_height:
-                            # 横向SVG，最大宽度400
-                            width = 400
-                            height = int(400 * vb_height / vb_width)
-                        elif vb_height > vb_width:
-                            # 纵向SVG，最大高度300
-                            height = 300
-                            width = int(300 * vb_width / vb_height)
-                        else:
-                            # 正方形
-                            size = min(400, int(vb_width))
-                            width = height = size
+                        # 检查原始尺寸是否为百分比
+                        is_percentage = (width == -1 or height == -1)
 
-                        logger.info(f"从viewBox推导尺寸: {width}x{height} (viewBox: {vb_width}x{vb_height})")
+                        # 对于百分比尺寸或没有明确尺寸的SVG，使用合理的默认尺寸
+                        # 但保持viewBox的宽高比
+                        if is_percentage or width <= 0 or height <= 0:
+                            if vb_width > vb_height:
+                                # 横向SVG，使用合理的默认尺寸
+                                width = min(500, max(300, vb_width))
+                                height = int(width * vb_height / vb_width)
+                            elif vb_height > vb_width:
+                                # 纵向SVG，使用合理的默认尺寸
+                                height = min(400, max(250, vb_height))
+                                width = int(height * vb_width / vb_height)
+                            else:
+                                # 正方形或接近正方形
+                                size = min(400, max(300, vb_width))
+                                width = height = size
+
+                            logger.info(f"百分比/无尺寸SVG，基于viewBox计算: {width}x{height} (viewBox: {vb_width}x{vb_height})")
+                        else:
+                            # 已有具体尺寸，直接使用
+                            logger.info(f"使用SVG尺寸: {width}x{height}")
+
                         return width, height
             except (ValueError, IndexError) as e:
                 logger.warning(f"解析viewBox失败: {e}")
@@ -213,9 +222,9 @@ class SvgConverter(BaseConverter):
             elif dimension_str.endswith('rem'):
                 return int(value * 16)  # 假设1rem=16px
             elif dimension_str.endswith('%'):
-                # 百分比需要基于父容器，这里返回0让调用方处理
-                logger.warning(f"SVG尺寸不支持百分比单位: {dimension_str}")
-                return 0
+                # 返回-1表示需要基于父容器或viewBox计算
+                logger.debug(f"SVG尺寸使用百分比单位: {dimension_str}")
+                return -1
             elif dimension_str.endswith('pt'):
                 return int(value * 96 / 72)  # 1pt = 96/72px
             elif dimension_str.endswith('pc'):

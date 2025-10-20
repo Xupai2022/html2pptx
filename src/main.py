@@ -522,6 +522,10 @@ class HTML2PPTX:
             # 处理子元素
             child_classes = child.get('class', [])
 
+            # 检查是否包含chart-container（用于SVG图表）
+            has_chart_container = child.find('div', class_='chart-container') is not None
+            has_svg = child.find('svg') is not None
+
             # 检查是否需要添加左边框（data-card有左边框特性）
             needs_left_border = False
             if 'data-card' in child_classes or 'stat-card' in child_classes:
@@ -540,6 +544,10 @@ class HTML2PPTX:
             elif 'risk-card' in child_classes:
                 # 专门处理网格中的risk-card
                 child_y = self._convert_grid_risk_card(child, pptx_slide, shape_converter, x, y, item_width)
+            elif has_chart_container or has_svg:
+                # 处理包含SVG图表的子元素（如slide_003.html）
+                logger.info(f"网格子元素包含SVG图表，使用SVG处理逻辑")
+                child_y = self._convert_grid_svg_chart(child, pptx_slide, shape_converter, x, y, item_width)
             else:
                 # 降级处理
                 child_y = self._convert_generic_card(child, pptx_slide, y, card_type='grid-item')
@@ -4732,6 +4740,163 @@ class HTML2PPTX:
                         run.font.name = self.font_manager.get_font('body')
 
         return y_start + card_height + 10
+
+    def _convert_grid_svg_chart(self, child, pptx_slide, shape_converter, x, y, width):
+        """
+        转换网格中包含SVG图表的子元素（如slide_003.html）
+
+        Args:
+            child: 子元素（包含h3和chart-container）
+            pptx_slide: PPTX幻灯片
+            shape_converter: 形状转换器
+            x: X坐标
+            y: Y坐标
+            width: 宽度
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info(f"处理网格中的SVG图表子元素，x={x}, y={y}, width={width}")
+
+        current_y = y
+
+        # 处理h3标题（如果有）
+        h3_elem = child.find('h3')
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                from src.converters.text_converter import TextConverter
+                from src.utils.style_computer import StyleComputer
+                from src.utils.font_manager import FontManager
+
+                # 创建临时text_converter用于处理h3标题
+                temp_text_converter = TextConverter(pptx_slide, self.css_parser)
+
+                # 转换h3标题（使用convert_paragraph方法）
+                current_y = temp_text_converter.convert_paragraph(
+                    h3_elem,
+                    x,
+                    current_y,
+                    width
+                )
+                logger.info(f"添加h3标题: {h3_text}")
+                current_y += 15  # 标题后的间距
+
+        # 查找chart-container
+        chart_container = child.find('div', class_='chart-container')
+        if chart_container:
+            # 查找SVG元素
+            svg_elem = chart_container.find('svg')
+            if svg_elem:
+                logger.info("找到SVG元素，开始转换")
+
+                # 初始化SVG转换器
+                from src.converters.svg_converter import SvgConverter
+                svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path, self.use_stable_chart_capture)
+                self.svg_converters.append(svg_converter)  # 记录实例
+
+                # 计算SVG图表的位置和尺寸
+                svg_x = x  # 使用网格项的x坐标
+                svg_y = current_y
+                svg_width = width  # 使用网格项的宽度
+
+                # 转换SVG
+                chart_height = svg_converter.convert_svg(
+                    svg_elem,
+                    chart_container,
+                    svg_x,
+                    svg_y,
+                    svg_width,
+                    0  # SVG在容器中的索引
+                )
+
+                if chart_height > 0:
+                    current_y += chart_height
+                    logger.info(f"SVG转换成功，高度={chart_height}px")
+                else:
+                    logger.error("SVG转换失败")
+                    current_y += 200  # 默认高度
+            else:
+                logger.warning("chart-container中未找到SVG元素")
+                current_y += 200
+        else:
+            logger.warning("未找到chart-container")
+            current_y += 200
+
+        # 查找并处理后续的data-card（如果有）
+        data_cards = child.find_all('div', class_='data-card')
+        for card in data_cards:
+            # 使用现有的data-card处理逻辑
+            card_y = self._convert_grid_data_card_at_position(
+                card,
+                pptx_slide,
+                shape_converter,
+                x,
+                current_y,
+                width
+            )
+            current_y = card_y + 10  # 卡片间距
+
+        return current_y + 10  # 返回最终位置
+
+    def _convert_grid_data_card_at_position(self, card, pptx_slide, shape_converter, x, y, width):
+        """
+        在指定位置转换网格中的data-card
+
+        Args:
+            card: data-card元素
+            pptx_slide: PPTX幻灯片
+            shape_converter: 形状转换器
+            x: X坐标
+            y: Y坐标
+            width: 宽度
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info(f"在指定位置处理data-card，x={x}, y={y}")
+
+        # 使用现有的data-card处理逻辑，但在指定位置
+        from src.converters.text_converter import TextConverter
+        from src.utils.style_computer import StyleComputer
+        from src.utils.font_manager import FontManager
+        from pptx.enum.shapes import MSO_SHAPE
+
+        # 创建临时text_converter
+        temp_text_converter = TextConverter(pptx_slide, self.css_parser)
+
+        current_y = y + 15  # 顶部padding
+
+        # 处理data-card内容
+        # 首先查找p标签
+        p_elem = card.find('p')
+        if p_elem:
+            # 处理p标签内的内容
+            current_y = temp_text_converter.convert_paragraph(
+                p_elem,
+                x + 20,  # 左边距（因为有左边框）
+                current_y,
+                width - 40
+            )
+        else:
+            # 降级处理：查找bullet-point
+            bullet_points = card.find_all('div', class_='bullet-point')
+            if bullet_points:
+                for bp in bullet_points:
+                    text_elem = bp.find('p')
+                    if text_elem:
+                        current_y = temp_text_converter.convert_paragraph(
+                            text_elem,
+                            x + 20,
+                            current_y,
+                            width - 40
+                        )
+                        current_y += 8  # bullet-point间距
+
+        # 添加左边框
+        shape_converter.add_border_left(x, y, current_y - y + 15, 4)
+
+        return current_y
 
     def _convert_bottom_info(self, bottom_container, pptx_slide, y_start: int) -> int:
         """

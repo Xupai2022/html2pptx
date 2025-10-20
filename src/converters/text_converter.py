@@ -365,6 +365,8 @@ class TextConverter(BaseConverter):
                 if font_weight:
                     run.font.bold = StyleMapper.parse_font_weight(font_weight)
 
+        return y + p_height  # 返回下一个元素的Y坐标
+
     def _extract_inline_style(self, element) -> dict:
         """提取内联样式"""
         style_dict = {}
