@@ -582,3 +582,93 @@ class CSSParser:
             if style:
                 merged.update(style)
         return merged
+
+    def get_height_constraints(self, selector: str) -> dict:
+        """
+        获取元素的高度相关约束
+        
+        Args:
+            selector: CSS选择器（如'.stat-card', '.data-card'等）
+        
+        Returns:
+            {
+                'min_height': int,  # px
+                'max_height': int,  # px
+                'padding_top': int,
+                'padding_bottom': int,
+                'padding_left': int,
+                'padding_right': int,
+                'margin_bottom': int,
+                'margin_top': int
+            }
+        """
+        style = self.get_style(selector)
+        if not style:
+            return {}
+        
+        result = {}
+        
+        # 解析min-height
+        if 'min-height' in style:
+            result['min_height'] = self._parse_size(style['min-height'])
+        
+        # 解析max-height
+        if 'max-height' in style:
+            result['max_height'] = self._parse_size(style['max-height'])
+        
+        # 解析padding (简化版，假设是单一值)
+        if 'padding' in style:
+            padding = self._parse_size(style['padding'])
+            result['padding_top'] = padding
+            result['padding_bottom'] = padding
+            result['padding_left'] = padding
+            result['padding_right'] = padding
+        
+        # 解析具体的padding-*（会覆盖padding的值）
+        if 'padding-top' in style:
+            result['padding_top'] = self._parse_size(style['padding-top'])
+        if 'padding-bottom' in style:
+            result['padding_bottom'] = self._parse_size(style['padding-bottom'])
+        if 'padding-left' in style:
+            result['padding_left'] = self._parse_size(style['padding-left'])
+        if 'padding-right' in style:
+            result['padding_right'] = self._parse_size(style['padding-right'])
+        
+        # 解析margin
+        if 'margin-bottom' in style:
+            result['margin_bottom'] = self._parse_size(style['margin-bottom'])
+        if 'margin-top' in style:
+            result['margin_top'] = self._parse_size(style['margin-top'])
+        
+        logger.debug(f"获取{selector}的高度约束: {result}")
+        return result
+    
+    def _parse_size(self, size_str: str) -> int:
+        """
+        解析尺寸字符串（如'200px', '20px', '1.5rem'）为整数像素值
+        
+        Args:
+            size_str: 尺寸字符串
+            
+        Returns:
+            整数像素值
+        """
+        import re
+        
+        # 解析px单位
+        match = re.search(r'(\d+)px', size_str)
+        if match:
+            return int(match.group(1))
+        
+        # 解析rem单位（1rem = 16px）
+        match = re.search(r'([\d.]+)rem', size_str)
+        if match:
+            return int(float(match.group(1)) * 16)
+        
+        # 解析em单位（假设基础字体16px）
+        match = re.search(r'([\d.]+)em', size_str)
+        if match:
+            return int(float(match.group(1)) * 16)
+        
+        # 无法解析，返回0
+        return 0

@@ -21,6 +21,7 @@ from src.utils.color_parser import ColorParser
 from src.utils.chart_capture import ChartCapture
 from src.utils.font_manager import get_font_manager
 from src.utils.style_computer import get_style_computer
+from src.utils.content_height_calculator import ContentHeightCalculator
 from pptx.util import Pt
 from pptx.enum.text import MSO_ANCHOR, PP_PARAGRAPH_ALIGNMENT
 from pptx.dml.color import RGBColor
@@ -61,6 +62,9 @@ class HTML2PPTX:
         # 初始化全局字体管理器和样式计算器
         self.font_manager = get_font_manager(self.css_parser)
         self.style_computer = get_style_computer(self.css_parser)
+        
+        # 初始化内容高度计算器
+        self.height_calculator = ContentHeightCalculator(self.css_parser, self.style_computer)
 
         # 设置HTML文件ID，避免缓存冲突
         if hasattr(self.style_computer, 'set_html_file_id'):
@@ -589,87 +593,8 @@ class HTML2PPTX:
         from pptx.enum.shapes import MSO_SHAPE
         from pptx.dml.color import RGBColor
 
-        # 精确计算所需高度
-        # 基础padding: 15px上 + 15px下 = 30px
-        estimated_height = 30  # data-card的上下padding
-
-        # 处理h3标题
-        h3_elem = card.find('h3')
-        if h3_elem:
-            # h3高度: 28px字体 + margin-bottom: 12px = 40px
-            estimated_height += 40
-            logger.info(f"检测到h3标题: {h3_elem.get_text(strip=True)}")
-
-        # 处理bullet-point（这是slide_011.html的主要内容）
-        bullet_points = card.find_all('div', class_='bullet-point')
-        # 同时检查space-y-3容器内的flex items-start结构（slide_011.html的实际结构）
-        if not bullet_points:
-            space_y_containers = card.find_all('div', class_='space-y-3')
-            for container in space_y_containers:
-                flex_items = container.find_all('div', class_='flex')
-                for flex_item in flex_items:
-                    if flex_item.find('i') and flex_item.find('p'):
-                        bullet_points.append(flex_item)
-
-        if bullet_points:
-            logger.info(f"检测到{len(bullet_points)}个bullet-point")
-            # 每个bullet-point高度: 25px字体 + 10px间距 = 35px
-            estimated_height += len(bullet_points) * 35
-            # bullet-point之间的间距 (space-y-3 ≈ 12px)
-            estimated_height += (len(bullet_points) - 1) * 12
-
-        # 处理risk-item
-        risk_items = card.find_all('div', class_='risk-item')
-        if risk_items:
-            logger.info(f"检测到{len(risk_items)}个risk-item")
-            for i, risk_item in enumerate(risk_items):
-                # 每个risk-item的高度计算
-                item_height = 0
-
-                # 第一个p标签（包含strong和risk-level）
-                first_p = risk_item.find('p')
-                if first_p:
-                    # strong标签: 22px字体
-                    # risk-level: 20px字体 + padding(2px上下) + 8px左右padding
-                    # 实际高度由最大元素决定，考虑padding: max(22, 20+4) = 24px
-                    item_height += 24
-
-                # 两个p标签之间的间距
-                item_height += 4  # 小间距
-
-                # 第二个p标签（描述文本）
-                desc_p = risk_item.find('p', class_='text-sm')
-                if desc_p:
-                    # text-sm字体: 14px (根据CSS)
-                    # 行高: 1.6 * 14 = 22.4px，实际需要考虑换行
-                    # 但实际渲染时是25px字体（约19pt），加上行高1.6 = 40px
-                    item_height += 35  # 给描述文本足够的空间
-
-                # risk-item的margin-bottom: 12px
-                if i < len(risk_items) - 1:  # 最后一个不加margin
-                    item_height += 12
-
-                estimated_height += item_height
-                logger.info(f"risk-item {i+1} 精确高度: {item_height}px (总高度: {estimated_height}px)")
-
-        # 处理其他内容（既没有bullet-point也没有risk-item）
-        if not bullet_points and not risk_items:
-            # 查找所有直接子元素
-            direct_children = []
-            for child in card.children:
-                if hasattr(child, 'name') and child.name:
-                    if child.name != 'h3':  # h3已经计算过
-                        text = child.get_text(strip=True)
-                        if text and len(text) > 2:
-                            direct_children.append(child)
-
-            # 每个元素约35px高度
-            estimated_height += len(direct_children) * 35
-
-        # 确保最小高度
-        estimated_height = max(estimated_height, 120)
-
-        logger.info(f"data-card精确高度计算: {estimated_height}px")
+        # 使用ContentHeightCalculator动态计算data-card高度
+        estimated_height = self.height_calculator.calculate_data_card_height(card, width)
 
         bg_shape = pptx_slide.shapes.add_shape(
             MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -1102,8 +1027,9 @@ class HTML2PPTX:
         original_x_base = 80
         original_width = 1760
 
-        # 临时修改risk-card方法的坐标参数以适应网格布局
-        card_height = 180
+        # 使用ContentHeightCalculator动态计算risk-card高度
+        # risk-card内容类似data-card结构，使用data-card计算方法
+        card_height = self.height_calculator.calculate_data_card_height(card, width)
 
         # 获取CSS样式
         card_style = self.css_parser.get_class_style('risk-card') or {}
@@ -1396,12 +1322,14 @@ class HTML2PPTX:
         """
         logger.info("处理网格中的stat-card")
 
+        # 使用ContentHeightCalculator动态计算stat-card高度
+        # Note: stat-card可能包含bullet-points，使用data-card计算方法作为通用fallback
+        height = self.height_calculator.calculate_data_card_height(card, width)
+        
         # 添加背景色
         bg_color_str = self.css_parser.get_background_color('.stat-card')
         if bg_color_str:
             from pptx.enum.shapes import MSO_SHAPE
-            # 估算高度
-            height = 180
             bg_shape = pptx_slide.shapes.add_shape(
                 MSO_SHAPE.ROUNDED_RECTANGLE,
                 UnitConverter.px_to_emu(x),
@@ -2862,22 +2790,45 @@ class HTML2PPTX:
         # 根据列数动态计算box宽度
         # 总宽度 = 1920 - 2*80(左右边距) = 1760
         # box_width = (1760 - (num_columns-1) * gap) / num_columns
-        gap = 20
+        gap = self.css_parser.get_gap_size('.stats-container')
         total_width = 1760
         box_width = int((total_width - (num_columns - 1) * gap) / num_columns)
-        box_height = 220
         x_start = 80
+        
+        # 动态计算每个box的高度
+        box_heights = []
+        for box in stat_boxes:
+            box_height = self.height_calculator.calculate_stat_box_height(box, box_width)
+            box_heights.append(box_height)
+        
+        logger.info(f"计算box尺寸: 宽度={box_width}px, 间距={gap}px")
+        logger.info(f"box高度范围: {min(box_heights)}px - {max(box_heights)}px")
 
-        logger.info(f"计算box尺寸: 宽度={box_width}px, 高度={box_height}px, 间距={gap}px")
-
+        # 计算每一行的最大高度
+        num_rows = (num_boxes + num_columns - 1) // num_columns
+        row_max_heights = []
+        for row in range(num_rows):
+            row_start = row * num_columns
+            row_end = min(row_start + num_columns, num_boxes)
+            row_max_height = max(box_heights[row_start:row_end])
+            row_max_heights.append(row_max_height)
+        
+        # 记录每一行的起始Y坐标
+        row_y_positions = [y_start]
+        for row in range(1, num_rows):
+            prev_row_y = row_y_positions[row - 1]
+            prev_row_height = row_max_heights[row - 1]
+            row_y_positions.append(prev_row_y + prev_row_height + gap)
+        
         for idx, box in enumerate(stat_boxes):
             col = idx % num_columns
             row = idx // num_columns
 
             x = x_start + col * (box_width + gap)
-            y = y_start + row * (box_height + gap)
+            y = row_y_positions[row]
+            box_height = box_heights[idx]
 
-            # 添加背景
+            # 添加背景（使用动态计算的box_height）
             shape_converter = ShapeConverter(pptx_slide, self.css_parser)
             shape_converter.add_stat_box_background(x, y, box_width, box_height)
 
@@ -3128,13 +3079,12 @@ class HTML2PPTX:
                         current_y += p_height + 5  # 间距
 
         # 计算下一个元素的Y坐标
-        # 注意：这里计算的是所有stat-box渲染完毕后的Y坐标
-        # 每一行占用：box_height + gap（除了最后一行没有gap）
-        # 正确公式：y_start + num_rows * box_height + (num_rows - 1) * gap
-        num_rows = (num_boxes + num_columns - 1) // num_columns
-        actual_height = num_rows * box_height + (num_rows - 1) * gap
+        # 实际高度 = 所有行的高度之和 + 行间距之和
+        # 正确公式：sum(row_heights) + (num_rows - 1) * gap
+        actual_height = sum(row_max_heights) + (num_rows - 1) * gap if num_rows > 0 else 0
 
-        logger.info(f"stats-container高度计算: 行数={num_rows}, box高度={box_height}px, gap={gap}px, 总高度={actual_height}px")
+        logger.info(f"stats-container高度计算: 行数={num_rows}, gap={gap}px, 总高度={actual_height}px")
+        logger.info(f"  各行高度: {row_max_heights}")
 
         return y_start + actual_height
 
@@ -3187,28 +3137,45 @@ class HTML2PPTX:
                 logger.info(f"从CSS类解析出列数: {num_columns}")
 
             # 从CSS读取约束
-            stat_card_padding_top = 20
-            stat_card_padding_bottom = 20
-            stats_container_gap = 20
+            constraints = self.css_parser.get_height_constraints('.stat-card')
+            stat_card_padding_top = constraints.get('padding_top', 20)
+            stat_card_padding_bottom = constraints.get('padding_bottom', 20)
+            stats_container_gap = self.css_parser.get_gap_size('.stats-container')
 
-            # 动态计算每个stat-box的高度
-            # 根据内容计算：图标(36px) + 标题(24px) + 描述文本(约50px) + padding(20px) = 130px
-            # 但为了确保显示完整，使用一个更安全的估算值
-            stat_box_height = 150  # 增加高度以确保内容显示完整
+            # 动态计算每个stat-box的高度（使用ContentHeightCalculator）
+            total_width = 1760
+            box_width = int((total_width - (num_columns - 1) * stats_container_gap) / num_columns)
+            
+            box_heights = []
+            for box in stat_boxes:
+                box_height = self.height_calculator.calculate_stat_box_height(box, box_width)
+                box_heights.append(box_height)
 
             # 计算stats-container的实际高度
             num_rows = (num_boxes + num_columns - 1) // num_columns
-            stats_container_height = num_rows * stat_box_height + (num_rows - 1) * stats_container_gap
+            row_max_heights = []
+            for row in range(num_rows):
+                row_start = row * num_columns
+                row_end = min(row_start + num_columns, num_boxes)
+                row_max_height = max(box_heights[row_start:row_end])
+                row_max_heights.append(row_max_height)
+            
+            stats_container_height = sum(row_max_heights) + (num_rows - 1) * stats_container_gap if num_rows > 0 else 0
 
             # 计算stat-card总高度（包括自身padding）
-            has_title = card.find('p', class_='primary-color') is not None
-            title_height = 35 if has_title else 0
+            title_elem = card.find('p', class_='primary-color')
+            has_title = title_elem is not None
+            title_height = 0
+            if has_title:
+                title_font_size_pt = self.style_computer.get_font_size_pt(title_elem)
+                title_height = int(title_font_size_pt * 1.5) + 12  # 字体高度 + margin-bottom
 
             card_height = stat_card_padding_top + title_height + stats_container_height + stat_card_padding_bottom
 
             logger.info(f"stat-card动态高度计算: boxes={num_boxes}, columns={num_columns}, rows={num_rows}")
             logger.info(f"stat-card高度组成: padding={stat_card_padding_top+stat_card_padding_bottom}px, "
                        f"标题={title_height}px, stats-container={stats_container_height}px, 总高度={card_height}px")
+            logger.info(f"  各行最大高度: {row_max_heights}")
 
             # 添加stat-card背景
             bg_color_str = self.css_parser.get_background_color('.stat-card')
@@ -3343,12 +3310,17 @@ class HTML2PPTX:
             logger.info("stat-card包含canvas,处理图表")
 
             # 从CSS读取约束
-            stat_card_padding_top = 20
-            stat_card_padding_bottom = 20
+            constraints = self.css_parser.get_height_constraints('.stat-card')
+            stat_card_padding_top = constraints.get('padding_top', 20)
+            stat_card_padding_bottom = constraints.get('padding_bottom', 20)
 
             # 标题高度
-            has_title = card.find('p', class_='primary-color') is not None
-            title_height = 35 if has_title else 0
+            title_elem = card.find('p', class_='primary-color')
+            has_title = title_elem is not None
+            title_height = 0
+            if has_title:
+                title_font_size_pt = self.style_computer.get_font_size_pt(title_elem)
+                title_height = int(title_font_size_pt * 1.5) + 12  # 字体高度 + margin-bottom
 
             # canvas高度（固定220px，这是convert_chart传入的height）
             canvas_height = 220
@@ -4164,39 +4136,12 @@ class HTML2PPTX:
 
         action_items = card.find_all('div', class_='action-item')
 
-        # 从CSS读取约束
-        strategy_card_padding = 10  # top + bottom = 20
-        action_item_margin_bottom = 15  # CSS中的margin-bottom
-
-        # 标题高度
-        has_title = card.find('p', class_='primary-color') is not None
-        title_height = 40 if has_title else 0
-
-        # 每个action-item的高度组成：
-        # - 圆形图标: 28px
-        # - 标题(action-title): 18px字体 × 1.5 = 27px
-        # - 描述(p): 16px字体 × 1.5 × 行数（估算2行）= 48px
-        # - margin-bottom: 15px
-        # 总计：28 + 27 + 48 + 15 = 118px
-
-        # 简化估算（TODO阶段2：根据实际文本行数计算）
-        single_action_item_height = 118
-
-        # strategy-card总高度
-        # = padding-top + title + (action-items × height) + padding-bottom
-        card_height = (strategy_card_padding + title_height +
-                       len(action_items) * single_action_item_height +
-                       strategy_card_padding)
-
-        # 限制在max-height范围内（CSS中max-height为300px）
-        max_height = 300
-        if card_height > max_height:
-            logger.warning(f"strategy-card内容高度({card_height}px)超出max-height({max_height}px)")
-            card_height = max_height
-
-        logger.info(f"strategy-card高度计算: padding={strategy_card_padding*2}px, "
-                   f"标题={title_height}px, action-items={len(action_items)}个×{single_action_item_height}px, "
-                   f"总高度={card_height}px")
+        # 使用ContentHeightCalculator动态计算card高度
+        card_height = self.height_calculator.calculate_strategy_card_height(card)
+        
+        # 从CSS读取padding用于布局
+        constraints = self.css_parser.get_height_constraints('.strategy-card')
+        strategy_card_padding = constraints.get('padding_top', 10)
 
         bg_color_str = self.css_parser.get_background_color('.strategy-card')
         if bg_color_str:
@@ -4357,7 +4302,9 @@ class HTML2PPTX:
 
         x_base = 80
         card_width = 1760
-        card_height = 180
+        
+        # 使用ContentHeightCalculator动态计算risk-card高度
+        card_height = self.height_calculator.calculate_data_card_height(card, card_width)
 
         # 获取CSS样式
         card_style = self.css_parser.get_class_style('risk-card') or {}
@@ -5102,37 +5049,14 @@ class HTML2PPTX:
         # 从当前HTML的CSS解析器获取实际的背景色定义
         bg_color_str = self.css_parser.get_background_color('.data-card')
         should_add_bg = False
-        estimated_height = 200
+        
+        # 使用ContentHeightCalculator动态计算data-card高度
+        card_width = 1760  # data-card默认宽度
+        estimated_height = self.height_calculator.calculate_data_card_height(card, card_width)
 
         if bg_color_str and bg_color_str != 'transparent' and bg_color_str != 'none':
             should_add_bg = True
             logger.info(f"data-card应该添加背景色: {bg_color_str}")
-
-            # 动态计算所需高度
-            # 基础padding: 15px上 + 15px下 = 30px (从slide_003的CSS得出)
-            # 或者 10px上 + 10px下 = 20px (从slide01的CSS得出)
-            # 使用通用的计算方法
-            estimated_height = 30  # 默认padding
-
-            # 检查标题高度
-            p_elem = card.find('p', class_='primary-color')
-            if p_elem:
-                estimated_height += 35
-
-            # 检查bullet-point数量
-            bullet_points = card.find_all('div', class_='bullet-point')
-            if bullet_points:
-                estimated_height += len(bullet_points) * 35
-                estimated_height += (len(bullet_points) - 1) * 8  # bullet-point间距
-
-            # 检查是否包含h3标题
-            h3_elem = card.find('h3')
-            if h3_elem:
-                estimated_height += 40
-
-            # 确保最小高度
-            estimated_height = max(estimated_height, 200)
-            logger.info(f"data-card动态计算高度: {estimated_height}px")
 
             # 添加背景色
             from pptx.enum.shapes import MSO_SHAPE
