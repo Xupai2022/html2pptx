@@ -5700,22 +5700,11 @@ class HTML2PPTX:
             logger.info("data-card不包含progress-bar或bullet-point,使用通用处理")
             return self._convert_generic_card(card, pptx_slide, y_start, card_type='data-card')
 
-        # 使用ContentHeightCalculator计算统一的高度（保持一致性）
-        # 这样可以确保所有data-card（无论是在grid中还是独立的）使用相同的高度计算逻辑
-        calculated_height = self.height_calculator.calculate_data_card_height(card, 1760)
-        
-        # 计算实际渲染高度（用于调试对比）
+        # 计算实际渲染高度（基于实际内容的精确坐标）
         final_y = progress_y + 20
         actual_height = final_y - y_start
-        
-        # 记录两种计算方式的差异（用于调试）
-        if abs(calculated_height - actual_height) > 10:
-            logger.info(f"data-card高度差异: 计算器={calculated_height}px, 实际渲染={actual_height}px, 差值={calculated_height - actual_height}px")
-        
-        # 使用计算器的高度（优先，确保一致性）
-        actual_height = calculated_height
 
-        # 现在根据计算的高度添加背景色和左边框
+        # 现在根据实际内容高度添加背景色和左边框
         if should_add_bg:
             from pptx.enum.shapes import MSO_SHAPE
             bg_shape = pptx_slide.shapes.add_shape(

@@ -50,8 +50,9 @@ class ContentHeightCalculator:
         constraints = self.css_parser.get_height_constraints('.stat-box')
         padding_top = constraints.get('padding_top', 20)
         padding_bottom = constraints.get('padding_bottom', 20)
-        min_height = constraints.get('min_height', 200)
-        max_height = constraints.get('max_height', 300)
+        # 移除硬编码默认值
+        min_height = constraints.get('min_height', None)
+        max_height = constraints.get('max_height', None)
         
         logger.debug(f"stat-box CSS约束: padding={padding_top}/{padding_bottom}, min={min_height}, max={max_height}")
         
@@ -103,9 +104,12 @@ class ContentHeightCalculator:
         # 5. 计算总高度
         total_height = padding_top + content_height + padding_bottom
         
-        # 6. 应用min/max约束
+        # 6. 应用min/max约束（只在CSS明确定义时才应用）
         original_height = total_height
-        total_height = max(min_height, min(total_height, max_height))
+        if min_height is not None:
+            total_height = max(min_height, total_height)
+        if max_height is not None:
+            total_height = min(total_height, max_height)
         
         if total_height != original_height:
             logger.debug(f"应用约束: {original_height}px → {total_height}px")
@@ -136,8 +140,9 @@ class ContentHeightCalculator:
         # data-card的padding-left=15px，我们假设上下也有类似的间距
         padding_top = constraints.get('padding_top', 15)
         padding_bottom = constraints.get('padding_bottom', 15)
-        min_height = constraints.get('min_height', 200)
-        max_height = constraints.get('max_height', 300)
+        # 移除硬编码默认值，如果CSS没有定义则为None
+        min_height = constraints.get('min_height', None)
+        max_height = constraints.get('max_height', None)
         
         logger.debug(f"data-card CSS约束: padding={padding_top}/{padding_bottom}, min={min_height}, max={max_height}")
         
@@ -232,9 +237,12 @@ class ContentHeightCalculator:
         # 6. 计算总高度
         total_height = padding_top + content_height + padding_bottom
         
-        # 7. 应用约束
+        # 7. 应用约束（只在CSS明确定义时才应用）
         original_height = total_height
-        total_height = max(min_height, min(total_height, max_height))
+        if min_height is not None:
+            total_height = max(min_height, total_height)
+        if max_height is not None:
+            total_height = min(total_height, max_height)
         
         if total_height != original_height:
             logger.debug(f"应用约束: {original_height}px → {total_height}px")
@@ -260,8 +268,9 @@ class ContentHeightCalculator:
         """
         constraints = self.css_parser.get_height_constraints('.strategy-card')
         padding = constraints.get('padding_top', 10)  # strategy-card使用统一padding
-        min_height = constraints.get('min_height', 200)
-        max_height = constraints.get('max_height', 300)
+        # 移除硬编码默认值
+        min_height = constraints.get('min_height', None)
+        max_height = constraints.get('max_height', None)
         
         logger.debug(f"strategy-card CSS约束: padding={padding}, min={min_height}, max={max_height}")
         
@@ -312,9 +321,12 @@ class ContentHeightCalculator:
         # 3. 计算总高度
         total_height = padding * 2 + content_height  # 上下都有padding
         
-        # 4. 应用约束
+        # 4. 应用约束（只在CSS明确定义时才应用）
         original_height = total_height
-        total_height = max(min_height, min(total_height, max_height))
+        if min_height is not None:
+            total_height = max(min_height, total_height)
+        if max_height is not None:
+            total_height = min(total_height, max_height)
         
         if total_height != original_height:
             logger.debug(f"应用约束: {original_height}px → {total_height}px")
