@@ -673,6 +673,9 @@ class HTML2PPTX:
             for elem in text_elements[:5]:  # 最多5个元素
                 text = elem.get_text(strip=True)
                 if text:
+                    # 获取元素的class以判断样式
+                    elem_classes = elem.get('class', [])
+                    
                     text_left = UnitConverter.px_to_emu(x + 20)
                     text_top = UnitConverter.px_to_emu(current_y)
                     text_box = pptx_slide.shapes.add_textbox(
@@ -683,14 +686,45 @@ class HTML2PPTX:
                     text_frame.text = text
                     text_frame.word_wrap = True
 
+                    # 判断是否需要加粗（stat-value通常加粗）
+                    is_bold = 'stat-value' in elem_classes or 'font-bold' in elem_classes or 'font-semibold' in elem_classes
+                    # 判断是否为主色（stat-value和stat-label通常有颜色）
+                    is_primary = 'stat-value' in elem_classes or 'primary-color' in elem_classes
+                    is_gray = 'stat-label' in elem_classes or 'text-gray-600' in elem_classes
+
                     for paragraph in text_frame.paragraphs:
                         for run in paragraph.runs:
                             # 使用样式计算器获取字体大小
                             font_size_px = self.style_computer.get_font_size_pt(elem)
                             run.font.size = Pt(font_size_px) if font_size_px else Pt(16)
                             run.font.name = self.font_manager.get_font('body')
+                            
+                            # 应用加粗
+                            if is_bold:
+                                run.font.bold = True
+                            
+                            # 应用颜色
+                            if is_primary:
+                                run.font.color.rgb = ColorParser.get_primary_color()
+                            elif is_gray:
+                                run.font.color.rgb = RGBColor(102, 102, 102)  # #666
 
-                    current_y += 35
+                    # 根据元素类型计算合适的间距
+                    if 'stat-value' in elem_classes:
+                        # stat-value后的间距较小（CSS: margin-bottom: 8px）
+                        # 考虑字体大小42px * 1.2行高 + 8px margin ≈ 58px
+                        current_y += 58
+                    elif 'stat-label' in elem_classes:
+                        # stat-label后的间距（20px字体 + 正常间距）
+                        # 考虑字体大小20px * 1.2行高 + 12px margin ≈ 36px
+                        current_y += 36
+                    elif 'mt-3' in elem_classes:
+                        # p标签带mt-3，需要额外的顶部间距
+                        # mt-3 = 12px，加上段落本身高度
+                        current_y += 35
+                    else:
+                        # 默认间距
+                        current_y += 35
 
         # 添加左边框 - 使用与背景相同的高度，确保竖线不会过长
         border_height = estimated_height  # 使用背景矩形的高度
@@ -2710,6 +2744,9 @@ class HTML2PPTX:
         for elem in text_elements[:5]:  # 最多5个元素
             text = elem.get_text(strip=True)
             if text:
+                # 获取元素的class以判断样式
+                elem_classes = elem.get('class', [])
+                
                 # 文本框宽度要比卡片宽度小一些，留有内边距
                 text_width = card_width - 40 - (8 if has_left_border else 0)  # 如果有左边框，减少文本宽度
                 text_left = UnitConverter.px_to_emu(x_base + text_left_offset)
@@ -2724,7 +2761,6 @@ class HTML2PPTX:
                 text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
 
                 # 检查元素是否有text-center类或父容器有text-center
-                elem_classes = elem.get('class', [])
                 parent = elem.parent
                 has_text_center = 'text-center' in elem_classes
 
@@ -2738,6 +2774,11 @@ class HTML2PPTX:
                         break
                     parent = parent.parent
 
+                # 判断是否需要加粗（stat-value通常加粗）
+                is_bold = 'stat-value' in elem_classes or 'font-bold' in elem_classes or 'font-semibold' in elem_classes
+                is_primary = 'stat-value' in elem_classes or 'primary-color' in elem_classes
+                is_gray = 'stat-label' in elem_classes or 'text-gray-600' in elem_classes
+
                 for paragraph in text_frame.paragraphs:
                     # 如果有text-center类或者元素本身是居中的，则设置居中对齐
                     if has_text_center:
@@ -2749,17 +2790,36 @@ class HTML2PPTX:
                         font_size_px = self.style_computer.get_font_size_pt(elem)
                         run.font.size = Pt(font_size_px) if font_size_px else Pt(16)
                         run.font.name = self.font_manager.get_font('body')
+                        
+                        # 应用加粗
+                        if is_bold:
+                            run.font.bold = True
 
-                        # 检查并应用颜色
-                        elem_classes = elem.get('class', [])
-                        if 'primary-color' in elem_classes:
+                        # 应用颜色
+                        if is_primary:
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                        elif is_gray:
+                            run.font.color.rgb = RGBColor(102, 102, 102)  # #666
+                        elif 'primary-color' in elem_classes:
                             run.font.color.rgb = ColorParser.get_primary_color()
                         else:
                             element_color = self._get_element_color(elem)
                             if element_color:
                                 run.font.color.rgb = element_color
 
-                current_y += 35
+                # 根据元素类型计算合适的间距
+                if 'stat-value' in elem_classes:
+                    # stat-value后的间距较小（CSS: margin-bottom: 8px）
+                    current_y += 58
+                elif 'stat-label' in elem_classes:
+                    # stat-label后的间距
+                    current_y += 36
+                elif 'mt-3' in elem_classes:
+                    # p标签带mt-3
+                    current_y += 35
+                else:
+                    # 默认间距
+                    current_y += 35
 
         return current_y + 10
 
@@ -3983,8 +4043,10 @@ class HTML2PPTX:
                     if text and len(text) > 2:  # 过滤空文本和单字符
                         # 检查是否有特殊样式
                         classes = elem.get('class', [])
-                        is_primary = 'primary-color' in classes
-                        is_bold = 'font-bold' in classes or elem.name in ['h1', 'h2', 'h3', 'h4']
+                        is_primary = 'primary-color' in classes or 'stat-value' in classes
+                        is_bold = 'font-bold' in classes or 'font-semibold' in classes or 'stat-value' in classes or elem.name in ['h1', 'h2', 'h3', 'h4']
+                        is_stat_value = 'stat-value' in classes
+                        is_stat_label = 'stat-label' in classes
                         # 检查是否有其他颜色类
                         has_color_class = any(cls.startswith('text-') for cls in classes)
 
@@ -3993,6 +4055,8 @@ class HTML2PPTX:
                             'tag': elem.name,
                             'is_primary': is_primary,
                             'is_bold': is_bold,
+                            'is_stat_value': is_stat_value,
+                            'is_stat_label': is_stat_label,
                             'has_color_class': has_color_class,
                             'element': elem  # 保存元素引用以获取颜色
                         })
@@ -4036,11 +4100,17 @@ class HTML2PPTX:
             text = elem['text']
             is_primary = elem['is_primary']
             is_bold = elem['is_bold']
+            is_stat_value = elem.get('is_stat_value', False)
+            is_stat_label = elem.get('is_stat_label', False)
             tag = elem['tag']
             element = elem.get('element')  # 获取原始元素引用
 
-            # 根据标签确定字体大小
-            if tag in ['h1', 'h2']:
+            # 根据标签和类确定字体大小
+            if is_stat_value:
+                font_size = 42  # stat-value使用42px字体
+            elif is_stat_label:
+                font_size = 20  # stat-label使用20px字体
+            elif tag in ['h1', 'h2']:
                 font_size = 24
             elif tag == 'h3':
                 font_size = 20
@@ -4070,6 +4140,9 @@ class HTML2PPTX:
                         run.font.bold = True
                     if is_primary:
                         run.font.color.rgb = ColorParser.get_primary_color()
+                    elif is_stat_label:
+                        # stat-label使用灰色
+                        run.font.color.rgb = RGBColor(102, 102, 102)  # #666
                     elif element:
                         # 检查是否有其他颜色类
                         color = self._get_element_color(element)
@@ -4077,7 +4150,16 @@ class HTML2PPTX:
                             run.font.color.rgb = color
                     run.font.name = self.font_manager.get_font('body')
 
-            current_y += text_height + 10
+            # 根据元素类型计算合适的间距
+            if is_stat_value:
+                # stat-value后的间距较小（CSS: margin-bottom: 8px）
+                current_y += 58
+            elif is_stat_label:
+                # stat-label后的间距
+                current_y += 36
+            else:
+                # 默认间距
+                current_y += text_height + 10
 
         # 计算实际内容高度
         actual_height = current_y - content_start_y + 20
