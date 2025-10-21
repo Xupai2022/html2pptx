@@ -4100,7 +4100,14 @@ class HTML2PPTX:
                 bg_shape.fill.fore_color.rgb = bg_rgb
             bg_shape.line.fill.background()
             bg_shape.shadow.inherit = False
-            logger.info(f"添加{card_type}背景色, 高度={actual_height}px (实际渲染)")
+            
+            # 将背景移到最底层，避免覆盖文本
+            sp_tree = pptx_slide.shapes._spTree
+            bg_element = bg_shape._element
+            sp_tree.remove(bg_element)
+            sp_tree.insert(2, bg_element)
+            
+            logger.info(f"添加{card_type}背景色, 高度={actual_height}px (实际渲染，已移至底层)")
         
         # 添加边框（如果需要）
         if needs_border:
@@ -5612,7 +5619,19 @@ class HTML2PPTX:
                     bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
                 bg_shape.fill.fore_color.rgb = bg_rgb
             bg_shape.line.fill.background()
-            logger.info(f"添加data-card背景色: {bg_color_str}, 高度={actual_height}px (实际渲染)")
+            
+            # 将背景移到最底层，避免覆盖文本
+            # 使用 shapes._spTree 访问实际的形状容器
+            sp_tree = pptx_slide.shapes._spTree
+            bg_element = bg_shape._element
+            # 从当前位置移除
+            sp_tree.remove(bg_element)
+            # 插入到最前面（在非可视元素之后）
+            # spTree 通常包含: nvGrpSpPr, grpSpPr, 然后是各个形状
+            # 我们插入到索引2的位置（第一个实际形状位置）
+            sp_tree.insert(2, bg_element)
+            
+            logger.info(f"添加data-card背景色: {bg_color_str}, 高度={actual_height}px (实际渲染，已移至底层)")
 
         # 添加左边框（使用实际计算的高度）
         shape_converter.add_border_left(x_base, y_start, actual_height, 4)
