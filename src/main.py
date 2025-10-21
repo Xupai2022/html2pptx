@@ -1349,7 +1349,7 @@ class HTML2PPTX:
         # 添加左边框
         border_left_style = self.css_parser.get_style('.stat-card').get('border-left', '')
         if '4px solid' in border_left_style:
-            shape_converter.add_border_left(x, y, 180, 4)
+            shape_converter.add_border_left(x, y, height, 4)  # 使用动态计算的height
 
         # 首先检查是否包含bullet-point结构
         bullet_points = card.find_all('div', class_='bullet-point')
@@ -1456,7 +1456,7 @@ class HTML2PPTX:
                 # 移动到下一个位置
                 current_x += risk_width + 20
 
-            return y + 180
+            return y + height  # 使用动态计算的height
 
         # 直接提取所有文本内容，不跳过flex容器
         all_content = []
@@ -1526,7 +1526,7 @@ class HTML2PPTX:
 
                 current_y += 35
 
-        return y + 180
+        return y + height  # 使用动态计算的height
 
         # 查找内部的flex容器
         flex_container = card.find('div', class_='flex')
@@ -1562,8 +1562,10 @@ class HTML2PPTX:
                 element_heights.append(height)
                 total_content_height += height
 
+            # 使用动态计算的card高度（使用data-card计算方法）
+            card_height = self.height_calculator.calculate_data_card_height(card, width)
+            
             # 计算垂直起始位置（垂直居中）
-            card_height = 180
             start_y = y + (card_height - total_content_height) // 2
             if start_y < y + 15:
                 start_y = y + 15  # 保证最小内边距
@@ -1688,7 +1690,7 @@ class HTML2PPTX:
                     # 图标框尺寸基于字体大小
                     icon_box_size = icon_font_size_px + 4  # 稍微留点边距
                     icon_left = UnitConverter.px_to_emu(x + width - icon_box_size - 10)
-                    icon_top = UnitConverter.px_to_emu(y + (180 - icon_box_size) // 2)  # 垂直居中
+                    icon_top = UnitConverter.px_to_emu(y + (card_height - icon_box_size) // 2)  # 垂直居中（使用动态计算的card_height）
 
                     icon_box = pptx_slide.shapes.add_textbox(
                         icon_left, icon_top,
