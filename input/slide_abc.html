@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>运营总览</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+  .stat-value { font-size: 42px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 8px; }
+  .stat-label { font-size: 20px; color: #666; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-8">
+      <h1>运营总览</h1>
+      <h2 class="text-gray-600">核心指标展示</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：数据展示 -->
+    <div class="flex-1 overflow-hidden">
+      <div class="grid grid-cols-2 gap-6 mb-8">
+        <div class="data-card">
+          <div class="stat-value">196.15万次</div>
+          <div class="stat-label">外部攻击拦截次数</div>
+          <p class="mt-3">上半年累计拦截各类外部网络攻击，有效保障系统安全运行</p>
+        </div>
+        <div class="data-card">
+          <div class="stat-value">319起</div>
+          <div class="stat-label">安全事件总数</div>
+          <p class="mt-3">及时发现并处置各类安全事件，确保业务连续性和数据安全</p>
+        </div>
+        <div class="data-card">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">风险资产闭环率</div>
+          <p class="mt-3">所有发现的安全风险均完成整改，实现风险清零目标</p>
+        </div>
+        <div class="data-card">
+          <div class="stat-value">24.51万次</div>
+          <div class="stat-label">平均每月攻击次数</div>
+          <p class="mt-3">月均攻击量保持稳定，防护体系运行效果良好</p>
+        </div>
+      </div>
+      
+      <div class="data-card">
+        <h3 class="text-2xl font-semibold mb-3 primary-color">运营成效总结</h3>
+        <p>通过7×24小时不间断监测、快速响应处置和闭环管理机制，成功构建了全方位的安全防护体系。上半年实现了重大安全事件零发生、风险资产100%闭环的优秀成绩，为核心业务系统的稳定运行提供了坚实保障。</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">3</div>
+</div>
+</body>
+</html>
