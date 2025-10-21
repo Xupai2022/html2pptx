@@ -416,6 +416,16 @@ class HTML2PPTX:
                     # 继续处理容器中的其他元素
                     return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
 
+            # 先检查是否包含已知子容器（优先级高于数字列表检测）
+            # 这样可以避免将包含数字的stat-card误判为数字列表
+            has_data_cards = container.find_all('div', class_='data-card')
+            has_stat_cards = container.find_all('div', class_='stat-card')
+            has_grid = container.find('div', class_='grid')
+            
+            if has_data_cards or has_stat_cards or has_grid:
+                logger.info(f"容器 {container_classes} 包含已知子容器，递归处理")
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+            
             # 检测是否包含多个数字列表项（如多个toc-item）
             toc_items = container.find_all('div', class_='toc-item')
             if len(toc_items) > 1:
@@ -457,7 +467,17 @@ class HTML2PPTX:
                 # 普通flex容器
                 return self._convert_flex_container(container, pptx_slide, y_offset, shape_converter)
 
-            # 未知容器类型，记录警告但尝试处理
+            # 未知容器类型，先检查是否包含已知子容器
+            # 检查是否包含data-card、stat-card、grid等已知容器
+            has_data_cards = container.find_all('div', class_='data-card')
+            has_stat_cards = container.find_all('div', class_='stat-card')
+            has_grid = container.find('div', class_='grid')
+            
+            if has_data_cards or has_stat_cards or has_grid:
+                logger.info(f"未知容器类型 {container_classes} 包含已知子容器，递归处理")
+                return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
+            
+            # 真正的未知容器类型，记录警告但尝试处理
             logger.warning(f"遇到未知容器类型: {container_classes}，尝试降级处理")
             return self._convert_generic_card(container, pptx_slide, y_offset, card_type='unknown')
 
@@ -5680,11 +5700,22 @@ class HTML2PPTX:
             logger.info("data-card不包含progress-bar或bullet-point,使用通用处理")
             return self._convert_generic_card(card, pptx_slide, y_start, card_type='data-card')
 
-        # 计算实际高度
+        # 使用ContentHeightCalculator计算统一的高度（保持一致性）
+        # 这样可以确保所有data-card（无论是在grid中还是独立的）使用相同的高度计算逻辑
+        calculated_height = self.height_calculator.calculate_data_card_height(card, 1760)
+        
+        # 计算实际渲染高度（用于调试对比）
         final_y = progress_y + 20
         actual_height = final_y - y_start
+        
+        # 记录两种计算方式的差异（用于调试）
+        if abs(calculated_height - actual_height) > 10:
+            logger.info(f"data-card高度差异: 计算器={calculated_height}px, 实际渲染={actual_height}px, 差值={calculated_height - actual_height}px")
+        
+        # 使用计算器的高度（优先，确保一致性）
+        actual_height = calculated_height
 
-        # 现在根据实际内容高度添加背景色和左边框
+        # 现在根据计算的高度添加背景色和左边框
         if should_add_bg:
             from pptx.enum.shapes import MSO_SHAPE
             bg_shape = pptx_slide.shapes.add_shape(
