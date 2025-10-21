@@ -507,17 +507,29 @@ class HTML2PPTX:
                     logger.info(f"检测到网格列数: {num_columns}")
                     break
 
-        # 获取间距
-        gap = 20  # 默认间距
+        # 获取间距 - 优先从CSS，然后检查inline style，最后使用默认值
+        gap = self.css_parser.get_gap_size('.grid')  # 从CSS获取间距
+        
+        # 检查是否有gap-*类覆盖
         for cls in classes:
-            if cls.startswith('gap-') and hasattr(self.css_parser, 'tailwind_spacing'):
-                gap_value = self.css_parser.tailwind_spacing.get(cls)
-                if gap_value:
-                    # 处理小数值，如1.5rem
-                    gap_num = float(gap_value.replace('rem', ''))
-                    gap = int(gap_num * 16)  # 转换rem到px
-                    logger.info(f"检测到网格间距: {gap}px")
+            if cls.startswith('gap-'):
+                gap_from_class = self.css_parser.get_gap_size(f'.{cls}')
+                if gap_from_class != 20:  # 如果不是默认值，使用它
+                    gap = gap_from_class
+                    logger.info(f"从Tailwind类 {cls} 检测到网格间距: {gap}px")
                     break
+        
+        # 检查inline style中的gap
+        inline_style = container.get('style', '')
+        if 'gap:' in inline_style:
+            import re
+            gap_match = re.search(r'gap:\s*(\d+)px', inline_style)
+            if gap_match:
+                gap = int(gap_match.group(1))
+                logger.info(f"从inline style检测到网格间距: {gap}px")
+        
+        if gap == 20:
+            logger.debug(f"使用默认网格间距: {gap}px")
 
         # 获取所有子元素
         children = []
@@ -2049,7 +2061,18 @@ class HTML2PPTX:
 
         # 计算每个图表的宽度和水平位置
         total_width = 1760  # 总可用宽度
-        gap = 24  # gap-6 = 24px
+        # 从CSS获取间距，优先检查容器类
+        gap = self.css_parser.get_gap_size('.gap-6')  # gap-6通常是24px
+        # 检查容器inline style
+        inline_style = container.get('style', '')
+        if 'gap:' in inline_style:
+            import re
+            gap_match = re.search(r'gap:\s*(\d+)px', inline_style)
+            if gap_match:
+                gap = int(gap_match.group(1))
+                logger.info(f"flex-charts从inline style检测到间距: {gap}px")
+        else:
+            logger.debug(f"flex-charts使用默认间距: {gap}px")
 
         # 获取flex布局信息
         container_style = container.get('style', '')
@@ -3413,8 +3436,12 @@ class HTML2PPTX:
                 title_font_size_pt = self.style_computer.get_font_size_pt(title_elem)
                 title_height = int(title_font_size_pt * 1.5) + 12  # 字体高度 + margin-bottom
 
-            # canvas高度（固定220px，这是convert_chart传入的height）
-            canvas_height = 220
+            # canvas高度 - 从CSS读取chart-container的约束，如果没有则使用默认值
+            chart_constraints = self.css_parser.get_height_constraints('.chart-container')
+            canvas_height = chart_constraints.get('min_height', 220)  # 默认220px
+            if canvas_height < 180:
+                canvas_height = 220  # 确保最小高度
+            logger.debug(f"canvas高度: {canvas_height}px (从CSS chart-container约束)")
 
             # stat-card总高度
             card_height = stat_card_padding_top + title_height + canvas_height + stat_card_padding_bottom
@@ -4962,8 +4989,19 @@ class HTML2PPTX:
 
         # 水平排列：计算每个bullet-point的宽度
         total_width = 1760  # 可用总宽度
+        # 从CSS获取间距，bottom-info容器可能使用gap-10 (40px)
+        gap = self.css_parser.get_gap_size('.gap-10')  # gap-10 = 40px
+        # 检查容器inline style
+        inline_style = bottom_container.get('style', '')
+        if 'gap:' in inline_style:
+            import re
+            gap_match = re.search(r'gap:\s*(\d+)px', inline_style)
+            if gap_match:
+                gap = int(gap_match.group(1))
+                logger.info(f"bottom-info从inline style检测到间距: {gap}px")
+        else:
+            logger.debug(f"bottom-info使用默认间距: {gap}px")
         item_width = total_width // len(bullet_points)  # 每项平均分配宽度
-        gap = 40  # 项目间距
 
         for idx, bullet_point in enumerate(bullet_points):
             icon_elem = bullet_point.find('i')
@@ -6074,33 +6112,69 @@ class HTML2PPTX:
         bg_color_str = 'rgba(10, 66, 117, 0.03)'
         from pptx.enum.shapes import MSO_SHAPE
 
-        # 计算需要的行数
-        num_rows = (len(bullet_points) + num_columns - 1) // num_columns
-
-        # 精确计算卡片高度
-        # 基础padding: 15px上 + 15px下 = 30px
-        card_height = 30  # data-card的上下padding
-
-        if title_text:
-            # h3标题: 28px字体 + 12px下边距 + 10px上间距 = 50px
-            card_height += 50
-            logger.info(f"添加h3标题高度: 50px")
+        # 使用ContentHeightCalculator动态计算卡片高度
+        # 但由于网格布局特殊，需要手动计算
+        
+        # 从CSS获取约束
+        constraints = self.css_parser.get_height_constraints('.data-card')
+        padding_top = constraints.get('padding_top', 15)
+        padding_bottom = constraints.get('padding_bottom', 15)
+        
+        card_height = padding_top  # 顶部padding
+        
+        # 计算标题高度
+        if title_text and actual_title_elem:
+            title_font_size_pt = self.style_computer.get_font_size_pt(actual_title_elem)
+            title_height = int(title_font_size_pt * 1.5)  # 标题文字高度
+            title_margin_bottom = 12  # margin-bottom from CSS
+            title_margin_top = 10  # 顶部间距
+            card_height += title_margin_top + title_height + title_margin_bottom
+            logger.info(f"标题高度: {title_height}px + margin({title_margin_top+title_margin_bottom}px) = {title_margin_top+title_height+title_margin_bottom}px")
 
         # 计算网格行数
         num_rows = (len(bullet_points) + num_columns - 1) // num_columns
         logger.info(f"网格布局: {num_columns}列 x {num_rows}行")
 
-        # 每行高度: bullet-point高度(25px字体) + margin-bottom(8px) + 上下padding = 60px
-        row_height = 60
-        grid_total_height = num_rows * row_height
-
-        # bullet-point之间的间距已经在row_height中考虑了
-        card_height += grid_total_height
-
-        # 额外的底部间距
-        card_height += 20
-
-        logger.info(f"第四个容器精确高度计算: padding(30) + 标题(50 if any) + 网格({grid_total_height}) + 底部间距(20) = {card_height}px")
+        # 计算每个bullet-point的平均高度
+        if bullet_points:
+            # 动态计算每个bullet-point的高度
+            bp_heights = []
+            card_width = 1760
+            col_width = (card_width - padding_top * 2) // num_columns
+            
+            for bp in bullet_points:
+                p_elem = bp.find('p')
+                if p_elem:
+                    p_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                    p_text = p_elem.get_text(strip=True)
+                    # 计算文本行数
+                    available_width = col_width - 40  # 减去icon和间距
+                    num_lines = self.height_calculator._calculate_text_lines(p_text, p_font_size_pt, available_width)
+                    bp_height = max(20, num_lines * int(p_font_size_pt * 1.5))  # 至少20px（图标高度）
+                    bp_heights.append(bp_height)
+            
+            # 计算每行的最大高度
+            row_heights = []
+            for row in range(num_rows):
+                row_start = row * num_columns
+                row_end = min(row_start + num_columns, len(bp_heights))
+                row_max_height = max(bp_heights[row_start:row_end]) if row_start < row_end else 30
+                row_heights.append(row_max_height)
+            
+            # 获取网格gap
+            grid_gap = self.css_parser.get_gap_size('.space-y-3')  # space-y-3 = 12px
+            if grid_gap == 20:  # 如果返回默认值，使用8px（bullet-point的margin-bottom）
+                grid_gap = 8
+            
+            grid_total_height = sum(row_heights) + (num_rows - 1) * grid_gap if num_rows > 0 else 0
+            card_height += grid_total_height
+            logger.info(f"网格高度: {grid_total_height}px (行高={row_heights}, 行间距={grid_gap}px)")
+        
+        # 底部padding和额外间距
+        card_height += padding_bottom
+        card_height += 10  # 额外的底部间距
+        
+        logger.info(f"data-card网格布局高度计算: padding_top={padding_top}px, 内容={card_height-padding_top-padding_bottom-10}px, padding_bottom={padding_bottom}px, 总高度={card_height}px")
 
         # 添加背景
         bg_shape = pptx_slide.shapes.add_shape(
@@ -6145,14 +6219,21 @@ class HTML2PPTX:
 
         # 处理网格中的bullet-point
         item_width = 1720 // num_columns  # 每列宽度
-        item_height = 60  # 每项高度
+        
+        # 使用之前计算的row_heights来定位每一行
+        row_y_positions = [current_y + 10]  # 第一行的Y位置
+        grid_gap = 8  # bullet-point之间的间距
+        for row_idx in range(1, num_rows):
+            prev_y = row_y_positions[row_idx - 1]
+            prev_height = row_heights[row_idx - 1] if row_idx - 1 < len(row_heights) else 30
+            row_y_positions.append(prev_y + prev_height + grid_gap)
 
         for idx, bullet_point in enumerate(bullet_points):
             # 计算网格位置
             col = idx % num_columns
             row = idx // num_columns
             item_x = x_base + 20 + col * item_width
-            item_y = current_y + 10 + row * item_height
+            item_y = row_y_positions[row] if row < len(row_y_positions) else current_y + 10
 
             # 获取图标和文本
             icon_elem = bullet_point.find('i')
