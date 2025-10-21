@@ -2189,7 +2189,16 @@ class HTML2PPTX:
         # 处理每个子容器
         for i, child in enumerate(children):
             if i > 0:
-                current_y += 40  # 子容器间距
+                # 从CSS读取margin-bottom值
+                child_classes = child.get('class', [])
+                margin_bottom = 20  # 默认20px
+                if 'data-card' in child_classes:
+                    constraints = self.css_parser.get_height_constraints('.data-card')
+                    margin_bottom = constraints.get('margin_bottom', 20)
+                elif 'stat-card' in child_classes:
+                    constraints = self.css_parser.get_height_constraints('.stat-card')
+                    margin_bottom = constraints.get('margin_bottom', 20)
+                current_y += margin_bottom  # 使用CSS定义的间距
 
             # 递归调用_process_container处理每个子容器
             current_y = self._process_container(child, pptx_slide, current_y, shape_converter)
@@ -3998,82 +4007,28 @@ class HTML2PPTX:
 
         logger.info(f"提取了 {len(unique_elements)} 个文本段落")
 
-        # 添加背景和边框（根据容器类型）
+        # 暂时记录背景和边框配置，等实际内容渲染完成后再添加
         shape_converter = ShapeConverter(pptx_slide, self.css_parser)
-
-        # 预估内容高度
-        estimated_height = min(len(unique_elements) * 40 + 40, 280)
-
+        
+        # 记录起始位置
+        content_start_y = current_y
+        
+        # 根据卡片类型准备背景色
+        bg_color = None
+        needs_border = False
+        
         if 'stat-card' in card_type:
-            # stat-card有背景色（圆角矩形）
             bg_color = self.css_parser.get_background_color('.stat-card')
-            if bg_color:
-                from pptx.enum.shapes import MSO_SHAPE
-                bg_shape = pptx_slide.shapes.add_shape(
-                    MSO_SHAPE.ROUNDED_RECTANGLE,
-                    UnitConverter.px_to_emu(x_base),
-                    UnitConverter.px_to_emu(current_y),
-                    UnitConverter.px_to_emu(1760),
-                    UnitConverter.px_to_emu(estimated_height)
-                )
-                bg_shape.fill.solid()
-                bg_rgb, alpha = ColorParser.parse_rgba(bg_color)
-                if bg_rgb:
-                    if alpha < 1.0:
-                        bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
-                    bg_shape.fill.fore_color.rgb = bg_rgb
-                bg_shape.line.fill.background()
-                bg_shape.shadow.inherit = False  # 无阴影
             current_y += 15  # 顶部padding
-
         elif 'data-card' in card_type:
-            # data-card有左边框
-            shape_converter.add_border_left(x_base, current_y, estimated_height, 4)
+            needs_border = True
             current_y += 10
-
         elif 'stat-box' in card_type:
-            # stat-box有背景色
             bg_color = self.css_parser.get_background_color('.stat-box')
-            if bg_color:
-                from pptx.enum.shapes import MSO_SHAPE
-                bg_shape = pptx_slide.shapes.add_shape(
-                    MSO_SHAPE.ROUNDED_RECTANGLE,
-                    UnitConverter.px_to_emu(x_base),
-                    UnitConverter.px_to_emu(current_y),
-                    UnitConverter.px_to_emu(1760),
-                    UnitConverter.px_to_emu(estimated_height)
-                )
-                bg_shape.fill.solid()
-                bg_rgb, alpha = ColorParser.parse_rgba(bg_color)
-                if bg_rgb:
-                    if alpha < 1.0:
-                        bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
-                    bg_shape.fill.fore_color.rgb = bg_rgb
-                bg_shape.line.fill.background()
-                bg_shape.shadow.inherit = False  # 无阴影
             current_y += 15
-
         elif 'strategy-card' in card_type:
-            # strategy-card有背景色和左边框
             bg_color = self.css_parser.get_background_color('.strategy-card')
-            if bg_color:
-                from pptx.enum.shapes import MSO_SHAPE
-                bg_shape = pptx_slide.shapes.add_shape(
-                    MSO_SHAPE.ROUNDED_RECTANGLE,
-                    UnitConverter.px_to_emu(x_base),
-                    UnitConverter.px_to_emu(current_y),
-                    UnitConverter.px_to_emu(1760),
-                    UnitConverter.px_to_emu(estimated_height)
-                )
-                bg_shape.fill.solid()
-                bg_rgb, alpha = ColorParser.parse_rgba(bg_color)
-                if bg_rgb:
-                    if alpha < 1.0:
-                        bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
-                    bg_shape.fill.fore_color.rgb = bg_rgb
-                bg_shape.line.fill.background()
-                bg_shape.shadow.inherit = False  # 无阴影
-            shape_converter.add_border_left(x_base, current_y, estimated_height, 4)
+            needs_border = True
             current_y += 10
 
         # 渲染文本（unique_elements已在前面提取）
@@ -4123,6 +4078,33 @@ class HTML2PPTX:
                     run.font.name = self.font_manager.get_font('body')
 
             current_y += text_height + 10
+
+        # 计算实际内容高度
+        actual_height = current_y - content_start_y + 20
+        
+        # 现在根据实际高度添加背景色
+        if bg_color:
+            from pptx.enum.shapes import MSO_SHAPE
+            bg_shape = pptx_slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                UnitConverter.px_to_emu(x_base),
+                UnitConverter.px_to_emu(content_start_y),
+                UnitConverter.px_to_emu(1760),
+                UnitConverter.px_to_emu(actual_height)
+            )
+            bg_shape.fill.solid()
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color)
+            if bg_rgb:
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                bg_shape.fill.fore_color.rgb = bg_rgb
+            bg_shape.line.fill.background()
+            bg_shape.shadow.inherit = False
+            logger.info(f"添加{card_type}背景色, 高度={actual_height}px (实际渲染)")
+        
+        # 添加边框（如果需要）
+        if needs_border:
+            shape_converter.add_border_left(x_base, content_start_y, actual_height, 4)
 
         return current_y + 20
 
@@ -5052,36 +5034,14 @@ class HTML2PPTX:
         bg_color_str = self.css_parser.get_background_color('.data-card')
         should_add_bg = False
         
-        # 使用ContentHeightCalculator动态计算data-card高度
-        card_width = 1760  # data-card默认宽度
-        estimated_height = self.height_calculator.calculate_data_card_height(card, card_width)
-
+        # 注意：背景色和左边框需要在计算完实际内容高度后统一添加
+        # 暂时记录背景色配置，稍后根据实际内容高度添加
+        should_add_bg = False
         if bg_color_str and bg_color_str != 'transparent' and bg_color_str != 'none':
             should_add_bg = True
             logger.info(f"data-card应该添加背景色: {bg_color_str}")
-
-            # 添加背景色
-            from pptx.enum.shapes import MSO_SHAPE
-            bg_shape = pptx_slide.shapes.add_shape(
-                MSO_SHAPE.ROUNDED_RECTANGLE,
-                UnitConverter.px_to_emu(x_base),
-                UnitConverter.px_to_emu(y_start),
-                UnitConverter.px_to_emu(1760),
-                UnitConverter.px_to_emu(estimated_height)
-            )
-            bg_shape.fill.solid()
-            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
-            if bg_rgb:
-                if alpha < 1.0:
-                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
-                bg_shape.fill.fore_color.rgb = bg_rgb
-            bg_shape.line.fill.background()
-            logger.info(f"添加data-card背景色: {bg_color_str}, 高度={estimated_height}px")
         else:
             logger.info(f"data-card没有定义背景色，只添加左边框")
-
-        # 注意：左边框的高度需要在计算完实际内容后再添加
-        # 暂时记录起始位置，稍后添加边框
 
         # 初始化当前Y坐标
         current_y = y_start + 10
@@ -5634,6 +5594,25 @@ class HTML2PPTX:
         # 计算实际高度
         final_y = progress_y + 20
         actual_height = final_y - y_start
+
+        # 现在根据实际内容高度添加背景色和左边框
+        if should_add_bg:
+            from pptx.enum.shapes import MSO_SHAPE
+            bg_shape = pptx_slide.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                UnitConverter.px_to_emu(x_base),
+                UnitConverter.px_to_emu(y_start),
+                UnitConverter.px_to_emu(1760),
+                UnitConverter.px_to_emu(actual_height)  # 使用实际渲染高度
+            )
+            bg_shape.fill.solid()
+            bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+            if bg_rgb:
+                if alpha < 1.0:
+                    bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                bg_shape.fill.fore_color.rgb = bg_rgb
+            bg_shape.line.fill.background()
+            logger.info(f"添加data-card背景色: {bg_color_str}, 高度={actual_height}px (实际渲染)")
 
         # 添加左边框（使用实际计算的高度）
         shape_converter.add_border_left(x_base, y_start, actual_height, 4)
