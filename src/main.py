@@ -245,6 +245,147 @@ class HTML2PPTX:
             except Exception as e:
                 logger.warning(f"删除残留临时文件失败 {png_file}: {e}")
 
+    def _get_line_height_ratio(self, element):
+        """
+        获取元素的行高比例
+
+        Args:
+            element: HTML元素
+
+        Returns:
+            行高比例（如1.6表示1.6倍字体大小）
+        """
+        # 默认行高比例
+        default_ratio = 1.6
+
+        # 尝试从CSS获取行高
+        element_classes = element.get('class', [])
+        if isinstance(element_classes, str):
+            element_classes = element_classes.split()
+
+        # 检查Tailwind行高类
+        for cls in element_classes:
+            if cls.startswith('leading-'):
+                try:
+                    value = cls.split('-')[1]
+                    if value == 'tight':
+                        return 1.25
+                    elif value == 'snug':
+                        return 1.375
+                    elif value == 'normal':
+                        return 1.5
+                    elif value == 'relaxed':
+                        return 1.625
+                    elif value == 'loose':
+                        return 2.0
+                    else:
+                        # 如leading-6表示1.5rem (24px)
+                        return int(value) / 16.0
+                except:
+                    pass
+
+        # 尝试从内联样式获取
+        style_str = element.get('style', '')
+        if 'line-height' in style_str:
+            import re
+            match = re.search(r'line-height:\s*([0-9.]+)', style_str)
+            if match:
+                return float(match.group(1))
+
+        return default_ratio
+
+    def _get_margin_bottom_from_classes(self, classes):
+        """
+        从CSS类获取margin-bottom值
+
+        Args:
+            classes: CSS类列表
+
+        Returns:
+            margin-bottom的像素值
+        """
+        if isinstance(classes, str):
+            classes = classes.split()
+
+        # 默认值
+        margin_bottom = 0
+
+        for cls in classes:
+            if cls.startswith('mb-'):
+                try:
+                    # Tailwind的mb-类，如mb-4 = 1rem = 16px
+                    value = int(cls.split('-')[1])
+                    margin_bottom = value * 4  # Tailwind基准单位是0.25rem = 4px
+                    return margin_bottom
+                except:
+                    pass
+
+        # 如果没有找到，尝试从CSS解析器获取
+        if hasattr(self.css_parser, 'get_style'):
+            for cls in classes:
+                style = self.css_parser.get_style(f'.{cls}')
+                if 'margin-bottom' in style:
+                    import re
+                    match = re.search(r'(\d+)px', style['margin-bottom'])
+                    if match:
+                        return int(match.group(1))
+
+        return margin_bottom
+
+    def _get_tailwind_value(self, prefix, value):
+        """
+        获取Tailwind CSS值
+
+        Args:
+            prefix: 前缀（如'mb'）
+            value: 值（如'6'）
+
+        Returns:
+            对应的像素值
+        """
+        # Tailwind间距单位表
+        spacing_map = {
+            '0': 0,
+            '1': 4,
+            '2': 8,
+            '3': 12,
+            '4': 16,
+            '5': 20,
+            '6': 24,
+            '7': 28,
+            '8': 32,
+            '9': 36,
+            '10': 40,
+            '11': 44,
+            '12': 48,
+            '14': 56,
+            '16': 64,
+            '20': 80,
+            '24': 96,
+            '28': 112,
+            '32': 128,
+            '36': 144,
+            '40': 160,
+            '44': 176,
+            '48': 192,
+            '52': 208,
+            '56': 224,
+            '60': 240,
+            '64': 256,
+            '72': 288,
+            '80': 320,
+            '96': 384
+        }
+
+        # 特殊处理px单位
+        if value.endswith('px'):
+            try:
+                return int(value[:-2])
+            except:
+                return 0
+
+        return spacing_map.get(value, 0)
+
     def _process_container(self, container, pptx_slide, y_offset, shape_converter):
         """
         处理单个容器，根据其类型路由到相应的处理方法
@@ -258,7 +399,111 @@ class HTML2PPTX:
         Returns:
             下一个元素的Y坐标
         """
+        # 导入必要的模块（避免局部变量问题）
+        from pptx.util import Pt
+        from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+        from pptx.dml.color import RGBColor
+
+        # 特殊处理：如果容器本身就是h3标签（如class="text-gray-700 mb-4"）
+        if container.name == 'div' and container.find('h3', recursive=False):
+            # 检查是否只包含一个h3标题
+            h3_elem = container.find('h3', recursive=False)
+            other_content = [child for child in container.children if hasattr(child, 'name') and child.name and child.name != 'h3']
+
+            if h3_elem and not other_content:
+                # 这是一个纯标题容器
+                h3_text = h3_elem.get_text(strip=True)
+                if h3_text:
+                    from pptx.util import Pt
+                    from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                    h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                    h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                    # 动态计算h3高度
+                    h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                    h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                    h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                    # 动态计算margin-bottom - 修复：h3元素本身有mb-4类，而非容器
+                    h3_classes = h3_elem.get('class', [])
+                    margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                    if margin_bottom == 0 or margin_bottom is None:
+                        # 如果h3本身没有margin-bottom类，再检查容器
+                        margin_bottom = self._get_margin_bottom_from_classes(container.get('class', []))
+                    if margin_bottom == 0 or margin_bottom is None:
+                        # 默认值：根据HTML中h3常见的mb-4类（4*4=16px）
+                        margin_bottom = 16
+
+                    text_left = UnitConverter.px_to_emu(80)
+                    text_top = UnitConverter.px_to_emu(y_offset)
+                    text_box = pptx_slide.shapes.add_textbox(
+                        text_left, text_top,
+                        UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = h3_text
+                    for paragraph in text_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        for run in paragraph.runs:
+                            run.font.size = Pt(h3_font_size_pt)
+                            run.font.name = self.font_manager.get_font('h3')
+                            if self._should_be_bold(h3_elem):
+                                run.font.bold = True
+                            run.font.color.rgb = h3_color
+
+                    logger.info(f"直接渲染h3标题容器: {h3_text}，高度={h3_height_px}px，margin-bottom={margin_bottom}px")
+                    return y_offset + h3_height_px + margin_bottom
+
+        # 特殊处理：如果容器本身就是h3标签（直接子元素）
+        if container.name == 'h3':
+            h3_text = container.get_text(strip=True)
+            if h3_text:
+                from pptx.util import Pt
+                from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                h3_font_size_pt = self.style_computer.get_font_size_pt(container)
+                h3_color = self._get_element_color(container) or ColorParser.get_primary_color()
+
+                # 动态计算h3高度
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height_ratio = self._get_line_height_ratio(container)
+                h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                # 动态计算margin-bottom - 修复：直接从h3元素获取mb-4类
+                h3_classes = container.get('class', [])
+                margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                if margin_bottom == 0 or margin_bottom is None:
+                    # h3标签默认应该有mb-4（16px）的间距
+                    margin_bottom = 16
+
+                text_left = UnitConverter.px_to_emu(80)
+                text_top = UnitConverter.px_to_emu(y_offset)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = h3_text
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in paragraph.runs:
+                        run.font.size = Pt(h3_font_size_pt)
+                        run.font.name = self.font_manager.get_font('h3')
+                        if self._should_be_bold(container):
+                            run.font.bold = True
+                        run.font.color.rgb = h3_color
+
+                logger.info(f"直接渲染h3标签: {h3_text}，高度={h3_height_px}px，margin-bottom={margin_bottom}px")
+                return y_offset + h3_height_px + margin_bottom
+
         container_classes = container.get('class', [])
+
+        # 特殊处理：mb-6容器（包含h3标题和内容的容器）
+        if 'mb-6' in container_classes:
+            # 检查是否包含h3标题
+            h3_elem = container.find('h3', recursive=False)
+            if h3_elem:
+                logger.info(f"处理mb-6容器，包含h3标题")
+                return self._convert_mb6_container(container, pptx_slide, y_offset, shape_converter)
 
         # 检测封面页容器（优先级最高）
         if 'cover-content' in container_classes or 'cover-info' in container_classes:
@@ -412,6 +657,108 @@ class HTML2PPTX:
                     # 继续处理容器中的其他元素
                     return self._convert_content_container(container, pptx_slide, y_offset, shape_converter)
 
+            # 检查是否有网格子元素（优先级高，放在SVG检查之后）
+            grid_child = container.find('div', class_='grid')
+            if grid_child:
+                logger.info(f"容器{container_classes}包含网格子元素，递归处理")
+                # 如果有h3标题，先渲染
+                h3_elem = container.find('h3', recursive=False)
+                if h3_elem:
+                    h3_text = h3_elem.get_text(strip=True)
+                    if h3_text:
+                        from pptx.util import Pt
+                        from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                        h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                        # 动态计算h3高度
+                        h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                        h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                        h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                        # 动态计算margin-bottom - 修复：正确获取h3的mb-4类
+                        h3_classes = h3_elem.get('class', [])
+                        margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                        if margin_bottom == 0 or margin_bottom is None:
+                            # h3标签默认应该有mb-4（16px）的间距
+                            margin_bottom = 16
+
+                        text_left = UnitConverter.px_to_emu(80)
+                        text_top = UnitConverter.px_to_emu(y_offset)
+                        text_box = pptx_slide.shapes.add_textbox(
+                            text_left, text_top,
+                            UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = h3_text
+                        for paragraph in text_frame.paragraphs:
+                            paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                            for run in paragraph.runs:
+                                run.font.size = Pt(h3_font_size_pt)
+                                run.font.name = self.font_manager.get_font('h3')
+                                if self._should_be_bold(h3_elem):
+                                    run.font.bold = True
+                                run.font.color.rgb = h3_color
+
+                        y_offset += h3_height_px + margin_bottom
+                
+                # 处理网格
+                return self._convert_grid_container(grid_child, pptx_slide, y_offset, shape_converter)
+
+            # 检查是否包含多个data-card子元素（如slide_006第一个容器）
+            data_cards = container.find_all('div', class_='data-card', recursive=False)
+            if len(data_cards) > 0:
+                logger.info(f"容器{container_classes}包含{len(data_cards)}个data-card子元素，递归处理")
+                # 如果有h3标题，先渲染
+                h3_elem = container.find('h3', recursive=False)
+                if h3_elem:
+                    h3_text = h3_elem.get_text(strip=True)
+                    if h3_text:
+                        from pptx.util import Pt
+                        from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                        h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                        # 动态计算h3高度
+                        h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                        h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                        h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                        # 动态计算margin-bottom - 修复：正确获取h3的mb-4类
+                        h3_classes = h3_elem.get('class', [])
+                        margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                        if margin_bottom == 0 or margin_bottom is None:
+                            # h3标签默认应该有mb-4（16px）的间距
+                            margin_bottom = 16
+
+                        text_left = UnitConverter.px_to_emu(80)
+                        text_top = UnitConverter.px_to_emu(y_offset)
+                        text_box = pptx_slide.shapes.add_textbox(
+                            text_left, text_top,
+                            UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = h3_text
+                        for paragraph in text_frame.paragraphs:
+                            paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                            for run in paragraph.runs:
+                                run.font.size = Pt(h3_font_size_pt)
+                                run.font.name = self.font_manager.get_font('h3')
+                                if self._should_be_bold(h3_elem):
+                                    run.font.bold = True
+                                run.font.color.rgb = h3_color
+
+                        y_offset += h3_height_px + margin_bottom
+                
+                # 处理每个data-card
+                current_y = y_offset
+                for data_card in data_cards:
+                    # 调用data-card处理方法（非网格版本，使用全宽）
+                    current_y = self._convert_data_card(data_card, pptx_slide, shape_converter, current_y)
+                    current_y += 20  # data-card之间的间距
+                
+                return current_y
+
             # 检测是否包含多个数字列表项（如多个toc-item）
             toc_items = container.find_all('div', class_='toc-item')
             if len(toc_items) > 1:
@@ -453,8 +800,92 @@ class HTML2PPTX:
                 # 普通flex容器
                 return self._convert_flex_container(container, pptx_slide, y_offset, shape_converter)
 
-            # 未知容器类型，记录警告但尝试处理
-            logger.warning(f"遇到未知容器类型: {container_classes}，尝试降级处理")
+            # 未知容器类型，先检查内容再决定处理方式
+            logger.warning(f"遇到未知容器类型: {container_classes}，尝试智能分析内容")
+
+            # 检查是否有h3标题
+            h3_elem = container.find('h3', recursive=False)
+
+            # 检查各种内容类型
+            has_grid = container.find('div', class_='grid', recursive=False) is not None
+            has_data_cards = container.find('div', class_='data-card', recursive=False) is not None
+            has_stat_cards = container.find('div', class_='stat-card', recursive=False) is not None
+            has_bullet_points = container.find('div', class_='bullet-point', recursive=False) is not None
+
+            # 如果有h3标题，优先渲染
+            if h3_elem:
+                h3_text = h3_elem.get_text(strip=True)
+                if h3_text:
+                    from pptx.util import Pt
+                    from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                    h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                    h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                    # 动态计算h3高度
+                    h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                    h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                    h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                    # 动态计算margin-bottom - 修复：正确获取h3的mb-4类
+                    h3_classes = h3_elem.get('class', [])
+                    margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                    if margin_bottom == 0 or margin_bottom is None:
+                        # h3标签默认应该有mb-4（16px）的间距
+                        margin_bottom = 16
+
+                    text_left = UnitConverter.px_to_emu(80)
+                    text_top = UnitConverter.px_to_emu(y_offset)
+                    text_box = pptx_slide.shapes.add_textbox(
+                        text_left, text_top,
+                        UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = h3_text
+                    for paragraph in text_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        for run in paragraph.runs:
+                            run.font.size = Pt(h3_font_size_pt)
+                            run.font.name = self.font_manager.get_font('h3')
+                            if self._should_be_bold(h3_elem):
+                                run.font.bold = True
+                            run.font.color.rgb = h3_color
+
+                    y_offset += h3_height_px + margin_bottom
+                    logger.info(f"渲染h3标题: {h3_text}，高度={h3_height_px}px，margin-bottom={margin_bottom}px")
+
+                    # 移除已处理的h3，避免重复处理
+                    h3_elem.decompose()
+
+            # 根据内容类型进行相应处理
+            if has_grid:
+                grid_child = container.find('div', class_='grid', recursive=False)
+                if grid_child:
+                    return self._convert_grid_container(grid_child, pptx_slide, y_offset, shape_converter)
+            elif has_data_cards:
+                data_cards = container.find_all('div', class_='data-card', recursive=False)
+                if data_cards:
+                    current_y = y_offset
+                    for data_card in data_cards:
+                        current_y = self._convert_data_card(data_card, pptx_slide, shape_converter, current_y)
+                        current_y += 20  # data-card之间的间距
+                    return current_y
+            elif has_stat_cards:
+                stat_cards = container.find_all('div', class_='stat-card', recursive=False)
+                if stat_cards:
+                    current_y = y_offset
+                    for stat_card in stat_cards:
+                        current_y = self._convert_stat_card(stat_card, pptx_slide, current_y)
+                        current_y += 20  # stat-card之间的间距
+                    return current_y
+            elif has_bullet_points:
+                # 创建一个临时容器来处理bullet-points
+                bullet_points = container.find_all('div', class_='bullet-point', recursive=False)
+                if bullet_points:
+                    # 计算所需高度
+                    estimated_height = len(bullet_points) * 35 + 40
+                    return self._render_bullet_points_directly(container, pptx_slide, y_offset, shape_converter)
+
+            # 如果都不是，使用通用渲染
             return self._convert_generic_card(container, pptx_slide, y_offset, card_type='unknown')
 
     def _convert_grid_container(self, container, pptx_slide, y_start, shape_converter):
@@ -563,6 +994,271 @@ class HTML2PPTX:
 
         return max_y_in_row + 20  # 返回下一行的起始位置
 
+    def _calculate_precise_element_height(self, element, parent_width):
+        """
+        精确计算元素的高度，递归处理所有子元素
+        
+        Args:
+            element: BeautifulSoup元素
+            parent_width: 父容器宽度（用于计算文本换行）
+            
+        Returns:
+            元素高度（px）
+        """
+        if not element or not hasattr(element, 'name'):
+            return 0
+        
+        # 获取元素的类名
+        elem_classes = element.get('class', [])
+        
+        # 特殊类的高度处理
+        if 'stat-value' in elem_classes:
+            # stat-value: font-size: 42px, font-weight: 700, margin-bottom: 8px
+            return 42 + 8
+        elif 'stat-label' in elem_classes:
+            # stat-label: font-size: 20px, color: #666
+            return 20
+        elif 'bullet-point' in elem_classes:
+            # bullet-point: display: flex, align-items: center, margin-bottom: 8px, font-size: 25px
+            # 包含图标和文字，按行高计算
+            font_size = self._get_tailwind_font_size(elem_classes) or 25
+            line_height = int(font_size * 1.6)  # 行高1.6
+            margin_bottom = 8
+            return line_height + margin_bottom
+        elif 'risk-item' in elem_classes:
+            # risk-item: display: flex, align-items: flex-start, margin-bottom: 12px
+            # 包含图标、文字和可能的risk-level标签，需要递归计算子元素
+            total_height = 0
+            for child in element.children:
+                if hasattr(child, 'name') and child.name:
+                    child_height = self._calculate_precise_element_height(child, parent_width - 40)  # 扣除图标和间距
+                    total_height = max(total_height, child_height)  # 取最高的子元素
+            margin_bottom = 12
+            # risk-item至少应该有图标的高度（约28px）
+            total_height = max(total_height, 28)
+            return total_height + margin_bottom
+        
+        # 获取元素的font-size（先尝试从Tailwind类获取，再从CSS计算）
+        font_size_px = self._get_tailwind_font_size(elem_classes)
+        if font_size_px is None:
+            font_size_pt = self.style_computer.get_font_size_pt(element) if element.name else 16
+            font_size_px = UnitConverter.pt_to_px(font_size_pt)
+        
+        line_height = font_size_px * 1.6  # 默认行高
+        
+        # 根据元素类型计算高度
+        if element.name == 'h3':
+            # h3通常有margin-bottom
+            h3_classes = element.get('class', [])
+            margin_bottom = self._get_tailwind_margin_bottom(h3_classes)
+            if margin_bottom is None:
+                # 从CSS获取margin-bottom
+                margin_bottom = 12  # 默认值
+            # h3的行高通常是字体大小的1.2-1.3倍
+            h3_height = int(font_size_px * 1.3)
+            return h3_height + margin_bottom
+        elif element.name == 'p':
+            # p标签需要考虑文本长度和换行
+            text = element.get_text(strip=True)
+            if text:
+                # 检查是否包含图标（如<i>标签）
+                has_icon = element.find('i') is not None
+
+                # 更精确的字符宽度估算
+                # 中文通常占1em，英文占0.5em，平均约0.6em
+                # 但对于25px的字体，每个字符大约占15px宽度
+                char_width = font_size_px * 0.5 if has_icon else font_size_px * 0.6
+
+                # 实际可用宽度需要减去padding和图标宽度
+                available_width = parent_width - 40  # 减去左右padding
+                if has_icon:
+                    available_width -= 36  # 减去图标和间距
+
+                chars_per_line = max(10, int(available_width / char_width))
+                lines = max(1, (len(text) + chars_per_line - 1) // chars_per_line)  # 向上取整
+
+                # 获取margin-top和margin-bottom
+                p_classes = element.get('class', [])
+                margin_top = self._get_tailwind_margin_top(p_classes) or 0
+                margin_bottom = self._get_tailwind_margin_bottom(p_classes) or 0
+
+                # 如果有图标，高度应该考虑图标大小
+                if has_icon:
+                    # 图标高度通常是字体大小
+                    icon_height = font_size_px
+                    text_height = int(lines * line_height)
+                    content_height = max(icon_height, text_height)
+                else:
+                    content_height = int(lines * line_height)
+
+                # 确保最小高度
+                content_height = max(content_height, int(font_size_px * 1.2))
+
+                return margin_top + content_height + margin_bottom
+            return 0
+        elif element.name == 'div':
+            # div容器需要递归计算所有子元素
+            if 'flex' in elem_classes:
+                # flex布局：如果是justify-between或items-center，高度由最高子元素决定
+                if 'justify-between' in elem_classes or 'items-center' in elem_classes:
+                    max_height = 0
+                    for child in element.children:
+                        if hasattr(child, 'name') and child.name:
+                            child_height = self._calculate_precise_element_height(child, parent_width)
+                            max_height = max(max_height, child_height)
+                    return max_height
+
+            # 普通div：累加所有子元素高度
+            total_height = 0
+            for child in element.children:
+                if hasattr(child, 'name') and child.name:
+                    total_height += self._calculate_precise_element_height(child, parent_width)
+
+            # 检查div的margin-bottom（特别是data-card和stat-card）
+            margin_bottom = 0
+            # 从CSS类获取margin-bottom
+            mb_value = self._get_tailwind_margin_bottom(elem_classes)
+            if mb_value:
+                margin_bottom = mb_value
+            else:
+                # 特殊处理data-card和stat-card的margin-bottom
+                if 'data-card' in elem_classes:
+                    # data-card在CSS中定义为margin-bottom: 20px
+                    margin_bottom = 20
+                elif 'stat-card' in elem_classes:
+                    # stat-card在CSS中定义为margin-bottom: 20px
+                    margin_bottom = 20
+
+            return total_height + margin_bottom
+        elif element.name == 'i':
+            # 图标元素，根据font-size计算
+            return int(font_size_px * 1.2)  # 图标略大于字体
+        elif element.name == 'strong':
+            # 粗体文字，与正常文字高度相同
+            return int(font_size_px * 1.5)
+        elif element.name == 'span':
+            # span通常是内联元素，需要根据其类来判断
+            if 'risk-level' in elem_classes:
+                # risk-level标签：font-size: 20px, padding: 2px 8px
+                return 24  # 20px字体 + 上下padding
+            # 其他span按普通文字处理
+            return int(font_size_px * 1.5)
+        
+        # 默认返回font-size
+        return int(font_size_px)
+    
+    def _get_tailwind_font_size(self, classes):
+        """
+        从Tailwind CSS类中提取字体大小（px）
+        
+        Args:
+            classes: CSS类列表
+            
+        Returns:
+            字体大小（px）或None
+        """
+        # Tailwind字体大小映射（基于1rem = 16px）
+        font_size_map = {
+            'text-xs': 12,     # 0.75rem
+            'text-sm': 14,     # 0.875rem
+            'text-base': 16,   # 1rem
+            'text-lg': 18,     # 1.125rem
+            'text-xl': 20,     # 1.25rem
+            'text-2xl': 24,    # 1.5rem
+            'text-3xl': 30,    # 1.875rem
+            'text-4xl': 36,    # 2.25rem
+            'text-5xl': 48,    # 3rem
+            'text-6xl': 60,    # 3.75rem
+            'text-7xl': 72,    # 4.5rem
+            'text-8xl': 96,    # 6rem
+            'text-9xl': 128,   # 8rem
+        }
+        
+        for cls in classes:
+            if cls in font_size_map:
+                return font_size_map[cls]
+        
+        return None
+    
+    def _get_tailwind_margin_top(self, classes):
+        """从Tailwind CSS类中提取margin-top（px）"""
+        for cls in classes:
+            if cls.startswith('mt-'):
+                try:
+                    value = int(cls.split('-')[1])
+                    return value * 4  # Tailwind间距单位：1 = 0.25rem = 4px
+                except:
+                    pass
+        return None
+    
+    def _get_tailwind_margin_bottom(self, classes):
+        """从Tailwind CSS类中提取margin-bottom（px）"""
+        for cls in classes:
+            if cls.startswith('mb-'):
+                try:
+                    value = int(cls.split('-')[1])
+                    return value * 4  # Tailwind间距单位：1 = 0.25rem = 4px
+                except:
+                    pass
+        return None
+    
+    def _get_css_margin_bottom(self, element_or_selector):
+        """
+        获取元素或选择器的CSS margin-bottom值
+        
+        优先级：
+        1. Tailwind mb-*类
+        2. 元素对应的CSS类选择器（如.stat-card）中定义的margin-bottom
+        3. 内联样式中的margin-bottom
+        
+        Args:
+            element_or_selector: BeautifulSoup元素或CSS选择器字符串（如'.stat-card'）
+        
+        Returns:
+            margin-bottom值（px），如果未定义返回0
+        """
+        # 如果是字符串，当作CSS选择器处理
+        if isinstance(element_or_selector, str):
+            constraints = self.css_parser.get_height_constraints(element_or_selector)
+            return constraints.get('margin_bottom', 0)
+        
+        # 如果是元素，检查其类名对应的CSS定义
+        if hasattr(element_or_selector, 'get'):
+            classes = element_or_selector.get('class', [])
+            if isinstance(classes, str):
+                classes = classes.split()
+            
+            # 优先检查Tailwind mb-*类
+            for cls in classes:
+                if cls.startswith('mb-'):
+                    try:
+                        value = int(cls.split('-')[1])
+                        logger.debug(f"从Tailwind类 {cls} 获取margin-bottom: {value*4}px")
+                        return value * 4  # Tailwind间距单位：1 = 0.25rem = 4px
+                    except:
+                        pass
+            
+            # 检查常见的class名对应的CSS定义
+            for cls in classes:
+                selector = f'.{cls}'
+                constraints = self.css_parser.get_height_constraints(selector)
+                margin_bottom = constraints.get('margin_bottom', 0)
+                if margin_bottom > 0:
+                    logger.debug(f"从CSS选择器 {selector} 获取margin-bottom: {margin_bottom}px")
+                    return margin_bottom
+            
+            # 检查内联样式
+            style = element_or_selector.get('style', '')
+            if 'margin-bottom' in style:
+                import re
+                match = re.search(r'margin-bottom:\s*(\d+)px', style)
+                if match:
+                    value = int(match.group(1))
+                    logger.debug(f"从内联样式获取margin-bottom: {value}px")
+                    return value
+        
+        return 0
+
     def _convert_grid_data_card(self, card, pptx_slide, shape_converter, x, y, width):
         """
         转换网格中的data-card（带左侧竖线）
@@ -580,96 +1276,38 @@ class HTML2PPTX:
         """
         logger.info("处理网格中的data-card")
 
-        # 初始化变量
-        risk_color = None
-        bg_color = None
+        # 从CSS获取data-card的padding
+        data_card_constraints = self.css_parser.get_height_constraints('.data-card')
+        padding_top = data_card_constraints.get('padding_top', 15)
+        padding_bottom = data_card_constraints.get('padding_bottom', 15)
+        padding_left = data_card_constraints.get('padding_left', 20)
+        
+        logger.info(f"data-card padding: top={padding_top}, bottom={padding_bottom}, left={padding_left}")
+
+        # 精确计算内容高度
+        content_width = width - padding_left - 20  # 减去左右padding
+        content_height = 0
+        
+        # 遍历data-card的所有直接子元素
+        for child in card.children:
+            if hasattr(child, 'name') and child.name:
+                child_height = self._calculate_precise_element_height(child, content_width)
+                content_height += child_height
+                logger.debug(f"子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
+        
+        # 总高度 = padding-top + 内容高度 + padding-bottom
+        estimated_height = padding_top + content_height + padding_bottom
+        
+        # 不设置最小高度，让高度完全由内容决定
+        # estimated_height = max(estimated_height, 100)  # 移除硬编码
+        
+        logger.info(f"data-card精确高度: padding={padding_top + padding_bottom}px, "
+                   f"content={content_height}px, total={estimated_height}px")
 
         # 添加data-card背景色
-        bg_color_str = 'rgba(10, 66, 117, 0.03)'  # 从CSS获取的背景色
+        bg_color_str = self.css_parser.get_background_color('.data-card') or 'rgba(10, 66, 117, 0.03)'
         from pptx.enum.shapes import MSO_SHAPE
         from pptx.dml.color import RGBColor
-
-        # 精确计算所需高度
-        # 基础padding: 15px上 + 15px下 = 30px
-        estimated_height = 30  # data-card的上下padding
-
-        # 处理h3标题
-        h3_elem = card.find('h3')
-        if h3_elem:
-            # h3高度: 28px字体 + margin-bottom: 12px = 40px
-            estimated_height += 40
-            logger.info(f"检测到h3标题: {h3_elem.get_text(strip=True)}")
-
-        # 处理bullet-point（这是slide_011.html的主要内容）
-        bullet_points = card.find_all('div', class_='bullet-point')
-        # 同时检查space-y-3容器内的flex items-start结构（slide_011.html的实际结构）
-        if not bullet_points:
-            space_y_containers = card.find_all('div', class_='space-y-3')
-            for container in space_y_containers:
-                flex_items = container.find_all('div', class_='flex')
-                for flex_item in flex_items:
-                    if flex_item.find('i') and flex_item.find('p'):
-                        bullet_points.append(flex_item)
-
-        if bullet_points:
-            logger.info(f"检测到{len(bullet_points)}个bullet-point")
-            # 每个bullet-point高度: 25px字体 + 10px间距 = 35px
-            estimated_height += len(bullet_points) * 35
-            # bullet-point之间的间距 (space-y-3 ≈ 12px)
-            estimated_height += (len(bullet_points) - 1) * 12
-
-        # 处理risk-item
-        risk_items = card.find_all('div', class_='risk-item')
-        if risk_items:
-            logger.info(f"检测到{len(risk_items)}个risk-item")
-            for i, risk_item in enumerate(risk_items):
-                # 每个risk-item的高度计算
-                item_height = 0
-
-                # 第一个p标签（包含strong和risk-level）
-                first_p = risk_item.find('p')
-                if first_p:
-                    # strong标签: 22px字体
-                    # risk-level: 20px字体 + padding(2px上下) + 8px左右padding
-                    # 实际高度由最大元素决定，考虑padding: max(22, 20+4) = 24px
-                    item_height += 24
-
-                # 两个p标签之间的间距
-                item_height += 4  # 小间距
-
-                # 第二个p标签（描述文本）
-                desc_p = risk_item.find('p', class_='text-sm')
-                if desc_p:
-                    # text-sm字体: 14px (根据CSS)
-                    # 行高: 1.6 * 14 = 22.4px，实际需要考虑换行
-                    # 但实际渲染时是25px字体（约19pt），加上行高1.6 = 40px
-                    item_height += 35  # 给描述文本足够的空间
-
-                # risk-item的margin-bottom: 12px
-                if i < len(risk_items) - 1:  # 最后一个不加margin
-                    item_height += 12
-
-                estimated_height += item_height
-                logger.info(f"risk-item {i+1} 精确高度: {item_height}px (总高度: {estimated_height}px)")
-
-        # 处理其他内容（既没有bullet-point也没有risk-item）
-        if not bullet_points and not risk_items:
-            # 查找所有直接子元素
-            direct_children = []
-            for child in card.children:
-                if hasattr(child, 'name') and child.name:
-                    if child.name != 'h3':  # h3已经计算过
-                        text = child.get_text(strip=True)
-                        if text and len(text) > 2:
-                            direct_children.append(child)
-
-            # 每个元素约35px高度
-            estimated_height += len(direct_children) * 35
-
-        # 确保最小高度
-        estimated_height = max(estimated_height, 120)
-
-        logger.info(f"data-card精确高度计算: {estimated_height}px")
 
         bg_shape = pptx_slide.shapes.add_shape(
             MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -687,6 +1325,250 @@ class HTML2PPTX:
         bg_shape.line.fill.background()
         logger.info(f"添加data-card背景色，高度={estimated_height}px")
 
+        current_y = y + padding_top  # 顶部padding
+
+        # 处理各种特殊内容结构
+        # 1. stat-value + stat-label 结构（slide_003）
+        stat_value = card.find('div', class_='stat-value')
+        stat_label = card.find('div', class_='stat-label')
+        if stat_value and stat_label:
+            logger.info("检测到stat-value + stat-label结构")
+            
+            # 从CSS读取stat-value的真实尺寸
+            stat_value_constraints = self.css_parser.get_height_constraints('.stat-value')
+            stat_value_margin_bottom = stat_value_constraints.get('margin_bottom', 8)
+            
+            # 获取stat-value的字体大小（从CSS或计算）
+            stat_value_font_size = self.style_computer.get_font_size_pt(stat_value)
+            logger.debug(f"stat-value font-size: {stat_value_font_size}pt, margin-bottom: {stat_value_margin_bottom}px")
+            
+            # 渲染stat-value
+            value_text = stat_value.get_text(strip=True)
+            if value_text:
+                # 行高计算：font-size * 1.2（紧凑行高）
+                value_line_height = int(stat_value_font_size * 1.2)
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + padding_left),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(content_width),
+                    UnitConverter.px_to_emu(value_line_height)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = value_text
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(stat_value_font_size)
+                        run.font.bold = True
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                
+                # 动态计算增量：行高 + margin-bottom
+                current_y += value_line_height + stat_value_margin_bottom
+                logger.debug(f"stat-value渲染完成，y增量: {value_line_height + stat_value_margin_bottom}px")
+            
+            # 从CSS读取stat-label的真实尺寸
+            stat_label_constraints = self.css_parser.get_height_constraints('.stat-label')
+            stat_label_margin_bottom = stat_label_constraints.get('margin_bottom', 0)
+            
+            # 获取stat-label的字体大小
+            stat_label_font_size = self.style_computer.get_font_size_pt(stat_label)
+            logger.debug(f"stat-label font-size: {stat_label_font_size}pt")
+            
+            # 渲染stat-label
+            label_text = stat_label.get_text(strip=True)
+            if label_text:
+                # 行高计算：font-size * 1.3
+                label_line_height = int(stat_label_font_size * 1.3)
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + padding_left),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(content_width),
+                    UnitConverter.px_to_emu(label_line_height)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = label_text
+                for paragraph in text_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(stat_label_font_size)
+                        run.font.color.rgb = RGBColor(102, 102, 102)
+                        run.font.name = self.font_manager.get_font('body')
+                
+                # 动态计算增量
+                current_y += label_line_height + stat_label_margin_bottom
+                logger.debug(f"stat-label渲染完成，y增量: {label_line_height + stat_label_margin_bottom}px")
+            
+            # 处理后续的p标签
+            for p_elem in card.find_all('p'):
+                if p_elem.parent == card:  # 只处理直接子元素
+                    p_classes = p_elem.get('class', [])
+                    # 跳过已处理的stat-label
+                    if 'stat-label' in str(p_classes):
+                        continue
+                    
+                    p_text = p_elem.get_text(strip=True)
+                    if p_text:
+                        # 检查margin-top
+                        margin_top = 0
+                        if 'mt-3' in p_classes:
+                            margin_top = 12
+                            current_y += margin_top
+                        
+                        p_font_size = self.style_computer.get_font_size_pt(p_elem)
+                        lines = max(1, len(p_text) // 40)
+                        p_height = int(lines * p_font_size * 1.6)
+                        
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + padding_left),
+                            UnitConverter.px_to_emu(current_y),
+                            UnitConverter.px_to_emu(content_width),
+                            UnitConverter.px_to_emu(p_height)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = p_text
+                        text_frame.word_wrap = True
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(p_font_size)
+                                run.font.name = self.font_manager.get_font('body')
+                        current_y += p_height
+            
+            # 添加左边框
+            border_height = estimated_height
+            shape_converter.add_border_left(x, y, border_height, 4)
+            return y + estimated_height
+
+        # 2. flex布局 + h3 + 大数字 + 描述 + 图标（slide_004）
+        flex_container = card.find('div', class_='flex')
+        if flex_container and 'justify-between' in flex_container.get('class', []):
+            logger.info("检测到flex justify-between结构（slide_004风格）")
+            
+            # 左侧内容区域
+            left_div = flex_container.find('div')
+            if left_div:
+                # h3标题
+                h3_elem = left_div.find('h3')
+                if h3_elem:
+                    h3_text = h3_elem.get_text(strip=True)
+                    h3_font_size = self.style_computer.get_font_size_pt(h3_elem)
+                    h3_classes = h3_elem.get('class', [])
+                    
+                    # margin-bottom处理
+                    margin_bottom = 8 if 'mb-2' in h3_classes else 12
+                    
+                    text_box = pptx_slide.shapes.add_textbox(
+                        UnitConverter.px_to_emu(x + padding_left),
+                        UnitConverter.px_to_emu(current_y),
+                        UnitConverter.px_to_emu(content_width * 0.75),  # 75%宽度给左侧
+                        UnitConverter.px_to_emu(int(h3_font_size * 1.5))
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = h3_text
+                    text_frame.word_wrap = True
+                    for paragraph in text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(h3_font_size)
+                            run.font.bold = True
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                            run.font.name = self.font_manager.get_font('h3')
+                    current_y += int(h3_font_size * 1.5) + margin_bottom
+                
+                # 大数字（text-4xl font-bold）
+                for p_elem in left_div.find_all('p', recursive=False):
+                    p_text = p_elem.get_text(strip=True)
+                    p_classes = p_elem.get('class', [])
+                    
+                    if 'text-4xl' in p_classes or ('text-3xl' in p_classes and 'font-bold' in p_classes):
+                        # 大数字 - 动态计算字体大小
+                        # text-4xl = 36px (2.25rem), text-3xl = 30px (1.875rem)
+                        if 'text-4xl' in p_classes:
+                            p_font_size_pt = 36
+                        elif 'text-3xl' in p_classes:
+                            p_font_size_pt = 30 * 0.75  # 30px to pt
+                        else:
+                            p_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                        
+                        # 动态计算高度
+                        p_font_size_px = UnitConverter.pt_to_px(p_font_size_pt)
+                        p_height_px = int(p_font_size_px * 1.2)  # 紧凑行高
+                        
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + padding_left),
+                            UnitConverter.px_to_emu(current_y),
+                            UnitConverter.px_to_emu(content_width * 0.75),
+                            UnitConverter.px_to_emu(p_height_px)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = p_text
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(p_font_size_pt)
+                                run.font.bold = True
+                                run.font.color.rgb = ColorParser.get_primary_color()
+                                run.font.name = self.font_manager.get_font('body')
+                        current_y += p_height_px
+                    elif 'text-gray-600' in p_classes or 'mt-2' in p_classes:
+                        # 描述文本
+                        margin_top = 8 if 'mt-2' in p_classes else 0
+                        current_y += margin_top
+                        
+                        p_font_size = self.style_computer.get_font_size_pt(p_elem)
+                        lines = max(1, len(p_text) // 30)
+                        p_height = int(lines * p_font_size * 1.6)
+                        
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + padding_left),
+                            UnitConverter.px_to_emu(current_y),
+                            UnitConverter.px_to_emu(content_width * 0.75),
+                            UnitConverter.px_to_emu(p_height)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = p_text
+                        text_frame.word_wrap = True
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(p_font_size)
+                                run.font.color.rgb = RGBColor(102, 102, 102)
+                                run.font.name = self.font_manager.get_font('body')
+                        current_y += p_height
+            
+            # 右侧图标
+            icon_div = flex_container.find('div', class_='text-5xl')
+            if icon_div:
+                icon_elem = icon_div.find('i')
+                if icon_elem:
+                    icon_classes = icon_elem.get('class', [])
+                    icon_char = self._get_icon_char(icon_classes)
+                    
+                    # 图标放在右上角
+                    icon_x = x + width - 80
+                    icon_y = y + padding_top
+                    
+                    icon_box = pptx_slide.shapes.add_textbox(
+                        UnitConverter.px_to_emu(icon_x),
+                        UnitConverter.px_to_emu(icon_y),
+                        UnitConverter.px_to_emu(60),
+                        UnitConverter.px_to_emu(60)
+                    )
+                    icon_frame = icon_box.text_frame
+                    icon_frame.text = icon_char
+                    icon_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                    for paragraph in icon_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                        for run in paragraph.runs:
+                            run.font.size = Pt(48)
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                            run.font.name = self.font_manager.get_font('body')
+            
+            # 添加左边框
+            border_height = estimated_height
+            shape_converter.add_border_left(x, y, border_height, 4)
+            return y + estimated_height
+
+        # 注意：高度已经在1230-1242行通过_calculate_precise_element_height精确计算
+        # 不需要再次累加bullet-point、risk-item等的高度，避免双重计算
+
         current_y = y + 15  # 顶部padding，与CSS中的15px保持一致
 
         # 1. 首先处理h3标题
@@ -694,17 +1576,23 @@ class HTML2PPTX:
         if h3_elem:
             h3_text = h3_elem.get_text(strip=True)
             if h3_text:
+                # 动态计算h3高度
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+                
                 text_left = UnitConverter.px_to_emu(x + 20)
                 text_top = UnitConverter.px_to_emu(current_y)
                 text_box = pptx_slide.shapes.add_textbox(
                     text_left, text_top,
-                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(30)
+                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(h3_height_px)
                 )
                 text_frame = text_box.text_frame
                 text_frame.text = h3_text
                 for paragraph in text_frame.paragraphs:
                     for run in paragraph.runs:
-                        font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        font_size_pt = h3_font_size_pt
                         run.font.size = Pt(font_size_pt)
                         run.font.color.rgb = ColorParser.get_primary_color()
                         run.font.bold = True
@@ -1097,13 +1985,28 @@ class HTML2PPTX:
         """
         logger.info("处理网格中的risk-card")
 
-        # 调用完整的risk-card转换方法，但传入指定的位置和宽度
-        # 临时保存原始的x_base和card_width
-        original_x_base = 80
-        original_width = 1760
+        # 从CSS读取高度约束和padding
+        risk_card_constraints = self.css_parser.get_height_constraints('.risk-card')
+        padding_top = risk_card_constraints.get('padding_top', 15)
+        padding_bottom = risk_card_constraints.get('padding_bottom', 15)
+        padding_left = risk_card_constraints.get('padding_left', 20)
 
-        # 临时修改risk-card方法的坐标参数以适应网格布局
-        card_height = 180
+        # 先计算内容高度
+        content_width = width - padding_left - 20
+        content_height = 0
+
+        # 计算所有子元素的高度
+        for child in card.children:
+            if hasattr(child, 'name') and child.name:
+                child_height = self._calculate_precise_element_height(child, content_width)
+                content_height += child_height
+                logger.debug(f"risk-card子元素 {child.name} 高度: {child_height}px")
+
+        # 总高度 = padding-top + 内容高度 + padding-bottom
+        card_height = padding_top + content_height + padding_bottom
+
+        logger.info(f"risk-card动态高度计算: padding={padding_top + padding_bottom}px, "
+                   f"content={content_height}px, total={card_height}px")
 
         # 获取CSS样式
         card_style = self.css_parser.get_class_style('risk-card') or {}
@@ -1164,7 +2067,7 @@ class HTML2PPTX:
         border_shape.fill.fore_color.rgb = border_color
         border_shape.line.fill.background()
 
-        current_y = y + 15
+        current_y = y + padding_top
 
         # 缩小内容区域以适应网格
         content_width = width - 40
@@ -1379,6 +2282,42 @@ class HTML2PPTX:
 
         return y + card_height + 10
 
+    def _get_tailwind_line_height_ratio(self, font_size, classes):
+        """
+        获取Tailwind字体大小对应的line-height比例
+        
+        根据Tailwind CSS的默认line-height:
+        - text-5xl (48px): line-height 1 (48px) → ratio: 1.0
+        - text-4xl (36px): line-height 2.5rem (40px) → ratio: 1.11
+        - text-3xl (30px): line-height 2.25rem (36px) → ratio: 1.2
+        - text-2xl (24px): line-height 2rem (32px) → ratio: 1.33
+        - text-xl (20px): line-height 1.75rem (28px) → ratio: 1.4
+        - text-lg (18px): line-height 1.75rem (28px) → ratio: 1.56
+        - text-base (16px): line-height 1.5rem (24px) → ratio: 1.5
+        - text-sm (14px): line-height 1.25rem (20px) → ratio: 1.43
+        
+        如果没有Tailwind类，则使用CSS的line-height: 1.6
+        """
+        if 'text-5xl' in classes:
+            return 1.0
+        elif 'text-4xl' in classes:
+            return 1.11
+        elif 'text-3xl' in classes:
+            return 1.2
+        elif 'text-2xl' in classes:
+            return 1.33
+        elif 'text-xl' in classes:
+            return 1.4
+        elif 'text-lg' in classes:
+            return 1.56
+        elif 'text-base' in classes:
+            return 1.5
+        elif 'text-sm' in classes:
+            return 1.43
+        else:
+            # 默认使用CSS的line-height: 1.6（对于普通p标签）
+            return 1.6
+
     def _convert_grid_stat_card(self, card, pptx_slide, shape_converter, x, y, width):
         """
         转换网格中的stat-card（带背景色）
@@ -1396,18 +2335,318 @@ class HTML2PPTX:
         """
         logger.info("处理网格中的stat-card")
 
-        # 添加背景色
+        # 从CSS读取高度约束
+        stat_card_constraints = self.css_parser.get_height_constraints('.stat-card')
+        # 完全由内容决定高度，不使用任何硬编码约束
+        max_height = stat_card_constraints.get('max_height', 500)  # 只设置合理的最大值
+        padding_top = stat_card_constraints.get('padding_top', 20)
+        padding_bottom = stat_card_constraints.get('padding_bottom', 20)
+        
+        # 优先检测：stat-value + stat-label 结构（slide_003）
+        stat_value = card.find('div', class_='stat-value')
+        stat_label = card.find('div', class_='stat-label')
+        if stat_value and stat_label:
+            logger.info("检测到stat-value + stat-label结构（slide_003风格）")
+            
+            # 从CSS读取stat-value的真实尺寸
+            stat_value_constraints = self.css_parser.get_height_constraints('.stat-value')
+            stat_value_margin_bottom = stat_value_constraints.get('margin_bottom', 8)
+            stat_label_constraints = self.css_parser.get_height_constraints('.stat-label')
+            stat_label_margin_top = stat_label_constraints.get('margin_top', 5)
+            
+            # 获取stat-value的字体大小（从CSS或计算）
+            stat_value_font_size = self.style_computer.get_font_size_pt(stat_value)
+            stat_label_font_size = self.style_computer.get_font_size_pt(stat_label)
+            logger.debug(f"stat-value font-size: {stat_value_font_size}pt, stat-label font-size: {stat_label_font_size}pt")
+            
+            # 计算高度：stat-value行高 + margin + stat-label行高
+            value_line_height = int(stat_value_font_size * 1.2)  # 紧凑行高
+            label_line_height = int(stat_label_font_size * 1.3)
+            content_height = value_line_height + stat_value_margin_bottom + stat_label_margin_top + label_line_height
+            card_height = padding_top + content_height + padding_bottom
+            
+            logger.info(f"stat-value+label stat-card精确高度: value={value_line_height}px, "
+                       f"label={label_line_height}px, padding={padding_top+padding_bottom}px, 总高度={card_height}px")
+            
+            # 添加背景色
+            bg_color_str = self.css_parser.get_background_color('.stat-card')
+            if bg_color_str:
+                from pptx.enum.shapes import MSO_SHAPE
+                bg_shape = pptx_slide.shapes.add_shape(
+                    MSO_SHAPE.ROUNDED_RECTANGLE,
+                    UnitConverter.px_to_emu(x),
+                    UnitConverter.px_to_emu(y),
+                    UnitConverter.px_to_emu(width),
+                    UnitConverter.px_to_emu(card_height)
+                )
+                bg_shape.fill.solid()
+                bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+                if bg_rgb:
+                    if alpha < 1.0:
+                        bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                    bg_shape.fill.fore_color.rgb = bg_rgb
+                bg_shape.line.fill.background()
+                logger.info(f"添加stat-card背景色: {bg_color_str}")
+            
+            # 添加左边框
+            border_left_style = self.css_parser.get_style('.stat-card').get('border-left', '')
+            if '4px solid' in border_left_style:
+                shape_converter.add_border_left(x, y, card_height, 4)
+            
+            current_y = y + padding_top
+            
+            # 渲染stat-value
+            value_text = stat_value.get_text(strip=True)
+            if value_text:
+                # 检查text-center类以确定对齐方式
+                card_classes = card.get('class', [])
+                alignment = PP_PARAGRAPH_ALIGNMENT.CENTER if 'text-center' in card_classes else PP_PARAGRAPH_ALIGNMENT.LEFT
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + 20),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(width - 40),
+                    UnitConverter.px_to_emu(value_line_height)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = value_text
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = alignment
+                    for run in paragraph.runs:
+                        run.font.size = Pt(stat_value_font_size)
+                        run.font.bold = True
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                
+                current_y += value_line_height + stat_value_margin_bottom + stat_label_margin_top
+            
+            # 渲染stat-label
+            label_text = stat_label.get_text(strip=True)
+            if label_text:
+                # 检查text-center类以确定对齐方式
+                card_classes = card.get('class', [])
+                alignment = PP_PARAGRAPH_ALIGNMENT.CENTER if 'text-center' in card_classes else PP_PARAGRAPH_ALIGNMENT.LEFT
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + 20),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(width - 40),
+                    UnitConverter.px_to_emu(label_line_height)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = label_text
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = alignment
+                    for run in paragraph.runs:
+                        run.font.size = Pt(stat_label_font_size)
+                        run.font.color.rgb = RGBColor(102, 102, 102)
+                        run.font.name = self.font_manager.get_font('body')
+            
+            return y + card_height
+        
+        # 首先检测是否是Tailwind风格的stat-card，如果是则精确计算高度
+        direct_divs = [div for div in card.find_all('div', recursive=False) 
+                      if div.get_text(strip=True) and not div.find('div')]
+        
+        # 检测是否为h3+p的Tailwind结构（slide11风格）
+        h3_elem = card.find('h3', recursive=False)
+        p_elems = [p for p in card.find_all('p', recursive=False) if p.get_text(strip=True)]
+        
+        is_tailwind_style = False
+        is_h3_p_tailwind = False
+        
+        # 检测div-based Tailwind结构
+        if len(direct_divs) >= 2:
+            first_div = direct_divs[0]
+            first_classes = first_div.get('class', [])
+            has_large_font = any(cls in first_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            has_bold = 'font-bold' in first_classes
+            if has_large_font or has_bold:
+                is_tailwind_style = True
+        
+        # 检测h3+p Tailwind结构
+        if not is_tailwind_style and h3_elem and len(p_elems) >= 1:
+            first_p = p_elems[0]
+            first_p_classes = first_p.get('class', [])
+            has_large_font_p = any(cls in first_p_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            if has_large_font_p:
+                is_tailwind_style = True
+                is_h3_p_tailwind = True
+        
+        # 根据不同结构计算高度
+        if is_h3_p_tailwind:
+            # h3+p Tailwind风格：精确计算每个元素的高度
+            logger.info("检测到h3+p Tailwind风格stat-card，进行精确高度计算")
+            estimated_content_height = 0
+            
+            # 1. 计算h3高度
+            h3_classes = h3_elem.get('class', [])
+            h3_font_size = self.style_computer.get_font_size_pt(h3_elem)
+            
+            # h3 margin-bottom
+            h3_margin_bottom = 8
+            for cls in h3_classes:
+                if cls.startswith('mb-'):
+                    try:
+                        h3_margin_bottom = int(cls.split('-')[1]) * 4
+                    except:
+                        pass
+            
+            # h3使用对应的line-height（基于Tailwind或CSS）
+            h3_line_height_ratio = self._get_tailwind_line_height_ratio(h3_font_size, h3_classes)
+            estimated_content_height += int(h3_font_size * h3_line_height_ratio) + h3_margin_bottom
+            logger.info(f"  h3: font={h3_font_size}pt, line-height={h3_line_height_ratio}, mb={h3_margin_bottom}px, total={int(h3_font_size * h3_line_height_ratio) + h3_margin_bottom}px")
+            
+            # 2. 计算每个p标签的高度
+            for idx, p_elem in enumerate(p_elems):
+                p_classes = p_elem.get('class', [])
+                
+                # 根据Tailwind类确定字体大小
+                if 'text-5xl' in p_classes:
+                    p_font_size = 48
+                elif 'text-4xl' in p_classes:
+                    p_font_size = 36
+                elif 'text-3xl' in p_classes:
+                    p_font_size = 30
+                elif 'text-2xl' in p_classes:
+                    p_font_size = 24
+                elif 'text-xl' in p_classes:
+                    p_font_size = 20
+                elif 'text-lg' in p_classes:
+                    p_font_size = 18
+                elif 'text-base' in p_classes:
+                    p_font_size = 16
+                elif 'text-sm' in p_classes:
+                    p_font_size = 14
+                else:
+                    p_font_size = self.style_computer.get_font_size_pt(p_elem)
+                
+                # margin-top处理
+                margin_top = 0
+                for cls in p_classes:
+                    if cls.startswith('mt-'):
+                        try:
+                            margin_top = int(cls.split('-')[1]) * 4
+                        except:
+                            pass
+                
+                # p标签使用对应的line-height（基于Tailwind或CSS）
+                p_line_height_ratio = self._get_tailwind_line_height_ratio(p_font_size, p_classes)
+                p_height = int(p_font_size * p_line_height_ratio) + margin_top
+                estimated_content_height += p_height
+                logger.info(f"  p[{idx}]: font={p_font_size}pt, line-height={p_line_height_ratio}, mt={margin_top}px, total={p_height}px")
+            
+            card_height = padding_top + estimated_content_height + padding_bottom
+            logger.info(f"h3+p Tailwind stat-card精确高度: 内容={estimated_content_height}px, "
+                       f"padding={padding_top+padding_bottom}px, 总高度={card_height}px")
+        elif is_tailwind_style:
+            # Tailwind风格：精确计算每个div的高度
+            logger.info("检测到Tailwind风格stat-card，进行精确高度计算")
+            estimated_content_height = 0
+            
+            # 第一个div（大数字）
+            first_div = direct_divs[0]
+            first_classes = first_div.get('class', [])
+            if 'text-5xl' in first_classes:
+                first_font_size = 48
+            elif 'text-4xl' in first_classes:
+                first_font_size = 36
+            elif 'text-3xl' in first_classes:
+                first_font_size = 30
+            elif 'text-2xl' in first_classes:
+                first_font_size = 24
+            else:
+                first_font_size = 30
+            
+            # margin-bottom
+            first_margin_bottom = 8
+            for cls in first_classes:
+                if cls.startswith('mb-'):
+                    try:
+                        first_margin_bottom = int(cls.split('-')[1]) * 4
+                    except:
+                        pass
+            
+            estimated_content_height += first_font_size + first_margin_bottom
+            
+            # 后续div（描述文字）
+            for desc_div in direct_divs[1:]:
+                desc_classes = desc_div.get('class', [])
+                if 'text-xl' in desc_classes:
+                    desc_font_size = 20
+                elif 'text-lg' in desc_classes:
+                    desc_font_size = 18
+                elif 'text-base' in desc_classes:
+                    desc_font_size = 16
+                elif 'text-sm' in desc_classes:
+                    desc_font_size = 14
+                else:
+                    desc_font_size = 18
+                
+                estimated_content_height += desc_font_size + 5
+            
+            card_height = padding_top + estimated_content_height + padding_bottom
+            logger.info(f"Tailwind stat-card精确高度: 内容={estimated_content_height}px, "
+                       f"padding={padding_top+padding_bottom}px, 总高度={card_height}px")
+        else:
+            # 传统风格：估算高度（h3 + p标签）
+            estimated_content_height = 0
+            h3_elem = card.find('h3')
+            if h3_elem:
+                # 优先从Tailwind类获取字体大小
+                h3_classes = h3_elem.get('class', [])
+                h3_font_size_px = self._get_tailwind_font_size(h3_classes)
+                if h3_font_size_px is None:
+                    h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                    h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                
+                # 获取margin-bottom
+                h3_margin_bottom = self._get_tailwind_margin_bottom(h3_classes) or 5
+                estimated_content_height += int(h3_font_size_px * 1.5) + h3_margin_bottom
+            
+            # 计算p标签高度
+            p_elems = card.find_all('p')
+            for p_elem in p_elems:
+                # 优先从Tailwind类获取字体大小
+                p_classes = p_elem.get('class', [])
+                p_font_size_px = self._get_tailwind_font_size(p_classes)
+                if p_font_size_px is None:
+                    p_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                    p_font_size_px = UnitConverter.pt_to_px(p_font_size_pt)
+                
+                # 获取margin-top和margin-bottom
+                p_margin_top = self._get_tailwind_margin_top(p_classes) or 0
+                p_margin_bottom = self._get_tailwind_margin_bottom(p_classes) or 0
+                
+                # 估算行数 - 更精确的计算
+                p_text = p_elem.get_text(strip=True)
+                # 根据stat-card的宽度计算可能的换行
+                # 网格中stat-card宽度约为(1760 - 2*20) / 3 = 573px
+                # 每个字符宽度约为字体大小的0.6倍
+                chars_per_line = max(20, int((width - 40) / (p_font_size_px * 0.6)))
+                lines = max(1, (len(p_text) + chars_per_line - 1) // chars_per_line)
+                
+                # 使用1.5的行高系数
+                line_height = int(p_font_size_px * 1.5)
+                estimated_content_height += p_margin_top + (lines * line_height) + p_margin_bottom
+            
+            # 计算总高度
+            card_height = padding_top + estimated_content_height + padding_bottom
+            # 高度完全由内容决定，不使用硬编码限制
+            
+            logger.info(f"grid stat-card动态高度: 内容={estimated_content_height}px, "
+                       f"padding={padding_top+padding_bottom}px, 总高度={card_height}px")
+
+        # 添加背景色（使用精确计算的高度）
         bg_color_str = self.css_parser.get_background_color('.stat-card')
         if bg_color_str:
             from pptx.enum.shapes import MSO_SHAPE
-            # 估算高度
-            height = 180
             bg_shape = pptx_slide.shapes.add_shape(
                 MSO_SHAPE.ROUNDED_RECTANGLE,
                 UnitConverter.px_to_emu(x),
                 UnitConverter.px_to_emu(y),
                 UnitConverter.px_to_emu(width),
-                UnitConverter.px_to_emu(height)
+                UnitConverter.px_to_emu(card_height)
             )
             bg_shape.fill.solid()
             bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
@@ -1421,7 +2660,7 @@ class HTML2PPTX:
         # 添加左边框
         border_left_style = self.css_parser.get_style('.stat-card').get('border-left', '')
         if '4px solid' in border_left_style:
-            shape_converter.add_border_left(x, y, 180, 4)
+            shape_converter.add_border_left(x, y, card_height, 4)
 
         # 首先检查是否包含bullet-point结构
         bullet_points = card.find_all('div', class_='bullet-point')
@@ -1528,7 +2767,276 @@ class HTML2PPTX:
                 # 移动到下一个位置
                 current_x += risk_width + 20
 
-            return y + 180
+            return y + card_height
+
+        # 检查是否是slide11风格的stat-card（h3 + p标签with Tailwind类）
+        # 例如：<h3 class="text-2xl font-bold primary-color mb-2">高风险资产总数</h3>
+        #      <p class="text-4xl font-bold text-red-600">8个</p>
+        #      <p class="text-lg text-gray-600 mt-2">需立即处理</p>
+        h3_elem = card.find('h3', recursive=False)
+        p_elems = [p for p in card.find_all('p', recursive=False) if p.get_text(strip=True)]
+        
+        if h3_elem and len(p_elems) >= 1:
+            # 检查第一个p是否有text-4xl或text-3xl等大号字体类
+            first_p = p_elems[0]
+            first_p_classes = first_p.get('class', [])
+            has_large_font_p = any(cls in first_p_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            
+            if has_large_font_p:
+                logger.info(f"识别为Tailwind风格的stat-card（h3+p结构），包含h3和{len(p_elems)}个p标签")
+                
+                current_y = y + padding_top
+                
+                # 1. 渲染h3标题
+                h3_text = h3_elem.get_text(strip=True)
+                if h3_text:
+                    h3_classes = h3_elem.get('class', [])
+                    h3_font_size = self.style_computer.get_font_size_pt(h3_elem)
+                    
+                    # h3 margin-bottom
+                    h3_margin_bottom = 8
+                    for cls in h3_classes:
+                        if cls.startswith('mb-'):
+                            try:
+                                h3_margin_bottom = int(cls.split('-')[1]) * 4
+                            except:
+                                pass
+                    
+                    h3_line_height_ratio = self._get_tailwind_line_height_ratio(h3_font_size, h3_classes)
+                    text_box = pptx_slide.shapes.add_textbox(
+                        UnitConverter.px_to_emu(x + 20),
+                        UnitConverter.px_to_emu(current_y),
+                        UnitConverter.px_to_emu(width - 40),
+                        UnitConverter.px_to_emu(int(h3_font_size * h3_line_height_ratio))
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = h3_text
+                    for paragraph in text_frame.paragraphs:
+                        for run in paragraph.runs:
+                            run.font.size = Pt(h3_font_size)
+                            run.font.name = self.font_manager.get_font('h3')
+                            if 'font-bold' in h3_classes or self._should_be_bold(h3_elem):
+                                run.font.bold = True
+                            run.font.color.rgb = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+                    
+                    current_y += int(h3_font_size * h3_line_height_ratio) + h3_margin_bottom
+                
+                # 2. 渲染所有p标签
+                for p_elem in p_elems:
+                    p_text = p_elem.get_text(strip=True)
+                    if p_text:
+                        p_classes = p_elem.get('class', [])
+                        
+                        # 根据Tailwind类确定字体大小
+                        if 'text-5xl' in p_classes:
+                            p_font_size = 48
+                        elif 'text-4xl' in p_classes:
+                            p_font_size = 36
+                        elif 'text-3xl' in p_classes:
+                            p_font_size = 30
+                        elif 'text-2xl' in p_classes:
+                            p_font_size = 24
+                        elif 'text-xl' in p_classes:
+                            p_font_size = 20
+                        elif 'text-lg' in p_classes:
+                            p_font_size = 18
+                        else:
+                            p_font_size = self.style_computer.get_font_size_pt(p_elem)
+                        
+                        # 获取颜色
+                        p_color = self._get_element_color(p_elem)
+                        if not p_color:
+                            # 从Tailwind颜色类获取
+                            if 'text-red-600' in p_classes:
+                                p_color = ColorParser.parse_color('#dc2626')
+                            elif 'text-orange-600' in p_classes:
+                                p_color = ColorParser.parse_color('#ea580c')
+                            elif 'text-gray-800' in p_classes:
+                                p_color = ColorParser.parse_color('#1f2937')
+                            elif 'text-gray-600' in p_classes:
+                                p_color = ColorParser.parse_color('#6b7280')
+                            else:
+                                p_color = ColorParser.parse_color('#333333')
+                        
+                        # margin-top处理
+                        margin_top = 0
+                        for cls in p_classes:
+                            if cls.startswith('mt-'):
+                                try:
+                                    margin_top = int(cls.split('-')[1]) * 4
+                                except:
+                                    pass
+                        
+                        if margin_top > 0:
+                            current_y += margin_top
+                        
+                        p_line_height_ratio = self._get_tailwind_line_height_ratio(p_font_size, p_classes)
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + 20),
+                            UnitConverter.px_to_emu(current_y),
+                            UnitConverter.px_to_emu(width - 40),
+                            UnitConverter.px_to_emu(int(p_font_size * p_line_height_ratio))
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = p_text
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(p_font_size)
+                                run.font.name = self.font_manager.get_font('body')
+                                run.font.color.rgb = p_color
+                                if 'font-bold' in p_classes:
+                                    run.font.bold = True
+                        
+                        current_y += int(p_font_size * p_line_height_ratio)
+                
+                # 计算实际高度
+                actual_total_height = current_y - y + padding_bottom
+                logger.info(f"Tailwind h3+p stat-card渲染完成，实际高度: {actual_total_height}px")
+                return y + actual_total_height
+        
+        # 检查是否是slide_006风格的stat-card（使用Tailwind类的div结构）
+        # 例如：<div class="text-3xl font-bold primary-color mb-2">6次</div>
+        #      <div class="text-lg">策略检查调优次数</div>
+        direct_divs = [div for div in card.find_all('div', recursive=False) 
+                      if div.get_text(strip=True) and not div.find('div')]
+        
+        if len(direct_divs) >= 2:
+            # 检查第一个div是否有text-3xl或text-4xl等大号字体类
+            first_div = direct_divs[0]
+            first_classes = first_div.get('class', [])
+            has_large_font = any(cls in first_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            has_bold = 'font-bold' in first_classes
+            
+            if has_large_font or has_bold:
+                logger.info(f"识别为Tailwind风格的stat-card，包含{len(direct_divs)}个直接div子元素")
+                
+                current_y = y + padding_top
+                
+                # 渲染第一个div（大数字）
+                first_text = first_div.get_text(strip=True)
+                if first_text:
+                    # 使用通用方法从Tailwind类获取字体大小
+                    font_size = self._get_tailwind_font_size(first_classes)
+                    if font_size is None:
+                        # 如果没有Tailwind类，尝试从CSS获取
+                        font_size_pt = self.style_computer.get_font_size_pt(first_div)
+                        font_size = UnitConverter.pt_to_px(font_size_pt)
+                    
+                    # 检查颜色类（优先使用Tailwind颜色类）
+                    text_color = None
+                    
+                    # Tailwind颜色类映射
+                    if 'text-red-600' in first_classes:
+                        text_color = ColorParser.parse_color('#dc2626')
+                    elif 'text-red-500' in first_classes:
+                        text_color = ColorParser.parse_color('#ef4444')
+                    elif 'text-orange-600' in first_classes:
+                        text_color = ColorParser.parse_color('#ea580c')
+                    elif 'text-orange-500' in first_classes:
+                        text_color = ColorParser.parse_color('#f97316')
+                    elif 'text-gray-800' in first_classes:
+                        text_color = ColorParser.parse_color('#1f2937')
+                    elif 'text-gray-600' in first_classes:
+                        text_color = ColorParser.parse_color('#4b5563')
+                    elif 'text-blue-600' in first_classes:
+                        text_color = ColorParser.parse_color('#2563eb')
+                    elif 'primary-color' in first_classes or 'text-primary' in first_classes:
+                        text_color = ColorParser.get_primary_color()
+                    
+                    # 如果没有找到Tailwind颜色类，尝试从CSS获取
+                    if text_color is None:
+                        text_color = self._get_element_color(first_div)
+                    
+                    # 最后默认使用主题色
+                    if text_color is None:
+                        text_color = ColorParser.get_primary_color()
+                    
+                    text_left = UnitConverter.px_to_emu(x + 20)
+                    text_top = UnitConverter.px_to_emu(current_y)
+                    text_box = pptx_slide.shapes.add_textbox(
+                        text_left, text_top,
+                        UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(font_size + 10)
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = first_text
+                    text_frame.vertical_anchor = MSO_ANCHOR.TOP
+                    
+                    for paragraph in text_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        for run in paragraph.runs:
+                            run.font.size = Pt(font_size)
+                            run.font.name = self.font_manager.get_font('body')
+                            run.font.color.rgb = text_color
+                            if 'font-bold' in first_classes:
+                                run.font.bold = True
+                    
+                    # 检查mb-2等margin类
+                    margin_bottom = 8  # 默认
+                    for cls in first_classes:
+                        if cls.startswith('mb-'):
+                            try:
+                                margin_val = int(cls.split('-')[1])
+                                margin_bottom = margin_val * 4  # Tailwind: mb-2 = 8px
+                            except:
+                                pass
+                    
+                    current_y += font_size + margin_bottom
+                
+                # 渲染第二个div及后续div（描述文字）
+                for desc_div in direct_divs[1:]:
+                    desc_text = desc_div.get_text(strip=True)
+                    if desc_text:
+                        desc_classes = desc_div.get('class', [])
+                        
+                        # 根据Tailwind类确定字体大小
+                        if 'text-xl' in desc_classes:
+                            desc_font_size = 20
+                        elif 'text-lg' in desc_classes:
+                            desc_font_size = 18
+                        elif 'text-base' in desc_classes:
+                            desc_font_size = 16
+                        elif 'text-sm' in desc_classes:
+                            desc_font_size = 14
+                        else:
+                            desc_font_size = 18  # 默认
+                        
+                        # 描述文字通常是灰色
+                        desc_color = ColorParser.parse_color('#333333')
+                        if 'text-gray-600' in desc_classes:
+                            desc_color = ColorParser.parse_color('#6b7280')
+                        elif 'text-gray-500' in desc_classes:
+                            desc_color = ColorParser.parse_color('#9ca3af')
+                        
+                        text_left = UnitConverter.px_to_emu(x + 20)
+                        text_top = UnitConverter.px_to_emu(current_y)
+                        text_box = pptx_slide.shapes.add_textbox(
+                            text_left, text_top,
+                            UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(desc_font_size + 10)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = desc_text
+                        text_frame.vertical_anchor = MSO_ANCHOR.TOP
+                        
+                        for paragraph in text_frame.paragraphs:
+                            paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                            for run in paragraph.runs:
+                                run.font.size = Pt(desc_font_size)
+                                run.font.name = self.font_manager.get_font('body')
+                                run.font.color.rgb = desc_color
+                        
+                        current_y += desc_font_size + 5
+                
+                # 计算实际渲染高度并更新背景框
+                actual_content_height = current_y - (y + padding_top)
+                actual_total_height = padding_top + actual_content_height + padding_bottom
+                
+                logger.info(f"Tailwind风格stat-card渲染完成，实际高度: {actual_total_height}px "
+                          f"(原估算: {card_height}px, 内容: {actual_content_height}px)")
+                
+                # 如果实际高度与背景框高度不一致，需要重新绘制背景框
+                # 但由于背景框已经添加，我们需要确保初始计算时就准确
+                # 这里返回实际高度
+                return y + actual_total_height
 
         # 直接提取所有文本内容，不跳过flex容器
         all_content = []
@@ -1564,41 +3072,102 @@ class HTML2PPTX:
 
         logger.info(f"stat-card提取到{len(all_content)}个内容项")
 
-        # 渲染内容
-        current_y = y + 20
-        for elem_type, text in all_content[:5]:  # 最多5项
-            if text:
-                # 根据类型设置样式
-                if elem_type == 'h3':
-                    font_size = 24
-                    is_bold = True
-                else:
-                    font_size = 20
-                    is_bold = False
-
-                # 创建文本框
+        # 渲染内容（改进版：支持从原始元素获取样式）
+        current_y = y + padding_top
+        
+        # 重新提取h3元素
+        h3_elem = card.find('h3')
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                # 从Tailwind类或CSS获取字体大小
+                h3_classes = h3_elem.get('class', [])
+                h3_font_size = self._get_tailwind_font_size(h3_classes)
+                if h3_font_size is None:
+                    h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                    h3_font_size = UnitConverter.pt_to_px(h3_font_size_pt)
+                
+                # 获取颜色
+                h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+                
+                # 渲染h3
                 text_left = UnitConverter.px_to_emu(x + 20)
                 text_top = UnitConverter.px_to_emu(current_y)
                 text_box = pptx_slide.shapes.add_textbox(
                     text_left, text_top,
-                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(30)
+                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(h3_font_size + 10)
                 )
                 text_frame = text_box.text_frame
-                text_frame.text = text
-                text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
-
+                text_frame.text = h3_text
+                text_frame.vertical_anchor = MSO_ANCHOR.TOP
+                
                 for paragraph in text_frame.paragraphs:
                     paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
                     for run in paragraph.runs:
-                        run.font.size = Pt(font_size)
-                        run.font.name = self.font_manager.get_font('body')
-                        run.font.color.rgb = ColorParser.get_primary_color()
-                        if is_bold:
+                        run.font.size = Pt(h3_font_size)
+                        run.font.name = self.font_manager.get_font('h3')
+                        run.font.color.rgb = h3_color
+                        if 'font-bold' in h3_classes or self._should_be_bold(h3_elem):
                             run.font.bold = True
+                
+                # 获取margin-bottom
+                h3_margin_bottom = self._get_tailwind_margin_bottom(h3_classes) or 5
+                current_y += h3_font_size + h3_margin_bottom
+        
+        # 渲染所有p标签
+        for p_elem in card.find_all('p'):
+            p_text = p_elem.get_text(strip=True)
+            if p_text:
+                # 从Tailwind类或CSS获取字体大小
+                p_classes = p_elem.get('class', [])
+                p_font_size = self._get_tailwind_font_size(p_classes)
+                if p_font_size is None:
+                    p_font_size_pt = self.style_computer.get_font_size_pt(p_elem)
+                    p_font_size = UnitConverter.pt_to_px(p_font_size_pt)
+                
+                # 获取margin-top
+                p_margin_top = self._get_tailwind_margin_top(p_classes) or 0
+                current_y += p_margin_top
+                
+                # 获取颜色（支持Tailwind颜色类）
+                p_color = None
+                if 'text-red-600' in p_classes:
+                    p_color = ColorParser.parse_color('#dc2626')
+                elif 'text-orange-600' in p_classes:
+                    p_color = ColorParser.parse_color('#ea580c')
+                elif 'text-gray-800' in p_classes:
+                    p_color = ColorParser.parse_color('#1f2937')
+                elif 'text-gray-600' in p_classes:
+                    p_color = ColorParser.parse_color('#4b5563')
+                else:
+                    p_color = self._get_element_color(p_elem)
+                
+                if p_color is None:
+                    p_color = ColorParser.parse_color('#333333')  # 默认文字颜色
+                
+                # 渲染p标签
+                text_left = UnitConverter.px_to_emu(x + 20)
+                text_top = UnitConverter.px_to_emu(current_y)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(p_font_size + 10)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = p_text
+                text_frame.vertical_anchor = MSO_ANCHOR.TOP
+                
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in paragraph.runs:
+                        run.font.size = Pt(p_font_size)
+                        run.font.name = self.font_manager.get_font('p')
+                        run.font.color.rgb = p_color
+                        if 'font-bold' in p_classes:
+                            run.font.bold = True
+                
+                current_y += p_font_size + 5
 
-                current_y += 35
-
-        return y + 180
+        return y + card_height
 
         # 查找内部的flex容器
         flex_container = card.find('div', class_='flex')
@@ -1634,11 +3203,14 @@ class HTML2PPTX:
                 element_heights.append(height)
                 total_content_height += height
 
-            # 计算垂直起始位置（垂直居中）
-            card_height = 180
-            start_y = y + (card_height - total_content_height) // 2
-            if start_y < y + 15:
-                start_y = y + 15  # 保证最小内边距
+            # 动态计算卡片高度
+            padding_top = padding_bottom = 20  # 从CSS或Tailwind获取
+            card_height = padding_top + total_content_height + padding_bottom
+            # 高度完全由内容决定，不设置最小高度
+            # min_card_height = 100
+            # card_height = max(card_height, min_card_height)
+
+            start_y = y + padding_top
 
             # 渲染内容
             current_y = start_y
@@ -2258,13 +3830,46 @@ class HTML2PPTX:
 
         # 处理每个子容器
         for i, child in enumerate(children):
+            # 智能判断是否需要添加间距
+            # 现在card conversion方法已经包含CSS margin-bottom，所以这里的逻辑需要调整
             if i > 0:
-                current_y += 40  # 子容器间距
+                child_classes = child.get('class', [])
+                if isinstance(child_classes, str):
+                    child_classes = child_classes.split()
+                
+                # 检查当前元素是否有mt-*类，并计算实际的margin-top值
+                margin_top_value = self._get_tailwind_margin_top(child_classes)
+                
+                # 检查上一个元素
+                prev_child = children[i-1]
+                prev_is_h3 = prev_child.name == 'h3'
+                prev_classes = prev_child.get('class', [])
+                if isinstance(prev_classes, str):
+                    prev_classes = prev_classes.split()
+                
+                # 检查上一个元素是否有margin-bottom（Tailwind mb-*或CSS定义）
+                prev_has_margin_bottom = any(cls.startswith('mb-') for cls in prev_classes)
+                if not prev_has_margin_bottom:
+                    # 检查CSS定义的margin-bottom
+                    prev_css_margin = self._get_css_margin_bottom(prev_child)
+                    prev_has_margin_bottom = prev_css_margin > 0
+                
+                # 如果当前元素有mt-*类，使用其定义的间距
+                if margin_top_value:
+                    current_y += margin_top_value
+                    logger.debug(f"元素{i}有mt-{margin_top_value//4}类，添加{margin_top_value}px间距")
+                # 否则，如果上一个元素没有margin-bottom且不是h3，才添加默认间距
+                # 注意：现在card的margin-bottom已经包含在return值中，这里不需要再添加
+                elif not prev_has_margin_bottom and not prev_is_h3:
+                    # 仅在两个元素都没有定义间距的情况下，添加最小默认间距
+                    current_y += 10
+                    logger.debug(f"在元素{i}之前添加最小默认间距10px")
 
             # 递归调用_process_container处理每个子容器
+            # 注意：card conversion方法现在已经包含CSS margin-bottom在返回值中
             current_y = self._process_container(child, pptx_slide, current_y, shape_converter)
 
-        return current_y + 20
+        return current_y
 
     def _convert_flex_container(self, container, pptx_slide, y_start, shape_converter):
         """
@@ -2488,12 +4093,15 @@ class HTML2PPTX:
         for child in children:
             child_classes = child.get('class', [])
 
-            # 估算每个元素的高度
+            # 动态计算每个元素的高度
             if 'data-card' in child_classes:
-                total_height += 100  # data-card高度
+                # 动态计算data-card高度
+                data_card_height = self._calculate_precise_element_height(child, 560)  # 估算宽度
+                total_height += data_card_height
             elif 'grid' in child_classes:
-                # grid包含两个stat-card
-                total_height += 220  # grid高度
+                # 动态计算grid高度
+                grid_height = self._calculate_precise_element_height(child, 860)  # 估算宽度
+                total_height += grid_height
             else:
                 # 普通div（p标签）
                 p_elem = child.find('p')
@@ -2550,8 +4158,19 @@ class HTML2PPTX:
                 logger.info(f"处理普通div: {child_classes}")
                 current_y = self._convert_simple_div(child, pptx_slide, current_y)
 
-            # 添加默认间距
-            current_y += 20
+            # 动态计算默认间距（基于下一个元素的类型）
+            next_index = children.index(child) + 1
+            if next_index < len(children):
+                next_child = children[next_index]
+                # 如果下一个元素是data-card，增加更多间距
+                if 'data-card' in next_child.get('class', []):
+                    current_y += 24  # mb-6的间距
+                elif 'mb-6' in next_child.get('class', []):
+                    current_y += 24
+                else:
+                    current_y += 16  # 默认间距
+            else:
+                current_y += 16  # 最后一个元素的间距
 
         return current_y
 
@@ -2865,8 +4484,18 @@ class HTML2PPTX:
         gap = 20
         total_width = 1760
         box_width = int((total_width - (num_columns - 1) * gap) / num_columns)
-        box_height = 220
         x_start = 80
+        
+        # 动态计算每个stat-box的高度（根据第一个box的内容估算，假设所有box高度相似）
+        # 如果需要更精确，可以为每个box单独计算高度
+        first_box = stat_boxes[0] if stat_boxes else None
+        if first_box:
+            box_height = self._calculate_stat_box_height(first_box, box_width)
+            logger.info(f"动态计算stat-box高度: {box_height}px")
+        else:
+            # 降级：动态计算最小高度
+            box_height = 100  # 最小基础高度
+            logger.warning("未找到stat-box，使用最小高度100px")
 
         logger.info(f"计算box尺寸: 宽度={box_width}px, 高度={box_height}px, 间距={gap}px")
 
@@ -3187,14 +4816,24 @@ class HTML2PPTX:
                 logger.info(f"从CSS类解析出列数: {num_columns}")
 
             # 从CSS读取约束
-            stat_card_padding_top = 20
-            stat_card_padding_bottom = 20
+            stat_card_constraints = self.css_parser.get_height_constraints('.stat-card')
+            stat_card_padding_top = stat_card_constraints.get('padding_top', 20)
+            stat_card_padding_bottom = stat_card_constraints.get('padding_bottom', 20)
             stats_container_gap = 20
 
             # 动态计算每个stat-box的高度
-            # 根据内容计算：图标(36px) + 标题(24px) + 描述文本(约50px) + padding(20px) = 130px
-            # 但为了确保显示完整，使用一个更安全的估算值
-            stat_box_height = 150  # 增加高度以确保内容显示完整
+            # 计算box宽度以便传给高度计算函数
+            total_width = 1760
+            box_width = int((total_width - (num_columns - 1) * stats_container_gap) / num_columns)
+            
+            # 使用第一个stat-box计算高度（假设所有box高度相似）
+            first_stat_box = stat_boxes[0] if stat_boxes else None
+            if first_stat_box:
+                stat_box_height = self._calculate_stat_box_height(first_stat_box, box_width)
+                logger.info(f"stat-card内stat-box动态高度: {stat_box_height}px")
+            else:
+                stat_box_height = 150  # 降级默认值
+                logger.warning("未找到stat-box，使用默认高度150px")
 
             # 计算stats-container的实际高度
             num_rows = (num_boxes + num_columns - 1) // num_columns
@@ -3343,15 +4982,41 @@ class HTML2PPTX:
             logger.info("stat-card包含canvas,处理图表")
 
             # 从CSS读取约束
-            stat_card_padding_top = 20
-            stat_card_padding_bottom = 20
+            stat_card_constraints = self.css_parser.get_height_constraints('.stat-card')
+            stat_card_padding_top = stat_card_constraints.get('padding_top', 20)
+            stat_card_padding_bottom = stat_card_constraints.get('padding_bottom', 20)
 
-            # 标题高度
-            has_title = card.find('p', class_='primary-color') is not None
-            title_height = 35 if has_title else 0
+            # 标题高度（动态计算）
+            title_elem = card.find('p', class_='primary-color')
+            if title_elem:
+                title_font_size = self.style_computer.get_font_size_pt(title_elem)
+                title_height = int(title_font_size * 1.5) + 5  # 字体高度 + 行间距
+            else:
+                title_height = 0
 
-            # canvas高度（固定220px，这是convert_chart传入的height）
-            canvas_height = 220
+            # canvas高度 - 尝试从CSS或元素属性获取
+            canvas_elem = card.find('canvas')
+            if canvas_elem:
+                # 尝试从canvas的height属性获取
+                canvas_style = canvas_elem.get('style', '')
+                if 'height' in canvas_style:
+                    import re
+                    match = re.search(r'height:\s*(\d+)px', canvas_style)
+                    if match:
+                        canvas_height = int(match.group(1))
+                    else:
+                        canvas_height = 200  # 默认值
+                else:
+                    # 尝试从width推断高度（假设4:3比例）
+                    canvas_width = 400
+                    if 'width' in canvas_style:
+                        match = re.search(r'width:\s*(\d+)px', canvas_style)
+                        if match:
+                            canvas_width = int(match.group(1))
+                    canvas_height = int(canvas_width * 0.75)  # 4:3比例
+            else:
+                # 没有canvas元素，根据内容动态计算
+                canvas_height = 150  # 基础高度
 
             # stat-card总高度
             card_height = stat_card_padding_top + title_height + canvas_height + stat_card_padding_bottom
@@ -3469,26 +5134,51 @@ class HTML2PPTX:
         logger.info(f"处理包含{len(bullet_points)}个bullet-point的卡片")
         x_base = 80
 
-        # 添加背景色
-        if 'stat-card' in card.get('class', []):
+        # 确定卡片类型并获取样式
+        is_stat_card = 'stat-card' in card.get('class', [])
+        if is_stat_card:
             bg_color_str = self.css_parser.get_background_color('.stat-card')
+            card_constraints = self.css_parser.get_height_constraints('.stat-card')
         else:
-            bg_color_str = 'rgba(10, 66, 117, 0.03)'  # data-card默认背景色
+            bg_color_str = self.css_parser.get_background_color('.data-card') or 'rgba(10, 66, 117, 0.03)'
+            card_constraints = self.css_parser.get_height_constraints('.data-card')
+        
+        padding_top = card_constraints.get('padding_top', 15)
+        padding_bottom = card_constraints.get('padding_bottom', 15)
+        padding_left = card_constraints.get('padding_left', 20)
+        
+        # 计算内容宽度
+        content_width = 1760 - padding_left - 20
+        
+        # 精确计算所有子元素高度
+        content_height = 0
+        for child in card.children:
+            if hasattr(child, 'name') and child.name:
+                child_height = self._calculate_precise_element_height(child, content_width)
+                content_height += child_height
+                logger.debug(f"  子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
+        
+        # 总高度
+        card_height = padding_top + content_height + padding_bottom
+        
+        # 应用CSS约束（如果定义了min/max-height）
+        # 移除min_height约束，让高度完全由内容决定
+        # if 'min_height' in card_constraints:
+        #     card_height = max(card_constraints['min_height'], card_height)
+        if 'max_height' in card_constraints:
+            card_height = min(card_constraints['max_height'], card_height)
+        
+        logger.info(f"bullet-point卡片精确高度: padding={padding_top + padding_bottom}px, "
+                   f"content={content_height}px, total={card_height}px")
 
         if bg_color_str:
             from pptx.enum.shapes import MSO_SHAPE
-            # 计算高度：标题 + bullet-point列表
-            estimated_height = 50  # 顶部padding
-            if h3_elem:
-                estimated_height += 50  # h3标题高度
-            estimated_height += len(bullet_points) * 35 + 20  # bullet-point列表高度
-
             bg_shape = pptx_slide.shapes.add_shape(
                 MSO_SHAPE.ROUNDED_RECTANGLE,
                 UnitConverter.px_to_emu(x_base),
                 UnitConverter.px_to_emu(y_start),
                 UnitConverter.px_to_emu(1760),
-                UnitConverter.px_to_emu(estimated_height)
+                UnitConverter.px_to_emu(card_height)
             )
             bg_shape.fill.solid()
             bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
@@ -3497,9 +5187,9 @@ class HTML2PPTX:
                     bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
                 bg_shape.fill.fore_color.rgb = bg_rgb
             bg_shape.line.fill.background()
-            logger.info(f"添加卡片背景色，高度={estimated_height}px")
+            logger.info(f"添加卡片背景色，高度={card_height}px")
 
-        current_y = y_start + 20  # 顶部padding
+        current_y = y_start + padding_top  # 顶部padding
 
         # 处理h3标题
         if h3_elem:
@@ -3546,7 +5236,12 @@ class HTML2PPTX:
             shape_converter = ShapeConverter(pptx_slide, self.css_parser)
             shape_converter.add_border_left(x_base, y_start, total_height, 4)
 
-        return y_start + total_height + 10
+        # 重要修复：添加CSS定义的margin-bottom
+        css_margin_bottom = self._get_css_margin_bottom(card)
+        if css_margin_bottom > 0:
+            logger.info(f"为bullet-point卡片添加CSS margin-bottom: {css_margin_bottom}px")
+        
+        return y_start + total_height + 10 + css_margin_bottom
 
     def _convert_grid_card_with_bullet_points(self, card, pptx_slide, shape_converter, x, y, width, bullet_points, h3_elem=None) -> int:
         """
@@ -3662,6 +5357,36 @@ class HTML2PPTX:
         logger.info("处理现代样式stat-card")
         x_base = 80
 
+        # 精确计算stat-card高度
+        stat_card_constraints = self.css_parser.get_height_constraints('.stat-card')
+        padding_top = stat_card_constraints.get('padding_top', 15)
+        padding_bottom = stat_card_constraints.get('padding_bottom', 15)
+        padding_left = stat_card_constraints.get('padding_left', 20)
+        
+        # 计算内容宽度
+        content_width = 1760 - padding_left - 20
+        
+        # 精确计算所有子元素高度
+        content_height = 0
+        for child in card.children:
+            if hasattr(child, 'name') and child.name:
+                child_height = self._calculate_precise_element_height(child, content_width)
+                content_height += child_height
+                logger.debug(f"  子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
+        
+        # 总高度
+        card_height = padding_top + content_height + padding_bottom
+        
+        # 应用CSS约束（如果定义了min/max-height）
+        # 移除min_height约束，让高度完全由内容决定
+        # if 'min_height' in stat_card_constraints:
+        #     card_height = max(stat_card_constraints['min_height'], card_height)
+        if 'max_height' in stat_card_constraints:
+            card_height = min(stat_card_constraints['max_height'], card_height)
+        
+        logger.info(f"modern stat-card精确高度: padding={padding_top + padding_bottom}px, "
+                   f"content={content_height}px, total={card_height}px")
+
         # 添加背景
         bg_color_str = self.css_parser.get_background_color('.stat-card')
         if bg_color_str:
@@ -3671,7 +5396,7 @@ class HTML2PPTX:
                 UnitConverter.px_to_emu(x_base),
                 UnitConverter.px_to_emu(y_start),
                 UnitConverter.px_to_emu(1760),
-                UnitConverter.px_to_emu(200)  # 估算高度
+                UnitConverter.px_to_emu(card_height)
             )
             bg_shape.fill.solid()
             bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
@@ -3682,7 +5407,7 @@ class HTML2PPTX:
             bg_shape.line.fill.background()
             bg_shape.shadow.inherit = False
 
-        current_y = y_start + 20  # 顶部padding
+        current_y = y_start + padding_top  # 顶部padding
 
         # 处理h3标题
         h3_elem = card.find('h3')
@@ -3968,6 +5693,171 @@ class HTML2PPTX:
 
         return y_start + 180  # 返回估算的卡片高度
 
+    def _render_bullet_points_directly(self, container, pptx_slide, y_start, shape_converter):
+        """
+        直接渲染bullet-point列表（用于未知容器中的bullet-points）
+
+        Args:
+            container: 包含bullet-points的容器
+            pptx_slide: PPTX幻灯片
+            y_start: 起始Y坐标
+            shape_converter: 形状转换器
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info("直接渲染bullet-point列表")
+
+        # 获取所有bullet-point
+        bullet_points = container.find_all('div', class_='bullet-point', recursive=False)
+        if not bullet_points:
+            # 如果没有bullet-point，降级处理
+            return self._convert_generic_card(container, pptx_slide, y_start, card_type='bullet-container')
+
+        current_y = y_start + 20  # 顶部padding
+
+        # 初始化文本转换器
+        temp_text_converter = TextConverter(pptx_slide, self.css_parser)
+
+        for bullet_point in bullet_points:
+            # 获取图标
+            icon_elem = bullet_point.find('i')
+            icon_text = "•"  # 默认图标
+            if icon_elem:
+                icon_classes = icon_elem.get('class', [])
+                if 'fa-exclamation-triangle' in icon_classes:
+                    icon_text = "⚠"
+                elif 'fa-arrow-right' in icon_classes:
+                    icon_text = "→"
+                elif 'fa-check' in icon_classes:
+                    icon_text = "✓"
+
+            # 获取文本内容
+            text_elem = bullet_point.find('p')
+            if not text_elem:
+                # 如果没有p标签，尝试获取直接文本
+                text_elem = bullet_point
+
+            if text_elem:
+                text = text_elem.get_text(strip=True)
+                if text:
+                    # 渲染图标
+                    icon_box = pptx_slide.shapes.add_textbox(
+                        UnitConverter.px_to_emu(80),
+                        UnitConverter.px_to_emu(current_y),
+                        UnitConverter.px_to_emu(30),
+                        UnitConverter.px_to_emu(30)
+                    )
+                    icon_frame = icon_box.text_frame
+                    icon_frame.text = icon_text
+                    for paragraph in icon_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        for run in paragraph.runs:
+                            run.font.size = Pt(20)
+                            run.font.color.rgb = ColorParser.get_primary_color()
+                            run.font.name = self.font_manager.get_font('body')
+
+                    # 渲染文本
+                    text_box = pptx_slide.shapes.add_textbox(
+                        UnitConverter.px_to_emu(110),  # 图标后面
+                        UnitConverter.px_to_emu(current_y),
+                        UnitConverter.px_to_emu(1650),  # 剩余宽度
+                        UnitConverter.px_to_emu(30)
+                    )
+                    text_frame = text_box.text_frame
+                    text_frame.text = text
+                    for paragraph in text_frame.paragraphs:
+                        paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                        for run in paragraph.runs:
+                            run.font.size = Pt(25)
+                            run.font.color.rgb = RGBColor(51, 51, 51)  # #333
+                            run.font.name = self.font_manager.get_font('body')
+
+                    current_y += 35  # bullet-point高度
+
+        # 返回下一个位置
+        return current_y + 20  # 底部padding
+
+    def _convert_mb6_container(self, container, pptx_slide, y_start, shape_converter):
+        """
+        转换mb-6容器（包含h3标题和内容的容器）
+
+        Args:
+            container: mb-6容器元素
+            pptx_slide: PPTX幻灯片
+            y_start: 起始Y坐标
+            shape_converter: 形状转换器
+
+        Returns:
+            下一个元素的Y坐标
+        """
+        logger.info("处理mb-6容器")
+
+        current_y = y_start
+
+        # 1. 处理h3标题
+        h3_elem = container.find('h3', recursive=False)
+        if h3_elem:
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                from pptx.util import Pt
+                from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+
+                # 动态计算h3高度
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                h3_height_px = int(h3_font_size_px * h3_line_height_ratio)
+
+                # 动态计算margin-bottom - 修复：正确获取h3的mb-4类
+                h3_classes = h3_elem.get('class', [])
+                margin_bottom = self._get_margin_bottom_from_classes(h3_classes)
+                if margin_bottom == 0 or margin_bottom is None:
+                    # h3标签默认应该有mb-4（16px）的间距
+                    margin_bottom = 16
+
+                text_left = UnitConverter.px_to_emu(80)
+                text_top = UnitConverter.px_to_emu(current_y)
+                text_box = pptx_slide.shapes.add_textbox(
+                    text_left, text_top,
+                    UnitConverter.px_to_emu(1760), UnitConverter.px_to_emu(h3_height_px)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = h3_text
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in paragraph.runs:
+                        run.font.size = Pt(h3_font_size_pt)
+                        run.font.name = self.font_manager.get_font('h3')
+                        if self._should_be_bold(h3_elem):
+                            run.font.bold = True
+                        run.font.color.rgb = h3_color
+
+                current_y += h3_height_px + margin_bottom
+                logger.info(f"渲染h3标题: {h3_text}，高度={h3_height_px}px，margin-bottom={margin_bottom}px")
+
+                # 移除已处理的h3，避免重复处理
+                h3_elem.decompose()
+
+        # 2. 处理剩余内容
+        # 获取所有直接子元素（跳过文本节点）
+        children = []
+        for child in container.children:
+            if hasattr(child, 'name') and child.name:
+                children.append(child)
+
+        # 处理每个子元素
+        for child in children:
+            # 递归调用_process_container处理每个子元素
+            current_y = self._process_container(child, pptx_slide, current_y, shape_converter)
+
+        # 3. 添加mb-6的底部margin（动态计算）
+        container_mb6 = self._get_margin_bottom_from_classes(['mb-6'])
+        current_y += container_mb6
+
+        return current_y
+
     def _convert_generic_card(self, card, pptx_slide, y_start: int, card_type: str = 'card') -> int:
         """
         通用卡片内容转换 - 降级处理未知结构
@@ -4150,7 +6040,31 @@ class HTML2PPTX:
 
             current_y += text_height + 10
 
-        return current_y + 20
+        # 动态计算底部间距
+        bottom_padding = 15  # 基础padding
+        # 如果是data-card，使用其CSS定义的padding-bottom
+        if 'data-card' in card_type:
+            if hasattr(self.css_parser, 'get_height_constraints'):
+                constraints = self.css_parser.get_height_constraints('.data-card')
+                bottom_padding = constraints.get('padding_bottom', 15)
+        
+        # 重要修复：添加CSS定义的margin-bottom
+        # 根据card_type获取对应的CSS选择器
+        selector_map = {
+            'stat-card': '.stat-card',
+            'data-card': '.data-card',
+            'risk-card': '.risk-card',
+            'strategy-card': '.strategy-card'
+        }
+        css_margin_bottom = 0
+        for type_key, selector in selector_map.items():
+            if type_key in card_type:
+                css_margin_bottom = self._get_css_margin_bottom(selector)
+                if css_margin_bottom > 0:
+                    logger.info(f"为{card_type}添加CSS margin-bottom: {css_margin_bottom}px")
+                break
+        
+        return current_y + bottom_padding + css_margin_bottom
 
     def _convert_strategy_card(self, card, pptx_slide, y_start: int) -> int:
         """
@@ -4165,38 +6079,63 @@ class HTML2PPTX:
         action_items = card.find_all('div', class_='action-item')
 
         # 从CSS读取约束
-        strategy_card_padding = 10  # top + bottom = 20
+        strategy_card_constraints = self.css_parser.get_height_constraints('.strategy-card')
+        strategy_card_padding = strategy_card_constraints.get('padding_top', 10)  # 顶部padding
         action_item_margin_bottom = 15  # CSS中的margin-bottom
 
-        # 标题高度
-        has_title = card.find('p', class_='primary-color') is not None
-        title_height = 40 if has_title else 0
+        # 标题高度（动态计算）
+        title_elem = card.find('p', class_='primary-color')
+        if title_elem:
+            title_font_size = self.style_computer.get_font_size_pt(title_elem)
+            title_height = int(title_font_size * 1.5) + 5  # 字体高度 + 行间距
+        else:
+            title_height = 0
 
-        # 每个action-item的高度组成：
-        # - 圆形图标: 28px
-        # - 标题(action-title): 18px字体 × 1.5 = 27px
-        # - 描述(p): 16px字体 × 1.5 × 行数（估算2行）= 48px
-        # - margin-bottom: 15px
-        # 总计：28 + 27 + 48 + 15 = 118px
-
-        # 简化估算（TODO阶段2：根据实际文本行数计算）
-        single_action_item_height = 118
+        # 动态计算每个action-item的高度
+        total_action_items_height = 0
+        for idx, action_item in enumerate(action_items):
+            item_height = 0
+            
+            # 圆形图标高度
+            item_height += 28
+            
+            # 标题高度
+            action_title = action_item.find('div', class_='action-title')
+            if action_title:
+                title_font_size = self.style_computer.get_font_size_pt(action_title)
+                item_height += int(title_font_size * 1.5)
+            
+            # 描述文本高度（估算行数）
+            desc_p = action_item.find('p')
+            if desc_p:
+                desc_text = desc_p.get_text(strip=True)
+                desc_font_size = self.style_computer.get_font_size_pt(desc_p)
+                # 估算每行约60个字符
+                lines = max(1, len(desc_text) // 60)
+                item_height += lines * int(desc_font_size * 1.5)
+            
+            # margin-bottom（最后一个不需要）
+            if idx < len(action_items) - 1:
+                item_height += action_item_margin_bottom
+            
+            total_action_items_height += item_height
+            logger.debug(f"action-item {idx+1} 高度: {item_height}px")
 
         # strategy-card总高度
-        # = padding-top + title + (action-items × height) + padding-bottom
+        # = padding-top + title + action-items + padding-bottom
         card_height = (strategy_card_padding + title_height +
-                       len(action_items) * single_action_item_height +
+                       total_action_items_height +
                        strategy_card_padding)
 
-        # 限制在max-height范围内（CSS中max-height为300px）
-        max_height = 300
+        # 从CSS读取max-height约束并应用
+        max_height = strategy_card_constraints.get('max_height', 300)
         if card_height > max_height:
             logger.warning(f"strategy-card内容高度({card_height}px)超出max-height({max_height}px)")
             card_height = max_height
 
-        logger.info(f"strategy-card高度计算: padding={strategy_card_padding*2}px, "
-                   f"标题={title_height}px, action-items={len(action_items)}个×{single_action_item_height}px, "
-                   f"总高度={card_height}px")
+        logger.info(f"strategy-card动态高度计算: padding={strategy_card_padding*2}px, "
+                   f"标题={title_height}px, action-items总高={total_action_items_height}px, "
+                   f"总高度={card_height}px (max={max_height}px)")
 
         bg_color_str = self.css_parser.get_background_color('.strategy-card')
         if bg_color_str:
@@ -4357,7 +6296,38 @@ class HTML2PPTX:
 
         x_base = 80
         card_width = 1760
-        card_height = 180
+
+        # 动态计算卡片高度
+        padding_top = padding_bottom = 20
+        content_height = 0
+
+        # 计算内容高度
+        flex_container = card.find('div', class_='flex')
+        if flex_container:
+            left_div = flex_container.find('div', class_='flex-1')
+            if left_div:
+                # 计算标题高度
+                title_div = left_div.find('div', class_='risk-title')
+                if title_div:
+                    title_font_size_pt = self.style_computer.get_font_size_pt(title_div) or 18
+                    title_height_px = UnitConverter.pt_to_px(title_font_size_pt) * 1.5
+                    content_height += title_height_px
+
+                # 计算描述高度
+                desc_div = left_div.find('div', class_='risk-description')
+                if desc_div:
+                    desc_text = desc_div.get_text(strip=True)
+                    if desc_text:
+                        desc_font_size_pt = self.style_computer.get_font_size_pt(desc_div) or 14
+                        desc_height_px = UnitConverter.pt_to_px(desc_font_size_pt) * 1.5
+                        # 估算文本行数
+                        lines = max(1, len(desc_text) // 60)
+                        content_height += lines * desc_height_px + 10  # 10px spacing
+
+        # 计算总高度
+        card_height = padding_top + content_height + padding_bottom
+        # 高度完全由内容决定，不设置最小高度
+        # card_height = max(card_height, 100)
 
         # 获取CSS样式
         card_style = self.css_parser.get_class_style('risk-card') or {}
@@ -4862,10 +6832,56 @@ class HTML2PPTX:
         from src.utils.font_manager import FontManager
         from pptx.enum.shapes import MSO_SHAPE
 
+        # 从CSS获取data-card的padding
+        data_card_constraints = self.css_parser.get_height_constraints('.data-card')
+        padding_top = data_card_constraints.get('padding_top', 15)
+        padding_bottom = data_card_constraints.get('padding_bottom', 15)
+        padding_left = data_card_constraints.get('padding_left', 20)
+        
+        logger.info(f"data-card padding: top={padding_top}, bottom={padding_bottom}, left={padding_left}")
+
         # 创建临时text_converter
         temp_text_converter = TextConverter(pptx_slide, self.css_parser)
 
-        current_y = y + 15  # 顶部padding
+        # 精确计算内容高度
+        content_width = width - padding_left - 20  # 减去左右padding
+        content_height = 0
+        
+        # 遍历data-card的所有直接子元素
+        for child in card.children:
+            if hasattr(child, 'name') and child.name:
+                child_height = self._calculate_precise_element_height(child, content_width)
+                content_height += child_height
+                logger.debug(f"data-card子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
+        
+        # 总高度 = padding-top + 内容高度 + padding-bottom
+        card_height = padding_top + content_height + padding_bottom
+        
+        logger.info(f"data-card精确高度: padding={padding_top + padding_bottom}px, "
+                   f"content={content_height}px, total={card_height}px")
+
+        # 添加data-card背景色
+        bg_color_str = self.css_parser.get_background_color('.data-card') or 'rgba(10, 66, 117, 0.03)'
+        from pptx.enum.shapes import MSO_SHAPE
+        from pptx.dml.color import RGBColor
+
+        bg_shape = pptx_slide.shapes.add_shape(
+            MSO_SHAPE.ROUNDED_RECTANGLE,
+            UnitConverter.px_to_emu(x),
+            UnitConverter.px_to_emu(y),
+            UnitConverter.px_to_emu(width),
+            UnitConverter.px_to_emu(card_height)
+        )
+        bg_shape.fill.solid()
+        bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+        if bg_rgb:
+            if alpha < 1.0:
+                bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+            bg_shape.fill.fore_color.rgb = bg_rgb
+        bg_shape.line.fill.background()
+        logger.info(f"添加data-card背景色，高度={card_height}px")
+
+        current_y = y + padding_top  # 顶部padding
 
         # 处理data-card内容
         # 首先查找p标签
@@ -4874,9 +6890,9 @@ class HTML2PPTX:
             # 处理p标签内的内容
             current_y = temp_text_converter.convert_paragraph(
                 p_elem,
-                x + 20,  # 左边距（因为有左边框）
+                x + padding_left,  # 左边距（因为有左边框）
                 current_y,
-                width - 40
+                content_width
             )
         else:
             # 降级处理：查找bullet-point
@@ -4887,16 +6903,16 @@ class HTML2PPTX:
                     if text_elem:
                         current_y = temp_text_converter.convert_paragraph(
                             text_elem,
-                            x + 20,
+                            x + padding_left,
                             current_y,
-                            width - 40
+                            content_width
                         )
                         current_y += 8  # bullet-point间距
 
         # 添加左边框
-        shape_converter.add_border_left(x, y, current_y - y + 15, 4)
+        shape_converter.add_border_left(x, y, card_height, 4)
 
-        return current_y
+        return y + card_height
 
     def _convert_bottom_info(self, bottom_container, pptx_slide, y_start: int) -> int:
         """
@@ -5080,6 +7096,11 @@ class HTML2PPTX:
 
     def _convert_data_card(self, card, pptx_slide, shape_converter, y_start: int) -> int:
         """转换数据卡片(.data-card)"""
+        
+        # 统一导入，避免局部变量问题
+        from pptx.util import Pt
+        from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+        from pptx.enum.shapes import MSO_SHAPE
 
         # 防止重复处理：检查是否已经在其他容器中处理过
         # if hasattr(card, '_processed'):
@@ -5088,6 +7109,139 @@ class HTML2PPTX:
         # card._processed = True
 
         x_base = 80
+
+        # 特殊检测：slide_006风格的flex+icon+span结构
+        flex_with_icon = card.find('div', class_='flex')
+        if flex_with_icon and 'items-center' in flex_with_icon.get('class', []):
+            icon_elem = flex_with_icon.find('i')
+            span_elem = flex_with_icon.find('span')
+            p_elem = card.find('p')
+            
+            if icon_elem and span_elem and p_elem:
+                logger.info("检测到flex+icon+span结构（slide_006风格data-card）")
+                
+                # 从CSS读取data-card约束
+                data_card_constraints = self.css_parser.get_height_constraints('.data-card')
+                padding_top = data_card_constraints.get('padding_top', 15)
+                padding_bottom = data_card_constraints.get('padding_bottom', 15)
+                padding_left = data_card_constraints.get('padding_left', 20)
+                
+                # 计算flex区域高度（icon+span，取max）
+                flex_classes = flex_with_icon.get('class', [])
+                flex_margin_bottom = 0
+                for cls in flex_classes:
+                    if cls.startswith('mb-'):
+                        try:
+                            flex_margin_bottom = int(cls.split('-')[1]) * 4
+                        except:
+                            pass
+                
+                # span字体大小
+                span_font_size = self.style_computer.get_font_size_pt(span_elem)
+                flex_height = int(span_font_size * 1.3)  # flex区域高度
+                
+                # p标签高度
+                p_font_size = self.style_computer.get_font_size_pt(p_elem)
+                p_text = p_elem.get_text(strip=True)
+                # 根据文本长度和容器宽度估算行数
+                content_width = 1760 - 2 * padding_left
+                chars_per_line = max(1, content_width // (p_font_size * 0.6))  # 估算每行字符数
+                lines = max(1, len(p_text) // chars_per_line)
+                p_height = int(lines * p_font_size * 1.6)
+                
+                # 总高度
+                total_height = padding_top + flex_height + flex_margin_bottom + p_height + padding_bottom
+                
+                logger.info(f"flex+icon data-card高度: padding_top={padding_top}, flex={flex_height}, "
+                          f"flex_mb={flex_margin_bottom}, p={p_height}, padding_bottom={padding_bottom}, "
+                          f"total={total_height}px")
+                
+                # 添加背景色
+                bg_color_str = self.css_parser.get_background_color('.data-card') or 'rgba(10, 66, 117, 0.03)'
+                from pptx.enum.shapes import MSO_SHAPE
+                bg_shape = pptx_slide.shapes.add_shape(
+                    MSO_SHAPE.ROUNDED_RECTANGLE,
+                    UnitConverter.px_to_emu(x_base),
+                    UnitConverter.px_to_emu(y_start),
+                    UnitConverter.px_to_emu(1760),
+                    UnitConverter.px_to_emu(total_height)
+                )
+                bg_shape.fill.solid()
+                bg_rgb, alpha = ColorParser.parse_rgba(bg_color_str)
+                if bg_rgb:
+                    if alpha < 1.0:
+                        bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
+                    bg_shape.fill.fore_color.rgb = bg_rgb
+                bg_shape.line.fill.background()
+                
+                # 添加左边框
+                shape_converter.add_border_left(x_base, y_start, total_height, 4)
+                
+                # 渲染icon+span
+                current_y = y_start + padding_top
+                
+                # 图标（简化为圆点）
+                from pptx.util import Pt
+                icon_text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x_base + padding_left),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(30),
+                    UnitConverter.px_to_emu(flex_height)
+                )
+                icon_frame = icon_text_box.text_frame
+                icon_frame.text = "●"
+                icon_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for paragraph in icon_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(16)
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                
+                # span文本
+                span_text = span_elem.get_text(strip=True)
+                span_text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x_base + padding_left + 30),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(content_width - 30),
+                    UnitConverter.px_to_emu(flex_height)
+                )
+                span_frame = span_text_box.text_frame
+                span_frame.text = span_text
+                span_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for paragraph in span_frame.paragraphs:
+                    for run in paragraph.runs:
+                        run.font.size = Pt(span_font_size)
+                        # 检查font-semibold类
+                        if 'font-semibold' in span_elem.get('class', []):
+                            run.font.bold = True
+                        run.font.name = self.font_manager.get_font('body')
+                
+                current_y += flex_height + flex_margin_bottom
+                
+                # 渲染p标签
+                from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                p_text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x_base + padding_left),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(content_width),
+                    UnitConverter.px_to_emu(p_height)
+                )
+                p_frame = p_text_box.text_frame
+                p_frame.text = p_text
+                p_frame.word_wrap = True
+                for paragraph in p_frame.paragraphs:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
+                    for run in paragraph.runs:
+                        run.font.size = Pt(p_font_size)
+                        run.font.name = self.font_manager.get_font('body')
+                
+                # 重要修复：添加CSS定义的margin-bottom
+                css_margin_bottom = self._get_css_margin_bottom(card)
+                if css_margin_bottom > 0:
+                    logger.info(f"为data-card (flex+icon+span结构) 添加CSS margin-bottom: {css_margin_bottom}px")
+                    return y_start + total_height + css_margin_bottom
+                
+                return y_start + total_height
 
         # 检查data-card内是否包含网格布局
         grid_container = card.find('div', class_='grid')
@@ -5102,37 +7256,73 @@ class HTML2PPTX:
         # 从当前HTML的CSS解析器获取实际的背景色定义
         bg_color_str = self.css_parser.get_background_color('.data-card')
         should_add_bg = False
-        estimated_height = 200
+        estimated_height = 50  # 初始值仅为顶部padding，实际高度将由内容决定
 
         if bg_color_str and bg_color_str != 'transparent' and bg_color_str != 'none':
             should_add_bg = True
             logger.info(f"data-card应该添加背景色: {bg_color_str}")
 
-            # 动态计算所需高度
-            # 基础padding: 15px上 + 15px下 = 30px (从slide_003的CSS得出)
-            # 或者 10px上 + 10px下 = 20px (从slide01的CSS得出)
-            # 使用通用的计算方法
-            estimated_height = 30  # 默认padding
+            # 使用精确的高度计算方法
+            # 1. 从CSS获取padding
+            data_card_constraints = self.css_parser.get_height_constraints('.data-card')
+            padding_top = data_card_constraints.get('padding_top', 15)
+            padding_bottom = data_card_constraints.get('padding_bottom', 15)
+            padding_left = data_card_constraints.get('padding_left', 20)
+            
+            logger.debug(f"data-card padding: top={padding_top}, bottom={padding_bottom}, left={padding_left}")
+            
+            # 2. 计算内容宽度（用于文本换行计算）
+            content_width = 1760 - padding_left - 20  # 减去左右padding
+            
+            # 3. 精确计算所有直接子元素的高度
+            content_height = 0
+            for child in card.children:
+                if hasattr(child, 'name') and child.name:
+                    child_height = self._calculate_precise_element_height(child, content_width)
+                    content_height += child_height
+                    logger.debug(f"  子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
 
-            # 检查标题高度
-            p_elem = card.find('p', class_='primary-color')
-            if p_elem:
-                estimated_height += 35
+            # 3.1. 计算渲染时的段落间距
+            # 获取所有会被渲染的段落
+            all_paragraphs = card.find_all('p')
+            content_paragraphs = []
+            for p in all_paragraphs:
+                parent = p.parent
+                is_in_bullet_point = False
+                while parent and parent != card:
+                    if parent.get('class') and 'bullet-point' in parent.get('class', []):
+                        is_in_bullet_point = True
+                        break
+                    parent = parent.parent
+                if not is_in_bullet_point:
+                    p_classes = p.get('class', [])
+                    is_title = ('font-semibold' in p_classes or
+                               'font-bold' in p_classes or
+                               'mb-2' in p_classes or
+                               'text-2xl' in p_classes or
+                               'text-xl' in p_classes or
+                               'text-3xl' in p_classes and len(p.get_text(strip=True)) < 20)
+                    if not is_title:
+                        content_paragraphs.append(p)
 
-            # 检查bullet-point数量
-            bullet_points = card.find_all('div', class_='bullet-point')
-            if bullet_points:
-                estimated_height += len(bullet_points) * 35
-                estimated_height += (len(bullet_points) - 1) * 8  # bullet-point间距
-
-            # 检查是否包含h3标题
-            h3_elem = card.find('h3')
-            if h3_elem:
-                estimated_height += 40
-
-            # 确保最小高度
-            estimated_height = max(estimated_height, 200)
-            logger.info(f"data-card动态计算高度: {estimated_height}px")
+            # 计算段落间距
+            for p in content_paragraphs:
+                font_size_pt = self.style_computer.get_font_size_pt(p) or 14
+                font_size_px = UnitConverter.pt_to_px(font_size_pt)
+                paragraph_spacing = int(font_size_px * 0.8)
+                content_height += paragraph_spacing
+            
+            # 4. 总高度 = padding-top + 内容高度 + padding-bottom
+            estimated_height = padding_top + content_height + padding_bottom
+            
+            # 5. 移除所有硬编码高度约束，让高度完全由内容决定
+            # if 'min_height' in data_card_constraints:
+            #     estimated_height = max(data_card_constraints['min_height'], estimated_height)
+            # if 'max_height' in data_card_constraints:
+            #     estimated_height = min(data_card_constraints['max_height'], estimated_height)
+            
+            logger.info(f"data-card精确高度: padding={padding_top + padding_bottom}px, "
+                       f"content={content_height}px, total={estimated_height}px")
 
             # 添加背景色
             from pptx.enum.shapes import MSO_SHAPE
@@ -5205,7 +7395,11 @@ class HTML2PPTX:
 
                             run.font.name = self.font_manager.get_font('body')
 
-                    current_y += 40  # 标题后间距
+                    # 动态计算标题后的间距
+                    title_font_size_pt = self.style_computer.get_font_size_pt(title_elem) or 16
+                    title_font_size_px = UnitConverter.pt_to_px(title_font_size_pt)
+                    title_margin_bottom = int(title_font_size_px * 0.8)  # 标题下边距约为字体大小的0.8倍
+                    current_y += title_font_size_px + title_margin_bottom
                     logger.info(f"渲染data-card标题: {title_text}")
 
         # 2. 处理普通段落内容（明确排除标题元素、bullet-point内的元素和cve-card内的元素）
@@ -5230,9 +7424,18 @@ class HTML2PPTX:
             if is_in_bullet_point or is_in_cve_card:
                 continue
 
-            # 方法1：检查是否有primary-color类
+            # 方法1：只跳过primary-color且字体较小的p（可能是标题）
             if 'primary-color' in p.get('class', []):
-                continue
+                # 检查是否还包含font-semibold或mb-2等标题类
+                p_classes = p.get('class', [])
+                is_title = ('font-semibold' in p_classes or
+                           'font-bold' in p_classes or
+                           'mb-2' in p_classes or
+                           'text-2xl' in p_classes or
+                           'text-xl' in p_classes or
+                           'text-3xl' in p_classes and len(p.get_text(strip=True)) < 20)  # 短文本可能是标题
+                if is_title:
+                    continue
 
             # 方法2：如果是同一个元素对象，也跳过（防止类检查失败的情况）
             if title_elem and p is title_elem:
@@ -5248,6 +7451,11 @@ class HTML2PPTX:
                 content_paragraphs.append(p)
 
         logger.info(f"data-card段落过滤: 找到{len(all_paragraphs)}个p标签，排除标题后{len(content_paragraphs)}个普通段落")
+        # 调试：打印所有p标签的类
+        for i, p in enumerate(all_paragraphs):
+            p_classes = p.get('class', [])
+            p_text = p.get_text(strip=True)[:30]
+            logger.debug(f"  P{i}: classes={p_classes}, text={p_text}...")
 
         # 3. 渲染内容段落
         for p in content_paragraphs:
@@ -5255,9 +7463,14 @@ class HTML2PPTX:
             if text:
                 text_left = UnitConverter.px_to_emu(x_base + 20)
                 text_top = UnitConverter.px_to_emu(current_y)
+                # 动态计算文本框高度
+                font_size_pt = self.style_computer.get_font_size_pt(p) or 14
+                font_size_px = UnitConverter.pt_to_px(font_size_pt)
+                # 根据字体大小动态设置文本框高度
+                text_box_height = max(30, int(font_size_px * 1.5))
                 text_box = pptx_slide.shapes.add_textbox(
                     text_left, text_top,
-                    UnitConverter.px_to_emu(1720), UnitConverter.px_to_emu(30)
+                    UnitConverter.px_to_emu(1720), UnitConverter.px_to_emu(text_box_height)
                 )
                 text_frame = text_box.text_frame
                 text_frame.text = text
@@ -5269,7 +7482,11 @@ class HTML2PPTX:
                         run.font.size = Pt(font_size_px)
                         run.font.name = self.font_manager.get_font('body')
 
-                current_y += 35  # 段落后间距
+                # 动态计算段落后的间距
+                font_size_pt = self.style_computer.get_font_size_pt(p) or 14
+                font_size_px = UnitConverter.pt_to_px(font_size_pt)
+                paragraph_spacing = int(font_size_px * 0.8)  # 段落间距约为字体大小的0.8倍
+                current_y += font_size_px + paragraph_spacing
                 # 过滤特殊字符，避免Windows控制台乱码
                 clean_text = text[:30].replace('•', '*').replace('•', '*')
                 logger.info(f"渲染data-card内容: {clean_text}...")  # 只记录前30个字符
@@ -5306,6 +7523,10 @@ class HTML2PPTX:
         logger.info(f"data-card内容检查: 标题={'是' if title_elem else '否'}, "
                    f"内容段落数={len(content_paragraphs)}, 进度条数={len(progress_bars)}, "
                    f"列表项数={len(bullet_points)}, 风险项数={len(risk_items)}, 总已有内容={'是' if has_content else '否'}")
+
+        # 调试：如果has_content为True但内容段落数为0，打印原因
+        if has_content and len(content_paragraphs) == 0 and len(progress_bars) == 0 and len(bullet_points) == 0 and len(risk_items) == 0:
+            logger.info(f"调试：has_content={has_content}但没有识别到内容，可能原因：title_elem={title_elem is not None}")
 
         # 如果没有其他内容，从y_start开始处理bullet-point
         if not has_title_or_content and not progress_bars:
@@ -5693,27 +7914,46 @@ class HTML2PPTX:
                             run.font.size = Pt(font_size_px)
                             run.font.name = self.font_manager.get_font('body')
 
-                    progress_y += 35
+                    # 动态计算bullet-point高度
+                    font_size_px = UnitConverter.pt_to_px(font_size_px) if font_size_px else 25
+                    bullet_height = int(font_size_px * 1.5)  # 行高1.5倍
+                    progress_y += bullet_height
 
         # 检查是否包含cve-card（使用前面已经检测的结果）
         if cve_cards:
             logger.info(f"检测到{len(cve_cards)}个cve-card，使用专门处理")
             return self._convert_cve_card_list(card, pptx_slide, shape_converter, y_start)
 
+        # 如果没有识别到任何已知内容，但仍计算了精确高度，直接使用精确高度
+        if not has_content and estimated_height > 50:  # 50是最小高度
+            logger.info("data-card没有特殊内容，但已计算精确高度，直接返回")
+            # 重要修复：添加CSS定义的margin-bottom
+            css_margin_bottom = self._get_css_margin_bottom(card)
+            if css_margin_bottom > 0:
+                logger.info(f"为data-card添加CSS margin-bottom: {css_margin_bottom}px")
+            return y_start + estimated_height + css_margin_bottom
+
         # 如果没有识别到任何已知内容，使用通用降级处理
         if not has_content:
             logger.info("data-card不包含progress-bar或bullet-point,使用通用处理")
             return self._convert_generic_card(card, pptx_slide, y_start, card_type='data-card')
 
-        # 计算实际高度
-        final_y = progress_y + 20
-        actual_height = final_y - y_start
+        # 使用精确计算的高度，不再添加额外间距
+        # 精确高度已经包含了所有的padding和内容高度
+        final_y = y_start + estimated_height
+        actual_height = estimated_height
 
         # 添加左边框（使用实际计算的高度）
         shape_converter.add_border_left(x_base, y_start, actual_height, 4)
 
         logger.info(f"data-card高度计算: 实际高度={actual_height}px, "
                    f"进度条数={len(progress_bars)}, 列表项数={len(bullet_points)}")
+
+        # 重要修复：添加CSS定义的margin-bottom
+        css_margin_bottom = self._get_css_margin_bottom(card)
+        if css_margin_bottom > 0:
+            logger.info(f"为data-card添加CSS margin-bottom: {css_margin_bottom}px")
+            final_y += css_margin_bottom
 
         return final_y
 
@@ -6768,6 +9008,102 @@ class HTML2PPTX:
             return True
 
         return False
+
+    def _calculate_stat_box_height(self, box, box_width: int) -> int:
+        """
+        动态计算stat-box的实际高度，基于内容和CSS约束
+        
+        Args:
+            box: stat-box元素
+            box_width: box的宽度（用于计算文本换行）
+            
+        Returns:
+            计算出的高度（px）
+        """
+        # 从CSS获取约束
+        constraints = self.css_parser.get_height_constraints('.stat-box')
+        # 完全由内容决定高度，不使用任何硬编码约束
+        max_height = constraints.get('max_height', 500)  # 只设置合理的最大值
+        padding_top = constraints.get('padding_top', 20)
+        padding_bottom = constraints.get('padding_bottom', 20)
+        
+        # 初始化高度为padding
+        content_height = 0
+        
+        # 提取内容元素
+        icon = box.find('i')
+        title_elem = box.find('div', class_='stat-title')
+        h2 = box.find('h2')
+        p_tags = box.find_all('p')
+        
+        # 判断布局方向
+        layout_direction = self._determine_layout_direction(box)
+        
+        if layout_direction == 'horizontal':
+            # 水平布局：图标在左，文字在右，高度由最高元素决定
+            # 图标高度
+            icon_height = 36 if icon else 0
+            
+            # 文字内容高度
+            text_height = 0
+            if title_elem:
+                title_font_size = self.style_computer.get_font_size_pt(title_elem)
+                text_height += int(title_font_size * 1.5) + 5  # title + margin
+            
+            if h2:
+                h2_font_size = self.style_computer.get_font_size_pt(h2)
+                text_height += int(h2_font_size * 1.5) + 5  # h2 + margin
+            
+            for p_tag in p_tags:
+                p_text = p_tag.get_text(strip=True)
+                if p_text:
+                    p_font_size = self.style_computer.get_font_size_pt(p_tag)
+                    # 估算文本宽度：box_width - padding - icon_width - icon_margin
+                    text_box_width = box_width - 40 - 36 - 20
+                    # 估算字符数每行（中文约20字符，英文约40字符）
+                    chars_per_line = 30
+                    p_lines = max(1, len(p_text) // chars_per_line)
+                    text_height += p_lines * int(p_font_size * 1.5) + 5
+            
+            # 水平布局高度由较高者决定
+            content_height = max(icon_height, text_height)
+        else:
+            # 垂直布局：图标在上，文字在下，高度累加
+            # 图标高度 + 间距
+            if icon:
+                content_height += 40 + 50  # 图标高度 + 图标与标题间距
+            
+            # 标题
+            if title_elem:
+                title_font_size = self.style_computer.get_font_size_pt(title_elem)
+                content_height += int(title_font_size * 1.5) + 5
+            
+            # h2
+            if h2:
+                h2_font_size = self.style_computer.get_font_size_pt(h2)
+                content_height += int(h2_font_size * 1.5) + 10
+            
+            # p标签
+            text_box_width = box_width - 30  # 减去左右padding
+            for p_tag in p_tags:
+                p_text = p_tag.get_text(strip=True)
+                if p_text:
+                    p_font_size = self.style_computer.get_font_size_pt(p_tag)
+                    # 估算行数
+                    chars_per_line = 30
+                    p_lines = max(1, len(p_text) // chars_per_line)
+                    content_height += p_lines * int(p_font_size * 1.5) + 5
+        
+        # 加上上下padding
+        total_height = padding_top + content_height + padding_bottom
+        
+        # 只应用max-height约束，不使用min-height
+        total_height = min(total_height, max_height)
+        
+        logger.debug(f"stat-box动态高度计算: 内容={content_height}px, padding={padding_top + padding_bottom}px, "
+                    f"总计={total_height}px")
+        
+        return total_height
 
     def _determine_layout_direction(self, box) -> str:
         """

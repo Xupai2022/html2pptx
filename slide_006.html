@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>下半年计划</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+  .stat-value { font-size: 42px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 8px; }
+  .stat-label { font-size: 20px; color: #666; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>下半年计划</h1>
+      <h2 class="text-gray-600">资产纳管提升与运营效率优化</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：核心计划要点 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 计划要点 -->
+      <div class="mb-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">核心工作目标</h3>
+        
+        <div class="data-card">
+          <div class="flex items-center mb-2">
+            <i class="fas fa-shield-alt bullet-icon"></i>
+            <span class="font-semibold text-2xl">资产安全纳管提升</span>
+          </div>
+          <p>全面提升资产安全纳管率，确保EDR全量覆盖，提高所有终端的安全可控能力。持续完善资产指纹信息，确保资产可视化与追踪管理。</p>
+        </div>
+
+        <div class="data-card">
+          <div class="flex items-center mb-2">
+            <i class="fas fa-lock bullet-icon"></i>
+            <span class="font-semibold text-2xl">威胁防护与能力建设</span>
+          </div>
+          <p>持续消除弱口令与高危端口风险，开展周期性安全演练。完善安全策略，优化异常检测规则，提高策略检查与调优频次，加强云边端联动防护。</p>
+        </div>
+
+        <div class="data-card">
+          <div class="flex items-center mb-2">
+            <i class="fas fa-cogs bullet-icon"></i>
+            <span class="font-semibold text-2xl">运营效率与服务优化</span>
+          </div>
+          <p>加强与客户沟通，动态调整威胁情报推送与应急策略。提高事件响应效率，将处置率提升至99%以上，将业务影响降至最低。持续优化值守方案。</p>
+        </div>
+      </div>
+
+      <!-- 关键数据指标 -->
+      <div>
+        <h3 class="text-2xl font-semibold primary-color mb-4">关键数据指标</h3>
+        <div class="grid grid-cols-3 gap-6">
+          <div class="stat-card">
+            <div class="text-3xl font-bold primary-color mb-2">6次</div>
+            <div class="text-lg">策略检查调优次数</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-3xl font-bold primary-color mb-2">60次</div>
+            <div class="text-lg">威胁情报推送</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-3xl font-bold primary-color mb-2">316起</div>
+            <div class="text-lg">安全事件处置（严重+高危）</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">6</div>
+</div>
+</body>
+</html>

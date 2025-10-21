@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>弱口令风险管控</title>
+<title>总结与致谢</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,115 +34,60 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>弱口令风险管控</h1>
-      <h2 class="text-gray-600">16个系统29311个弱口令整改</h2>
+      <h1>总结与致谢</h1>
+      <h2 class="text-gray-600">持续提升安全运营能力</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：图表垂直排列 -->
+    <!-- 内容区域：总结要点 -->
     <div class="flex-1 overflow-hidden">
-      <!-- 弱口令风险系统数图表 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-server bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">弱口令风险系统分布</h3>
-        </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="400" height="200" viewBox="0 0 400 200">
-            <!-- 柱状图 -->
-            <rect x="50" y="30" width="80" height="150" fill="rgb(10, 66, 117)" rx="5"/>
-            <rect x="160" y="30" width="80" height="150" fill="#e5e7eb" rx="5"/>
-            <!-- 标签 -->
-            <text x="90" y="20" text-anchor="middle" font-size="32" font-weight="bold" fill="rgb(10, 66, 117)">16</text>
-            <text x="90" y="200" text-anchor="middle" font-size="18" fill="#333">风险系统</text>
-            <text x="200" y="20" text-anchor="middle" font-size="32" font-weight="bold" fill="#666">0</text>
-            <text x="200" y="200" text-anchor="middle" font-size="18" fill="#333">安全系统</text>
-            <!-- 说明文字 -->
-            <text x="300" y="100" text-anchor="middle" font-size="20" fill="#666">核心业务系统</text>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">🔍 风险系统识别</p>
-          <p>监测发现16个核心业务系统存在弱密码风险，涉及系统包括OA、ERP、邮件系统等关键业务平台。</p>
+      <div class="mb-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">上半年工作成果</h3>
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="stat-card">
+            <p class="text-xl font-semibold primary-color">100%</p>
+            <p class="text-sm text-gray-600">安全事件处置及时率</p>
+          </div>
+          <div class="stat-card">
+            <p class="text-xl font-semibold primary-color">0</p>
+            <p class="text-sm text-gray-600">重大安全事件发生数</p>
+          </div>
+          <div class="stat-card">
+            <p class="text-xl font-semibold primary-color">100%</p>
+            <p class="text-sm text-gray-600">安全问题闭环率</p>
+          </div>
         </div>
       </div>
 
-      <!-- 弱口令涉及IP数图表 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-network-wired bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">弱口令涉及IP资产</h3>
+      <div class="mb-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">待改进事项</h3>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-triangle bullet-icon"></i>
+          <p>EDR部署滞后资产仍有20个需要推进</p>
         </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="500" height="180" viewBox="0 0 500 180">
-            <!-- 数量展示 -->
-            <circle cx="250" cy="90" r="60" fill="rgba(10, 66, 117, 0.1)" stroke="rgb(10, 66, 117)" stroke-width="3"/>
-            <text x="250" y="80" text-anchor="middle" font-size="42" font-weight="bold" fill="rgb(10, 66, 117)">73</text>
-            <text x="250" y="110" text-anchor="middle" font-size="16" fill="#666">个IP资产</text>
-            <!-- 分布示意 -->
-            <circle cx="150" cy="90" r="8" fill="rgb(10, 66, 117)"/>
-            <circle cx="180" cy="70" r="8" fill="rgb(10, 66, 117)"/>
-            <circle cx="210" cy="85" r="8" fill="rgb(10, 66, 117)"/>
-            <circle cx="290" cy="75" r="8" fill="rgb(10, 66, 117)"/>
-            <circle cx="320" cy="95" r="8" fill="rgb(10, 66, 117)"/>
-            <circle cx="350" cy="80" r="8" fill="rgb(10, 66, 117)"/>
-            <!-- 连线 -->
-            <line x1="150" y1="90" x2="190" y2="90" stroke="rgb(10, 66, 117)" stroke-width="1" opacity="0.3"/>
-            <line x1="310" y1="90" x2="350" y2="90" stroke="rgb(10, 66, 117)" stroke-width="1" opacity="0.3"/>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">📍 IP资产分布</p>
-          <p>弱口令风险涉及73个IP资产，主要集中在内部办公网段和业务服务器区，存在账户暴力破解风险。</p>
+        <div class="bullet-point">
+          <i class="fas fa-exclamation-triangle bullet-icon"></i>
+          <p>弱口令问题涉及16个核心业务系统，需重点整治</p>
         </div>
       </div>
 
-      <!-- 弱口令总数图表 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-key bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">弱口令总数统计</h3>
+      <div class="mb-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">下半年工作重点</h3>
+        <div class="bullet-point">
+          <i class="fas fa-arrow-right bullet-icon"></i>
+          <p>完成EDR全覆盖部署，提升终端防护能力</p>
         </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="600" height="220" viewBox="0 0 600 220">
-            <!-- 坐标轴 -->
-            <line x1="50" y1="180" x2="550" y2="180" stroke="#333" stroke-width="2"/>
-            <line x1="50" y1="20" x2="50" y2="180" stroke="#333" stroke-width="2"/>
-            <!-- Y轴刻度 -->
-            <text x="30" y="180" text-anchor="end" font-size="14" fill="#666">0</text>
-            <text x="30" y="120" text-anchor="end" font-size="14" fill="#666">10K</text>
-            <text x="30" y="60" text-anchor="end" font-size="14" fill="#666">20K</text>
-            <text x="30" y="25" text-anchor="end" font-size="14" fill="#666">30K</text>
-            <!-- 柱状图 -->
-            <rect x="100" y="65" width="80" height="115" fill="#ef4444" rx="3"/>
-            <rect x="210" y="65" width="80" height="115" fill="#ef4444" rx="3"/>
-            <rect x="320" y="65" width="80" height="115" fill="#ef4444" rx="3"/>
-            <rect x="430" y="65" width="80" height="115" fill="#ef4444" rx="3"/>
-            <!-- 数值标签 -->
-            <text x="140" y="55" text-anchor="middle" font-size="18" font-weight="bold" fill="#ef4444">29311</text>
-            <text x="140" y="200" text-anchor="middle" font-size="16" fill="#333">弱口令总数</text>
-            <!-- 分类标签 -->
-            <text x="250" y="100" text-anchor="middle" font-size="14" fill="#666">默认密码</text>
-            <text x="250" y="120" text-anchor="middle" font-size="14" fill="#666">简单密码</text>
-            <text x="250" y="140" text-anchor="middle" font-size="14" fill="#666">重复密码</text>
-            <text x="250" y="160" text-anchor="middle" font-size="14" fill="#666">其他</text>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">⚠️ 安全风险严重</p>
-          <p>累计发现29311个弱口令，主要类型包括默认密码、简单密码（如123456、admin等），存在严重安全风险。</p>
+        <div class="bullet-point">
+          <i class="fas fa-arrow-right bullet-icon"></i>
+          <p>开展弱口令专项治理，建立长效管理机制</p>
         </div>
       </div>
 
-      <!-- 趋势分析 -->
       <div class="data-card">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-chart-line bullet-icon text-2xl"></i>
-          <h3 class="text-2xl font-semibold primary-color">整改进展与防护措施</h3>
-        </div>
-        <p class="mb-2">• <strong>整改推进：</strong>已启动弱口令专项整改，定期扫描监测，推动系统管理员加强密码策略</p>
-        <p class="mb-2">• <strong>防护机制：</strong>部署云端联动防护，实时监控异常登录行为，预防账户暴力破解</p>
-        <p>• <strong>风险管控：</strong>建立弱口令黑名单库，强制密码复杂度要求，实施定期密码更换策略</p>
+        <h3 class="text-2xl font-semibold primary-color mb-4">致谢</h3>
+        <p class="mb-3">感谢各位同事在2025年02月至2025年09月期间的辛勤付出与紧密协作！</p>
+        <p class="mb-3">正是因为大家的共同努力，我们才能实现安全事件100%及时处置，保障了业务系统的稳定运行。</p>
+        <p>让我们继续携手并进，共同构建更加安全可靠的信息安全防护体系！</p>
       </div>
     </div>
   </div>
