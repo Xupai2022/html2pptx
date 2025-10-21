@@ -41,13 +41,10 @@ class SvgConverter(BaseConverter):
         self.html_path = html_path
         self.generated_png_files = []  # 记录生成的PNG文件路径
 
-        if use_stable_chart_capture:
-            from src.utils.chart_capture_working import get_working_capturer
-            self.chart_capturer = get_working_capturer()
-            logger.info("使用工作的图表截图版本")
-        else:
-            self.chart_capturer = ChartCapture()
-            logger.info("使用标准的图表截图版本")
+        # Note: use_stable_chart_capture flag is ignored as chart_capture_working module doesn't exist
+        # Always use standard ChartCapture
+        self.chart_capturer = ChartCapture()
+        logger.info("使用标准的图表截图版本")
 
     def convert(self, element, **kwargs):
         """

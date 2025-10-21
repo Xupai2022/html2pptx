@@ -582,3 +582,114 @@ class CSSParser:
             if style:
                 merged.update(style)
         return merged
+
+    def get_height_constraints(self, selector: str) -> Dict[str, int]:
+        """
+        获取元素的高度约束，包括min-height、max-height、padding等
+        
+        Args:
+            selector: CSS选择器
+            
+        Returns:
+            高度约束字典 {
+                'min_height': int,  # px
+                'max_height': int,  # px
+                'padding_top': int,
+                'padding_bottom': int,
+                'padding_left': int,
+                'padding_right': int,
+                'margin_bottom': int
+            }
+        """
+        style = self.get_style(selector)
+        if not style:
+            logger.debug(f"未找到选择器 {selector} 的样式")
+            return {}
+        
+        result = {}
+        
+        # 解析min-height
+        if 'min-height' in style:
+            min_height = self._parse_size(style['min-height'])
+            if min_height > 0:
+                result['min_height'] = min_height
+                logger.debug(f"解析 {selector} min-height: {min_height}px")
+        
+        # 解析max-height
+        if 'max-height' in style:
+            max_height = self._parse_size(style['max-height'])
+            if max_height > 0:
+                result['max_height'] = max_height
+                logger.debug(f"解析 {selector} max-height: {max_height}px")
+        
+        # 解析padding
+        if 'padding' in style:
+            # 简化：假设padding是单一值（如 "20px"）
+            padding = self._parse_size(style['padding'])
+            if padding > 0:
+                result['padding_top'] = padding
+                result['padding_bottom'] = padding
+                result['padding_left'] = padding
+                result['padding_right'] = padding
+                logger.debug(f"解析 {selector} padding: {padding}px")
+        else:
+            # 分别解析各个方向的padding
+            if 'padding-top' in style:
+                padding_top = self._parse_size(style['padding-top'])
+                if padding_top > 0:
+                    result['padding_top'] = padding_top
+            if 'padding-bottom' in style:
+                padding_bottom = self._parse_size(style['padding-bottom'])
+                if padding_bottom > 0:
+                    result['padding_bottom'] = padding_bottom
+            if 'padding-left' in style:
+                padding_left = self._parse_size(style['padding-left'])
+                if padding_left > 0:
+                    result['padding_left'] = padding_left
+            if 'padding-right' in style:
+                padding_right = self._parse_size(style['padding-right'])
+                if padding_right > 0:
+                    result['padding_right'] = padding_right
+        
+        # 解析margin-bottom
+        if 'margin-bottom' in style:
+            margin_bottom = self._parse_size(style['margin-bottom'])
+            if margin_bottom > 0:
+                result['margin_bottom'] = margin_bottom
+                logger.debug(f"解析 {selector} margin-bottom: {margin_bottom}px")
+        
+        return result
+    
+    def _parse_size(self, size_str: str) -> int:
+        """
+        解析尺寸字符串（如'200px', '20px', '1.5rem'）为整数像素值
+        
+        Args:
+            size_str: 尺寸字符串
+            
+        Returns:
+            像素值（整数）
+        """
+        if not size_str:
+            return 0
+        
+        size_str = size_str.strip()
+        
+        # 解析px单位
+        match = re.search(r'(\d+(?:\.\d+)?)px', size_str)
+        if match:
+            return int(float(match.group(1)))
+        
+        # 解析rem单位（1rem = 16px）
+        match = re.search(r'(\d+(?:\.\d+)?)rem', size_str)
+        if match:
+            rem_value = float(match.group(1))
+            return int(rem_value * 16)
+        
+        # 解析em单位（1em = 16px，简化假设）
+        match = re.search(r'(\d+(?:\.\d+)?)em', size_str)
+        if match:
+            em_value = float(match.group(1))
+            return int(em_value * 16)
+        
+        return 0

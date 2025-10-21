@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>防护成果</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>防护成果</h1>
+      <h2 class="text-gray-600">资产防护与威胁拦截成效</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：关键数据展示 -->
+    <div class="flex-1 overflow-hidden">
+      <div class="grid grid-cols-2 gap-6 mb-6">
+        <div class="data-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl font-semibold primary-color mb-2">服务内资产防火墙防护率</h3>
+              <p class="text-4xl font-bold primary-color">100%</p>
+              <p class="text-gray-600 mt-2">实现全面覆盖，无防护盲区</p>
+            </div>
+            <div class="text-5xl primary-color">
+              <i class="fas fa-shield-alt"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="data-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl font-semibold primary-color mb-2">风险资产数量</h3>
+              <p class="text-4xl font-bold primary-color">157个</p>
+              <p class="text-gray-600 mt-2">已识别并纳入监控管理</p>
+            </div>
+            <div class="text-5xl primary-color">
+              <i class="fas fa-exclamation-triangle"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-6">
+        <div class="data-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl font-semibold primary-color mb-2">事件响应平均用时</h3>
+              <p class="text-4xl font-bold primary-color">41分钟</p>
+              <p class="text-gray-600 mt-2">快速响应机制有效运行</p>
+            </div>
+            <div class="text-5xl primary-color">
+              <i class="fas fa-clock"></i>
+            </div>
+          </div>
+        </div>
+        
+        <div class="data-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-2xl font-semibold primary-color mb-2">响应及时率</h3>
+              <p class="text-4xl font-bold primary-color">61.12%</p>
+              <p class="text-gray-600 mt-2">持续优化提升中</p>
+            </div>
+            <div class="text-5xl primary-color">
+              <i class="fas fa-chart-line"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="mt-6 data-card">
+        <h3 class="text-2xl font-semibold primary-color mb-3">防护成效总结</h3>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <p>核心系统7×24小时稳定运行，实现业务连续性保障</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <p>重要时期重保任务100%完成，重大安全事件零发生</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <p>三维协同防护体系构建完成，威胁拦截能力显著提升</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">4</div>
+</div>
+</body>
+</html>
