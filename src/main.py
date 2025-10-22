@@ -255,7 +255,7 @@ class HTML2PPTX:
         Returns:
             行高比例（如1.6表示1.6倍字体大小）
         """
-        # 默认行高比例
+        # 默认行高比例 - 从HTML CSS中读取的 p { line-height: 1.6; }
         default_ratio = 1.6
 
         # 尝试从CSS获取行高
@@ -293,6 +293,29 @@ class HTML2PPTX:
                 return float(match.group(1))
 
         return default_ratio
+
+    def _set_paragraph_line_spacing(self, paragraph, element):
+        """
+        设置paragraph的行距，从HTML元素读取line-height
+        
+        关键修复：之前完全没有设置line_spacing，导致PowerPoint使用默认行距
+        可能与HTML的line-height不一致，造成文本显示过于紧凑或松散
+        
+        Args:
+            paragraph: PPTX paragraph对象
+            element: HTML元素（用于读取line-height）
+        """
+        from pptx.util import Pt
+        
+        # 从HTML获取行高比例
+        line_height_ratio = self._get_line_height_ratio(element)
+        
+        # 设置行距为字体大小的倍数
+        # python-pptx使用Pt对象或倍数来设置line_spacing
+        # line_spacing = 1.5 表示1.5倍字体大小的行距
+        paragraph.line_spacing = line_height_ratio
+        
+        logger.debug(f"设置paragraph行距: {line_height_ratio}")
 
     def _get_margin_bottom_from_classes(self, classes):
         """
@@ -883,8 +906,7 @@ class HTML2PPTX:
                 # 创建一个临时容器来处理bullet-points
                 bullet_points = container.find_all('div', class_='bullet-point', recursive=False)
                 if bullet_points:
-                    # 计算所需高度
-                    estimated_height = len(bullet_points) * 35 + 40
+                    # 移除硬编码的高度估计，让_render_bullet_points_directly内部精确计算
                     return self._render_bullet_points_directly(container, pptx_slide, y_offset, shape_converter)
 
             # 如果都不是，使用通用渲染
@@ -2264,26 +2286,39 @@ class HTML2PPTX:
         if flex_container:
             left_div = flex_container.find('div', class_='flex-1')
             if left_div:
-                # 计算标题高度 (渲染时使用25px高度，见下文line ~2100)
+                # 移除硬编码！使用精确计算
                 title_div = left_div.find('div', class_='risk-title')
                 if title_div:
-                    content_height += 25  # 标题固定高度
+                    # 从CSS获取risk-title的字体大小
+                    risk_title_constraints = self.css_parser.get_height_constraints('.risk-title')
+                    title_font_size = risk_title_constraints.get('font_size', 18)
+                    title_line_height = int(title_font_size * 1.6)
+                    content_height += title_line_height
 
-                # 计算描述高度 (渲染时使用25px高度，见下文line ~2120)
+                # 移除硬编码！使用精确计算
                 desc_div = left_div.find('div', class_='risk-desc')
                 if desc_div:
-                    content_height += 25  # 描述固定高度
-                    content_height += 8   # 描述下方spacing
+                    # 从CSS获取risk-desc的字体大小
+                    risk_desc_constraints = self.css_parser.get_height_constraints('.risk-desc')
+                    desc_font_size = risk_desc_constraints.get('font_size', 14)
+                    desc_line_height = int(desc_font_size * 1.6)
+                    content_height += desc_line_height
+                    # space_after从渲染代码获取
+                    content_height += 4  # p.space_after = Pt(4) in rendering code
 
-                # 计算优先级标签高度 (mt-3 div containing priority tag like "立即处理")
+                # 移除硬编码！使用精确计算
                 tag_div = left_div.find('div', class_='mt-3')
                 if tag_div:
                     span_elem = tag_div.find('span')
                     if span_elem:
-                        # 标签高度: mt-3类给12px margin-top + 22px标签高度 (见下文line ~2145)
-                        tag_margin_top = 12  # mt-3 Tailwind class = 12px
-                        tag_height = 22  # 渲染时标签高度
-                        content_height += tag_margin_top + tag_height
+                        # 从Tailwind类获取margin-top
+                        tag_div_classes = tag_div.get('class', [])
+                        tag_margin_top = self._get_tailwind_margin_top(tag_div_classes) or 12
+                        
+                        # 标签字体大小
+                        tag_font_size = 12  # 从渲染代码: run.font.size = Pt(12)
+                        tag_line_height = int(tag_font_size * 1.6)
+                        content_height += tag_margin_top + tag_line_height
 
         # 总高度 = padding-top + 内容高度 + padding-bottom
         card_height = padding_top + content_height + padding_bottom
@@ -5933,11 +5968,39 @@ class HTML2PPTX:
 
         if bg_color_str:
             from pptx.enum.shapes import MSO_SHAPE
-            # 计算高度：标题 + bullet-point列表
-            estimated_height = 50  # 顶部padding
+            
+            # 移除硬编码！使用精确计算：从CSS获取padding + 精确计算内容高度
+            # 获取卡片的padding约束
+            card_class = '.stat-card' if 'stat-card' in card.get('class', []) else '.data-card'
+            card_constraints = self.css_parser.get_height_constraints(card_class)
+            padding_top = card_constraints.get('padding_top', 15)
+            padding_bottom = card_constraints.get('padding_bottom', 15)
+            
+            # 精确计算内容高度
+            content_height = 0
+            
+            # h3标题高度
             if h3_elem:
-                estimated_height += 50  # h3标题高度
-            estimated_height += len(bullet_points) * 35 + 20  # bullet-point列表高度
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                h3_height = int(h3_font_size_px * h3_line_height_ratio)
+                content_height += h3_height
+                
+                # h3的margin-bottom
+                h3_classes = h3_elem.get('class', [])
+                h3_margin_bottom = self._get_tailwind_margin_bottom(h3_classes) or int(h3_font_size_px * 0.5)
+                content_height += h3_margin_bottom
+            
+            # bullet-point列表高度
+            for bp in bullet_points:
+                bp_height = self._calculate_precise_element_height(bp, width - 40)
+                content_height += bp_height
+            
+            estimated_height = padding_top + content_height + padding_bottom
+            
+            logger.info(f"网格卡片精确高度计算: padding={padding_top+padding_bottom}px, "
+                       f"content={content_height}px, total={estimated_height}px")
 
             bg_shape = pptx_slide.shapes.add_shape(
                 MSO_SHAPE.ROUNDED_RECTANGLE,
@@ -5953,7 +6016,6 @@ class HTML2PPTX:
                     bg_rgb = ColorParser.blend_with_white(bg_rgb, alpha)
                 bg_shape.fill.fore_color.rgb = bg_rgb
             bg_shape.line.fill.background()
-            logger.info(f"添加网格卡片背景色，高度={estimated_height}px")
 
         # 添加左边框（如果是stat-card）
         if 'stat-card' in card.get('class', []):
@@ -5961,7 +6023,11 @@ class HTML2PPTX:
             if '4px solid' in border_left_style:
                 shape_converter.add_border_left(x, y, estimated_height, 4)
 
-        current_y = y + 20  # 顶部padding
+        # 从CSS获取padding_top
+        card_class = '.stat-card' if 'stat-card' in card.get('class', []) else '.data-card'
+        card_constraints = self.css_parser.get_height_constraints(card_class)
+        padding_top = card_constraints.get('padding_top', 15)
+        current_y = y + padding_top
 
         # 处理h3标题
         if h3_elem:
@@ -5995,15 +6061,24 @@ class HTML2PPTX:
                         if 'font-bold' in h3_classes:
                             run.font.bold = True
 
-                current_y += 50  # 标题后间距
+                # 移除硬编码的50，使用h3的精确高度
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                h3_height = int(h3_font_size_px * h3_line_height_ratio)
+                h3_classes = h3_elem.get('class', [])
+                h3_margin_bottom = self._get_tailwind_margin_bottom(h3_classes) or int(h3_font_size_px * 0.5)
+                current_y += h3_height + h3_margin_bottom
 
         # 处理bullet-point列表
         self._process_bullet_points(bullet_points, card, pptx_slide, x, current_y, width, 0)
 
-        # 计算总高度
-        total_height = current_y - y + len(bullet_points) * 35 + 20
-
-        return y + total_height + 10
+        # 移除硬编码！使用estimated_height（已经精确计算过）
+        # 返回值应该基于背景的实际高度，确保与背景一致
+        card_constraints = self.css_parser.get_height_constraints(card_class)
+        card_margin_bottom = card_constraints.get('margin_bottom', 10)
+        
+        return y + estimated_height + card_margin_bottom
 
     def _convert_modern_stat_card(self, card, pptx_slide, y_start: int) -> int:
         """
@@ -6580,8 +6655,53 @@ class HTML2PPTX:
         # 添加背景和边框（根据容器类型）
         shape_converter = ShapeConverter(pptx_slide, self.css_parser)
 
-        # 预估内容高度
-        estimated_height = min(len(unique_elements) * 40 + 40, 280)
+        # 移除硬编码！精确计算内容高度
+        # 获取卡片的padding约束
+        card_class_name = f'.{card_type}' if card_type != 'unknown' else '.data-card'
+        card_constraints = self.css_parser.get_height_constraints(card_class_name)
+        padding_top = card_constraints.get('padding_top', 15)
+        padding_bottom = card_constraints.get('padding_bottom', 15)
+        
+        # 计算每个文本元素的精确高度
+        content_height = 0
+        content_width = 1760 - 40  # 减去左右padding
+        
+        for elem_info in unique_elements:
+            # 根据标签类型计算高度
+            tag = elem_info['tag']
+            text = elem_info['text']
+            
+            if tag == 'h3':
+                # h3标题高度
+                font_size_px = 28  # 从CSS: h3 { font-size: 28px; }
+                line_height = int(font_size_px * 1.6)
+                margin_bottom = 12  # 从CSS: h3 { margin-bottom: 12px; }
+                content_height += line_height + margin_bottom
+            elif tag == 'p':
+                # p标签高度，考虑换行
+                font_size_px = 25  # 从CSS: p { font-size: 25px; }
+                
+                # 计算换行行数
+                chars_per_line = int(content_width / (font_size_px * 0.7))
+                num_lines = max(1, (len(text) + chars_per_line - 1) // chars_per_line)
+                
+                line_height = int(font_size_px * 1.6)  # 从CSS: p { line-height: 1.6; }
+                if num_lines == 1:
+                    elem_height = int(font_size_px + font_size_px * 0.8)
+                else:
+                    elem_height = line_height * num_lines + int(font_size_px * 0.8)
+                
+                content_height += elem_height
+            else:
+                # 其他元素使用默认高度
+                font_size_px = 16
+                line_height = int(font_size_px * 1.6)
+                content_height += line_height
+        
+        estimated_height = padding_top + content_height + padding_bottom
+        
+        logger.info(f"通用卡片精确高度计算: padding={padding_top+padding_bottom}px, "
+                   f"content={content_height}px, total={estimated_height}px")
 
         if 'stat-card' in card_type:
             # stat-card有背景色（圆角矩形）
@@ -6969,29 +7089,41 @@ class HTML2PPTX:
         if flex_container:
             left_div = flex_container.find('div', class_='flex-1')
             if left_div:
-                # 计算标题高度 (40px - 渲染时在line 6467使用)
+                # 移除硬编码！计算标题真实高度
                 title_div = left_div.find('div', class_='risk-title')
                 if title_div:
                     title_font_size_pt = self.style_computer.get_font_size_pt(title_div) or 18
-                    title_height_px = UnitConverter.pt_to_px(title_font_size_pt) * 1.5
-                    content_height += 40  # 标题固定高度 (渲染时current_y += 40)
+                    title_font_size_px = UnitConverter.pt_to_px(title_font_size_pt)
+                    title_line_height_ratio = self._get_line_height_ratio(title_div)
+                    title_height_px = int(title_font_size_px * title_line_height_ratio)
+                    content_height += title_height_px
 
-                # 计算描述高度 (35px - 渲染时在line 6489使用)
-                # 注意：实际HTML使用的是'risk-desc'而不是'risk-description'
+                # 移除硬编码！计算描述真实高度
                 desc_div = left_div.find('div', class_='risk-desc')
                 if desc_div:
                     desc_text = desc_div.get_text(strip=True)
                     if desc_text:
-                        content_height += 35  # 描述固定高度 (渲染时current_y += 35)
+                        desc_font_size_pt = self.style_computer.get_font_size_pt(desc_div) or 14
+                        desc_font_size_px = UnitConverter.pt_to_px(desc_font_size_pt)
+                        desc_line_height_ratio = self._get_line_height_ratio(desc_div)
+                        desc_height_px = int(desc_font_size_px * desc_line_height_ratio)
+                        content_height += desc_height_px
+                        # space_after从渲染代码获取
+                        content_height += 4  # desc_para.space_after = Pt(4)
 
-                # 计算优先级标签高度 (mt-3 div containing priority tag like "立即处理")
+                # 移除硬编码！计算标签真实高度
                 tag_div = left_div.find('div', class_='mt-3')
                 if tag_div:
                     span_elem = tag_div.find('span')
                     if span_elem:
-                        # 标签高度: mt-3类给12px margin-top + 30px标签高度
-                        tag_margin_top = 12  # mt-3 Tailwind class = 12px
-                        tag_height = 30  # 渲染时标签高度 (line 6516)
+                        # 从Tailwind类获取margin-top
+                        tag_div_classes = tag_div.get('class', [])
+                        tag_margin_top = self._get_tailwind_margin_top(tag_div_classes) or 12
+                        
+                        # 标签字体大小从渲染代码获取
+                        tag_font_size = 12  # run.font.size = Pt(12)
+                        tag_line_height = int(tag_font_size * 1.6)
+                        tag_height = tag_line_height
                         content_height += tag_margin_top + tag_height
 
         # 计算总高度
