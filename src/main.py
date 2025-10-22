@@ -1119,6 +1119,30 @@ class HTML2PPTX:
                 return content_height
             return 0
         elif element.name == 'div':
+            # 优先检查：div是否有CSS定义的固定高度
+            # 这适用于gauge-container、chart-container等有明确高度的容器
+            if elem_classes:
+                for cls in elem_classes:
+                    # 从CSS获取高度约束
+                    constraints = self.css_parser.get_height_constraints(f".{cls}")
+                    if constraints and 'height' in constraints:
+                        fixed_height = constraints['height']
+                        logger.info(f"使用CSS固定高度: {cls} = {fixed_height}px")
+                        # 检查margin-bottom
+                        margin_bottom = self._get_tailwind_margin_bottom(elem_classes) or 0
+                        return fixed_height + margin_bottom
+            
+            # 检查内联样式的高度
+            inline_style = element.get('style', '')
+            if 'height:' in inline_style:
+                import re
+                height_match = re.search(r'height:\s*(\d+)px', inline_style)
+                if height_match:
+                    fixed_height = int(height_match.group(1))
+                    logger.debug(f"使用内联样式固定高度: {fixed_height}px")
+                    margin_bottom = self._get_tailwind_margin_bottom(elem_classes) or 0
+                    return fixed_height + margin_bottom
+            
             # div容器需要递归计算所有子元素
             if 'flex' in elem_classes:
                 # flex布局：如果是justify-between或items-center，高度由最高子元素决定
@@ -1321,7 +1345,7 @@ class HTML2PPTX:
             if hasattr(child, 'name') and child.name:
                 child_height = self._calculate_precise_element_height(child, content_width)
                 content_height += child_height
-                logger.debug(f"子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
+                logger.info(f"子元素 {child.name} (classes={child.get('class', [])}) 高度: {child_height}px")
         
         # 总高度 = padding-top + 内容高度 + padding-bottom
         estimated_height = padding_top + content_height + padding_bottom
@@ -3315,18 +3339,30 @@ class HTML2PPTX:
         # 直接提取所有文本内容，不跳过flex容器
         all_content = []
 
-        # 方法1：提取h3和p标签
+        # 方法1：先提取div元素（text-xl, text-7xl等Tailwind字体大小类）
+        # 这些通常是大号数字或标题
+        for div_elem in card.find_all('div', recursive=False):
+            # 只处理直接子div
+            div_classes = div_elem.get('class', [])
+            # 检查是否包含Tailwind字体大小类
+            has_text_class = any('text-' in cls for cls in div_classes)
+            if has_text_class:
+                div_text = div_elem.get_text(strip=True)
+                if div_text:
+                    all_content.append(('div', div_text, div_elem))
+        
+        # 方法2：提取h3标签
         h3_elem = card.find('h3')
         if h3_elem:
             h3_text = h3_elem.get_text(strip=True)
             if h3_text:
-                all_content.append(('h3', h3_text))
+                all_content.append(('h3', h3_text, h3_elem))
 
-        # 提取所有p标签
+        # 方法3：提取所有p标签
         for p in card.find_all('p'):
             p_text = p.get_text(strip=True)
             if p_text:
-                all_content.append(('p', p_text))
+                all_content.append(('p', p_text, p))
 
         # 如果没有找到内容，使用更通用的方法
         if not all_content:
@@ -3340,59 +3376,93 @@ class HTML2PPTX:
                         if text and len(text) > 1:
                             # 判断元素类型
                             if elem.name == 'h3':
-                                all_content.append(('h3', text))
+                                all_content.append(('h3', text, elem))
                             else:
-                                all_content.append(('text', text))
+                                all_content.append(('text', text, elem))
 
         logger.info(f"stat-card提取到{len(all_content)}个内容项")
 
         # 渲染内容（改进版：支持从原始元素获取样式）
         current_y = y + padding_top
         
-        # 重新提取h3元素
-        h3_elem = card.find('h3')
-        if h3_elem:
-            h3_text = h3_elem.get_text(strip=True)
-            if h3_text:
-                # 从Tailwind类或CSS获取字体大小
-                h3_classes = h3_elem.get('class', [])
-                h3_font_size = self._get_tailwind_font_size(h3_classes)
-                if h3_font_size is None:
-                    h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
-                    h3_font_size = UnitConverter.pt_to_px(h3_font_size_pt)
-                
-                # 获取颜色
-                h3_color = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
-                
-                # 渲染h3
-                text_left = UnitConverter.px_to_emu(x + 20)
-                text_top = UnitConverter.px_to_emu(current_y)
-                text_box = pptx_slide.shapes.add_textbox(
-                    text_left, text_top,
-                    UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(h3_font_size + 10)
-                )
-                text_frame = text_box.text_frame
-                text_frame.text = h3_text
-                text_frame.vertical_anchor = MSO_ANCHOR.TOP
-                
-                for paragraph in text_frame.paragraphs:
+        # 按照all_content中的顺序渲染所有元素
+        for item in all_content:
+            elem_type = item[0]
+            elem_text = item[1]
+            elem = item[2] if len(item) > 2 else None
+            
+            if elem is None:
+                continue
+            
+            # 从元素获取样式
+            elem_classes = elem.get('class', [])
+            
+            # 获取字体大小
+            elem_font_size = self._get_tailwind_font_size(elem_classes)
+            if elem_font_size is None:
+                elem_font_size_pt = self.style_computer.get_font_size_pt(elem)
+                elem_font_size = UnitConverter.pt_to_px(elem_font_size_pt)
+            
+            # 获取颜色
+            elem_color = self._get_element_color(elem)
+            if elem_color is None:
+                if elem_type == 'h3' or any('primary-color' in cls for cls in elem_classes):
+                    elem_color = ColorParser.get_primary_color()
+                else:
+                    elem_color = ColorParser.parse_color('#333333')
+            
+            # 获取margin-top
+            elem_margin_top = self._get_tailwind_margin_top(elem_classes) or 0
+            current_y += elem_margin_top
+            
+            # 渲染元素
+            # 判断对齐方式：如果stat-card有text-center类，使用居中对齐
+            card_classes = card.get('class', [])
+            is_centered = 'text-center' in card_classes
+            
+            text_left = UnitConverter.px_to_emu(x + 20)
+            text_top = UnitConverter.px_to_emu(current_y)
+            text_box = pptx_slide.shapes.add_textbox(
+                text_left, text_top,
+                UnitConverter.px_to_emu(width - 40), UnitConverter.px_to_emu(elem_font_size + 10)
+            )
+            text_frame = text_box.text_frame
+            text_frame.text = elem_text
+            text_frame.vertical_anchor = MSO_ANCHOR.TOP
+            
+            for paragraph in text_frame.paragraphs:
+                # 设置对齐方式
+                if is_centered:
+                    paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                else:
                     paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.LEFT
-                    for run in paragraph.runs:
-                        run.font.size = Pt(h3_font_size)
-                        run.font.name = self.font_manager.get_font('h3')
-                        run.font.color.rgb = h3_color
-                        if 'font-bold' in h3_classes or self._should_be_bold(h3_elem):
-                            run.font.bold = True
                 
-                # 获取margin-bottom
-                h3_margin_bottom = self._get_tailwind_margin_bottom(h3_classes) or 5
-                current_y += h3_font_size + h3_margin_bottom
+                for run in paragraph.runs:
+                    run.font.size = Pt(elem_font_size)
+                    # 根据元素类型选择字体
+                    if elem_type == 'h3':
+                        run.font.name = self.font_manager.get_font('h3')
+                    else:
+                        run.font.name = self.font_manager.get_font('p')
+                    run.font.color.rgb = elem_color
+                    # 检查是否应该加粗
+                    if 'font-bold' in elem_classes or self._should_be_bold(elem):
+                        run.font.bold = True
+            
+            # 获取margin-bottom
+            elem_margin_bottom = self._get_tailwind_margin_bottom(elem_classes) or 5
+            current_y += elem_font_size + elem_margin_bottom
         
-        # 渲染所有p标签
-        for p_elem in card.find_all('p'):
-            p_text = p_elem.get_text(strip=True)
-            if p_text:
-                # 从Tailwind类或CSS获取字体大小
+        # 下面的代码已被上面的通用渲染逻辑替代，但为了兼容性暂时保留（不会执行）
+        if False:
+            # 重新提取h3元素
+            h3_elem = card.find('h3')
+            if h3_elem:
+                h3_text = h3_elem.get_text(strip=True)
+                if h3_text:
+                    pass  # 旧代码已废弃
+            # 从Tailwind类或CSS获取字体大小
+            if False:
                 p_classes = p_elem.get('class', [])
                 p_font_size = self._get_tailwind_font_size(p_classes)
                 if p_font_size is None:
