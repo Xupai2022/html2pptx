@@ -1356,7 +1356,166 @@ class HTML2PPTX:
         current_y = y + padding_top  # 顶部padding
 
         # 处理各种特殊内容结构
-        # 1. stat-value + stat-label 结构（slide_003）
+        # 优先检测: 包含SVG的容器（gauge-container, chart-container等）
+        svg_elem = card.find('svg')
+        if svg_elem:
+            # 找到SVG的容器
+            svg_container = svg_elem.parent
+            container_classes = svg_container.get('class', []) if svg_container else []
+            
+            # 检测是否是gauge-container或chart-container
+            is_gauge_or_chart = any('gauge-container' in cls or 'chart-container' in cls for cls in container_classes)
+            
+            if is_gauge_or_chart:
+                logger.info(f"检测到SVG容器: {container_classes}")
+                
+                # 先渲染h3标题（如果有）
+                h3_elem = card.find('h3')
+                if h3_elem:
+                    h3_text = h3_elem.get_text(strip=True)
+                    if h3_text:
+                        h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                        h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                        # 行高从CSS获取或使用默认值
+                        h3_line_height_ratio = self._get_line_height_ratio(h3_elem)
+                        h3_height = int(h3_font_size_px * h3_line_height_ratio)
+                        h3_classes = h3_elem.get('class', [])
+                        # margin-bottom从CSS获取
+                        h3_constraints = self.css_parser.get_height_constraints('.h3') if hasattr(self.css_parser, 'get_height_constraints') else {}
+                        h3_margin_bottom = self._get_margin_bottom_from_classes(h3_classes) or h3_constraints.get('margin_bottom', 15)
+                        
+                        text_box = pptx_slide.shapes.add_textbox(
+                            UnitConverter.px_to_emu(x + padding_left),
+                            UnitConverter.px_to_emu(current_y),
+                            UnitConverter.px_to_emu(content_width),
+                            UnitConverter.px_to_emu(h3_height)
+                        )
+                        text_frame = text_box.text_frame
+                        text_frame.text = h3_text
+                        for paragraph in text_frame.paragraphs:
+                            for run in paragraph.runs:
+                                run.font.size = Pt(h3_font_size_pt)
+                                run.font.bold = True
+                                run.font.color.rgb = ColorParser.get_primary_color()
+                                run.font.name = self.font_manager.get_font('h3')
+                        
+                        current_y += h3_height + h3_margin_bottom
+                        logger.info(f"渲染h3标题: {h3_text}")
+                
+                # 渲染SVG图表
+                # 初始化SVG转换器
+                from src.converters.svg_converter import SvgConverter
+                svg_converter = SvgConverter(pptx_slide, self.css_parser, self.html_path, self.use_stable_chart_capture)
+                self.svg_converters.append(svg_converter)
+                
+                # 转换SVG
+                chart_height = svg_converter.convert_svg(
+                    svg_elem,
+                    svg_container,
+                    x + padding_left,
+                    current_y,
+                    content_width,
+                    0
+                )
+                
+                if chart_height > 0:
+                    logger.info(f"SVG渲染成功，高度={chart_height}px")
+                    # current_y += chart_height  # 不增加y，因为gauge-value和gauge-label是绝对定位的
+                else:
+                    logger.warning("SVG渲染失败")
+                
+                # 渲染SVG容器内的绝对定位文字（gauge-value, gauge-label等）
+                # 这些元素使用绝对定位，需要特殊处理
+                for abs_elem in svg_container.find_all(['div', 'span']):
+                    elem_classes = abs_elem.get('class', [])
+                    elem_style = abs_elem.get('style', '')
+                    
+                    # 检查是否是绝对定位元素
+                    if 'position: absolute' in elem_style or any('gauge-value' in cls or 'gauge-label' in cls or 'chart-value' in cls or 'chart-label' in cls for cls in elem_classes):
+                        abs_text = abs_elem.get_text(strip=True)
+                        if abs_text:
+                            # 获取字体大小
+                            abs_font_size_pt = self.style_computer.get_font_size_pt(abs_elem)
+                            abs_font_size_px = UnitConverter.pt_to_px(abs_font_size_pt)
+                            
+                            # 从style中解析位置信息
+                            # top: 60% 表示在SVG高度的60%位置
+                            # 解析CSS或内联样式
+                            import re
+                            
+                            # 先获取容器高度（从CSS）
+                            container_constraints = self.css_parser.get_height_constraints(f".{container_classes[0]}") if container_classes else {}
+                            container_height = container_constraints.get('height')
+                            
+                            # 如果CSS没有定义高度，尝试从内联样式或计算获取
+                            if container_height is None:
+                                # 查找容器的height样式
+                                container_style = svg_container.get('style', '')
+                                height_match = re.search(r'height:\s*(\d+)px', container_style)
+                                if height_match:
+                                    container_height = int(height_match.group(1))
+                                else:
+                                    # 降级：使用合理的默认值（取决于SVG的实际尺寸）
+                                    svg_height_attr = svg_elem.get('height', '')
+                                    if svg_height_attr and svg_height_attr.replace('px', '').isdigit():
+                                        container_height = int(svg_height_attr.replace('px', ''))
+                                    else:
+                                        # 最终降级：使用合理的估算值
+                                        container_height = 300
+                                        logger.debug(f"使用默认容器高度: {container_height}px")
+                            
+                            top_match = re.search(r'top:\s*(\d+)%', elem_style)
+                            if top_match:
+                                top_percent = int(top_match.group(1))
+                                abs_y = current_y + int(container_height * top_percent / 100)
+                            else:
+                                # 降级: gauge-value通常在60%,gauge-label在75%
+                                if 'value' in str(elem_classes):
+                                    abs_y = current_y + int(container_height * 0.6)
+                                elif 'label' in str(elem_classes):
+                                    abs_y = current_y + int(container_height * 0.75)
+                                else:
+                                    abs_y = current_y + int(container_height * 0.5)
+                            
+                            # 渲染绝对定位文字
+                            # 行高从CSS获取或使用默认值
+                            abs_line_height_ratio = self._get_line_height_ratio(abs_elem)
+                            abs_height = int(abs_font_size_px * abs_line_height_ratio)
+                            text_box = pptx_slide.shapes.add_textbox(
+                                UnitConverter.px_to_emu(x + padding_left),
+                                UnitConverter.px_to_emu(abs_y),
+                                UnitConverter.px_to_emu(content_width),
+                                UnitConverter.px_to_emu(abs_height)
+                            )
+                            text_frame = text_box.text_frame
+                            text_frame.text = abs_text
+                            # 居中对齐
+                            from pptx.enum.text import PP_PARAGRAPH_ALIGNMENT
+                            for paragraph in text_frame.paragraphs:
+                                paragraph.alignment = PP_PARAGRAPH_ALIGNMENT.CENTER
+                                for run in paragraph.runs:
+                                    run.font.size = Pt(abs_font_size_pt)
+                                    # gauge-value通常是粗体+主题色
+                                    if 'value' in str(elem_classes):
+                                        run.font.bold = True
+                                        run.font.color.rgb = ColorParser.get_primary_color()
+                                    else:
+                                        # gauge-label通常是灰色
+                                        run.font.color.rgb = RGBColor(102, 102, 102)
+                                    run.font.name = self.font_manager.get_font('body')
+                            
+                            logger.info(f"渲染绝对定位文字: {abs_text} (classes={elem_classes})")
+                
+                # SVG容器的高度
+                container_constraints = self.css_parser.get_height_constraints(f".{container_classes[0]}") if container_classes else {}
+                container_height = container_constraints.get('height', 320)
+                current_y += container_height
+                
+                # 添加左边框
+                shape_converter.add_border_left(x, y, estimated_height, 4)
+                return y + estimated_height
+
+        # 1. stat-value + stat-label 结构（非SVG容器内的）
         stat_value = card.find('div', class_='stat-value')
         stat_label = card.find('div', class_='stat-label')
         if stat_value and stat_label:
@@ -3277,7 +3436,8 @@ class HTML2PPTX:
                         run.font.size = Pt(p_font_size)
                         run.font.name = self.font_manager.get_font('p')
                         run.font.color.rgb = p_color
-                        if 'font-bold' in p_classes:
+                        # 检查font-bold类或使用_should_be_bold检查内联样式
+                        if 'font-bold' in p_classes or self._should_be_bold(p_elem):
                             run.font.bold = True
                 
                 current_y += p_font_size + 5
