@@ -2728,12 +2728,24 @@ class HTML2PPTX:
         
         is_tailwind_style = False
         is_h3_p_tailwind = False
+        is_div_h3_tailwind = False  # 新增：div+h3结构（slide_005风格）
         
-        # 检测div-based Tailwind结构
-        if len(direct_divs) >= 2:
+        # 修复slide_005：优先检测div.text-7xl + h3结构
+        if len(direct_divs) >= 1 and h3_elem:
             first_div = direct_divs[0]
             first_classes = first_div.get('class', [])
-            has_large_font = any(cls in first_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            has_text_7xl = 'text-7xl' in first_classes
+            # 检查h3是否在div之后
+            if has_text_7xl:
+                is_tailwind_style = True
+                is_div_h3_tailwind = True
+                logger.info("检测到div.text-7xl + h3结构（slide_005风格）")
+        
+        # 检测div-based Tailwind结构
+        if not is_tailwind_style and len(direct_divs) >= 2:
+            first_div = direct_divs[0]
+            first_classes = first_div.get('class', [])
+            has_large_font = any(cls in first_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl'])
             has_bold = 'font-bold' in first_classes
             if has_large_font or has_bold:
                 is_tailwind_style = True
@@ -2742,7 +2754,7 @@ class HTML2PPTX:
         if not is_tailwind_style and h3_elem and len(p_elems) >= 1:
             first_p = p_elems[0]
             first_p_classes = first_p.get('class', [])
-            has_large_font_p = any(cls in first_p_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl'])
+            has_large_font_p = any(cls in first_p_classes for cls in ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl'])
             if has_large_font_p:
                 is_tailwind_style = True
                 is_h3_p_tailwind = True
@@ -2753,8 +2765,42 @@ class HTML2PPTX:
         has_flex_col = 'flex-col' in card_classes
         has_items_center = 'items-center' in card_classes
         
-        # 如果有justify-center + flex-col + items-center，说明需要100%填充高度
-        if has_justify_center and has_flex_col and has_items_center and target_height is not None:
+        # 修复slide_005：div.text-7xl + h3结构需要精确计算内容高度
+        if is_div_h3_tailwind:
+            logger.info("使用div.text-7xl + h3精确高度计算")
+            estimated_content_height = 0
+            
+            # 1. 计算text-7xl div的高度
+            first_div = direct_divs[0]
+            first_classes = first_div.get('class', [])
+            # text-7xl = 72px字体，使用1.0行高（紧凑显示）
+            div_font_size = 72
+            div_line_height = int(div_font_size * 1.0)  # 72px
+            estimated_content_height += div_line_height
+            logger.info(f"  div.text-7xl: font={div_font_size}px, line-height={div_line_height}px")
+            
+            # 2. 计算h3的margin-top和高度
+            h3_classes = h3_elem.get('class', [])
+            h3_margin_top = self._get_tailwind_margin_top(h3_classes) or 0
+            h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+            h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+            h3_line_height = int(h3_font_size_px * 1.2)  # 紧凑行高
+            estimated_content_height += h3_margin_top + h3_line_height
+            logger.info(f"  h3: mt={h3_margin_top}px, font={h3_font_size_px}px, line-height={h3_line_height}px")
+            
+            calculated_card_height = padding_top + estimated_content_height + padding_bottom
+            # 对于justify-center + flex-col + items-center的居中布局，使用target_height实现等高
+            if has_justify_center and has_flex_col and has_items_center and target_height is not None:
+                card_height = target_height
+                logger.info(f"使用目标高度实现居中等高: calculated={calculated_card_height}px, target={target_height}px")
+            elif target_height is not None:
+                card_height = target_height
+                logger.info(f"使用目标高度实现等高: calculated={calculated_card_height}px, target={target_height}px")
+            else:
+                card_height = calculated_card_height
+            logger.info(f"div.text-7xl + h3 stat-card精确高度: 内容={estimated_content_height}px, "
+                       f"padding={padding_top+padding_bottom}px, 总高度={card_height}px")
+        elif has_justify_center and has_flex_col and has_items_center and target_height is not None:
             logger.info("检测到justify-center类，stat-card将100%填充高度")
             # 强制使用target_height实现100%填充
             card_height = target_height
@@ -3005,6 +3051,72 @@ class HTML2PPTX:
         border_left_style = self.css_parser.get_style('.stat-card').get('border-left', '')
         if '4px solid' in border_left_style:
             shape_converter.add_border_left(x, y, card_height, 4)
+
+        # 修复slide_005：渲染div.text-7xl + h3结构的内容
+        if is_div_h3_tailwind:
+            logger.info("渲染div.text-7xl + h3结构的内容")
+            current_y = y + padding_top
+            
+            # 1. 渲染text-7xl div（大数字，如100%）
+            first_div = direct_divs[0]
+            div_text = first_div.get_text(strip=True)
+            if div_text:
+                # 检查是否居中对齐
+                alignment = PP_PARAGRAPH_ALIGNMENT.CENTER if 'text-center' in card_classes else PP_PARAGRAPH_ALIGNMENT.LEFT
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + 20),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(width - 40),
+                    UnitConverter.px_to_emu(72)  # text-7xl = 72px
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = div_text
+                text_frame.vertical_anchor = MSO_ANCHOR.MIDDLE
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = alignment
+                    for run in paragraph.runs:
+                        run.font.size = Pt(54)  # 72px -> 54pt
+                        run.font.bold = True
+                        run.font.color.rgb = ColorParser.get_primary_color()
+                        run.font.name = self.font_manager.get_font('body')
+                
+                current_y += 72  # text-7xl行高
+            
+            # 2. 渲染h3（标题，如"防火墙防护率"）
+            h3_text = h3_elem.get_text(strip=True)
+            if h3_text:
+                h3_classes = h3_elem.get('class', [])
+                h3_margin_top = self._get_tailwind_margin_top(h3_classes) or 0
+                current_y += h3_margin_top
+                
+                h3_font_size_pt = self.style_computer.get_font_size_pt(h3_elem)
+                h3_font_size_px = UnitConverter.pt_to_px(h3_font_size_pt)
+                h3_line_height = int(h3_font_size_px * 1.2)
+                
+                # 检查是否居中对齐
+                alignment = PP_PARAGRAPH_ALIGNMENT.CENTER if 'text-center' in card_classes else PP_PARAGRAPH_ALIGNMENT.LEFT
+                
+                text_box = pptx_slide.shapes.add_textbox(
+                    UnitConverter.px_to_emu(x + 20),
+                    UnitConverter.px_to_emu(current_y),
+                    UnitConverter.px_to_emu(width - 40),
+                    UnitConverter.px_to_emu(h3_line_height)
+                )
+                text_frame = text_box.text_frame
+                text_frame.text = h3_text
+                for paragraph in text_frame.paragraphs:
+                    paragraph.alignment = alignment
+                    for run in paragraph.runs:
+                        run.font.size = Pt(h3_font_size_pt)
+                        run.font.name = self.font_manager.get_font('h3')
+                        if self._should_be_bold(h3_elem):
+                            run.font.bold = True
+                        run.font.color.rgb = self._get_element_color(h3_elem) or ColorParser.get_primary_color()
+                
+                logger.info(f"div.text-7xl + h3渲染完成: div={div_text}, h3={h3_text}")
+            
+            return y + card_height
 
         # 首先检查是否包含bullet-point结构
         bullet_points = card.find_all('div', class_='bullet-point')
