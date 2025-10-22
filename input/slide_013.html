@@ -18,6 +18,7 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 12px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
   .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
@@ -35,61 +36,59 @@
     <!-- 标题区域 -->
     <div class="mb-6">
       <h1>下半年工作目标</h1>
-      <h2 class="text-gray-600">全面提升安全防护能力</h2>
+      <h2 class="text-gray-600">三大重点工作方向</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域 -->
+    <!-- 内容区域：三大工作目标 -->
     <div class="flex-1 overflow-hidden">
+      <!-- 目标一：终端防护能力提升 -->
       <div class="data-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">资产纳管目标</p>
-            <p>全面提升资产安全纳管率，确保EDR全量覆盖</p>
-            <p>持续完善资产指纹信息，实现资产可视化与追踪管理</p>
-          </div>
-          <div class="text-5xl font-bold primary-color ml-8">
-            <i class="fas fa-server"></i>
-          </div>
+        <h3>一、终端防护能力提升</h3>
+        <p class="mb-3">全面部署EDR终端安全防护，实现终端覆盖率100%</p>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>预期指标：终端安全覆盖率从0%提升至100%</span>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>完成时限：2025年10月底前</span>
         </div>
       </div>
 
-      <div class="stat-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">威胁防护目标</p>
-            <p>持续消除弱口令与高危端口风险，开展周期性安全演练</p>
-            <p>完善安全策略，优化异常检测规则，加强云边端联动防护</p>
-          </div>
-          <div class="text-5xl font-bold text-orange-600 ml-8">
-            <i class="fas fa-shield-alt"></i>
-          </div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">效率提升指标</p>
-            <p>提高事件响应效率，将处置率提升至99%以上</p>
-            <p>加强与客户沟通，动态调整威胁情报推送与应急策略</p>
-          </div>
-          <div class="text-5xl font-bold text-green-600 ml-8">
-            99%+
-          </div>
-        </div>
-      </div>
-
+      <!-- 目标二：事件响应优化 -->
       <div class="data-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">能力建设计划</p>
-            <p>提高策略检查与调优频次，优化安全告警质量</p>
-            <p>持续优化值守方案，将业务影响降至最低</p>
-          </div>
-          <div class="text-4xl font-bold text-blue-600 ml-8">
-            <i class="fas fa-tasks"></i>
-          </div>
+        <h3>二、事件响应优化</h3>
+        <p class="mb-3">优化应急响应流程，提升业务恢复速度</p>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>预期指标：事件响应及时率从61.12%提升至95%以上</span>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>预期指标：平均响应时间从41分钟缩短至15分钟内</span>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>完成时限：2025年11月底前</span>
+        </div>
+      </div>
+
+      <!-- 目标三：风险治理 -->
+      <div class="data-card">
+        <h3>三、风险治理</h3>
+        <p class="mb-3">部署TSS漏洞管理工具，强化脆弱性预防</p>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>预期指标：弱口令数量从29311个降至1000个以内</span>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>预期指标：核心业务系统漏洞修复率达到95%以上</span>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-check-circle bullet-icon"></i>
+          <span>完成时限：2025年12月底前</span>
         </div>
       </div>
     </div>

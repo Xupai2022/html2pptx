@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>技术能力提升建议</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>技术能力提升建议</h1>
+      <h2 class="text-gray-600">构建智能化安全运营体系</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="flex-1 overflow-hidden">
+      <div class="stat-card">
+        <div class="flex items-start">
+          <div class="text-4xl primary-color mr-4">
+            <i class="fas fa-search-plus"></i>
+          </div>
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2 primary-color">溯源分析能力建设</p>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>强化端点与网络联动，提升威胁分析深度</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>建立完善的攻击链路还原机制</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>加强高危端口安全管理与监控</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-start">
+          <div class="text-4xl primary-color mr-4">
+            <i class="fas fa-shield-virus"></i>
+          </div>
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2 primary-color">异常检测优化方案</p>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>优化异常检测规则，提高检测精准度</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>加强异常行为检测能力建设</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>提高策略检查与调优频次</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-start">
+          <div class="text-4xl primary-color mr-4">
+            <i class="fas fa-bell"></i>
+          </div>
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2 primary-color">告警优化策略</p>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>优化安全告警质量，减少误报率</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>完善告警分级与优先级机制</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>建立告警降噪与聚合规则</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-start">
+          <div class="text-4xl primary-color mr-4">
+            <i class="fas fa-robot"></i>
+          </div>
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2 primary-color">自动化运营建议</p>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>提高安全事件响应效率，处置率提升至99%</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>加强云边端联动防护能力</p>
+            </div>
+            <div class="bullet-point">
+              <i class="fas fa-chevron-right bullet-icon"></i>
+              <p>构建自动化响应与处置流程</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">12</div>
+</div>
+</body>
+</html>

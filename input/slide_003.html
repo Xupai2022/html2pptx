@@ -3,11 +3,10 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>安全运营数据分析</title>
+<title>运营目标与达成概览</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
-  /* 基础样式定义 - 必须遵守 */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
   .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
@@ -18,7 +17,7 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
-  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 12px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
   .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
@@ -27,115 +26,72 @@
   .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
   .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
   .toc-title { flex: 1; }
-  .chart-container { height: 340px; margin-bottom: 20px; position: relative; }
-  .stat-value { font-size: 42px; font-weight: 700; color: rgb(10, 66, 117); }
-  .stat-label { font-size: 20px; color: #666; margin-top: 5px; }
+  .gauge-container { position: relative; width: 100%; height: 320px; display: flex; align-items: center; justify-content: center; }
+  .gauge-chart { width: 280px; height: 280px; position: relative; }
+  .gauge-value { position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); }
+  .gauge-label { position: absolute; top: 75%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; color: #666; text-align: center; width: 120px; }
+  .gauge-bg { fill: none; stroke: rgba(10, 66, 117, 0.1); stroke-width: 20; }
+  .gauge-fill { fill: none; stroke: rgb(10, 66, 117); stroke-width: 20; stroke-linecap: round; transform-origin: center; transition: stroke-dasharray 0.5s ease; }
 </style>
 </head>
 <body>
 <div class="slide-container">
   <div class="top-bar"></div>
   <div class="content-section">
-    <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>安全运营数据分析</h1>
-      <h2 class="text-gray-600">攻击类型分布与事件响应统计</h2>
+      <h1>运营目标与达成概览</h1>
+      <h2 class="text-gray-600">核心指标仪表盘</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域 -->
     <div class="flex-1 overflow-hidden">
       <div class="grid grid-cols-2 gap-6 h-full">
-        <!-- 左侧：攻击类型分布饼图 -->
-        <div>
-          <h3>攻击类型分布</h3>
-          <div class="chart-container">
-            <svg width="100%" height="100%" viewBox="0 0 400 300">
-              <!-- 饼图 -->
-              <g transform="translate(200, 150)">
-                <!-- 信息泄露 32.1% -->
-                <path d="M 0,-100 A 100,100 0 0,1 95.11,30.90 L 0,0 Z" fill="rgba(10, 66, 117, 0.8)" stroke="white" stroke-width="2"/>
-                <text x="40" y="-50" font-size="18" fill="white" font-weight="bold">32.1%</text>
-                
-                <!-- 爬虫工具 30.39% -->
-                <path d="M 95.11,30.90 A 100,100 0 0,1 -20.87,97.81 L 0,0 Z" fill="rgba(10, 66, 117, 0.5)" stroke="white" stroke-width="2"/>
-                <text x="30" y="50" font-size="18" fill="white" font-weight="bold">30.39%</text>
-                
-                <!-- 其他攻击 37.51% -->
-                <path d="M -20.87,97.81 A 100,100 0 0,1 0,-100 L 0,0 Z" fill="rgba(10, 66, 117, 0.2)" stroke="white" stroke-width="2"/>
-                <text x="-60" y="0" font-size="18" fill="rgb(10, 66, 117)" font-weight="bold">37.51%</text>
-              </g>
-              
-              <!-- 图例 -->
-              <g transform="translate(50, 280)">
-                <rect x="0" y="0" width="15" height="15" fill="rgba(10, 66, 117, 0.8)"/>
-                <text x="20" y="12" font-size="14" fill="#333">信息泄露</text>
-                
-                <rect x="100" y="0" width="15" height="15" fill="rgba(10, 66, 117, 0.5)"/>
-                <text x="120" y="12" font-size="14" fill="#333">爬虫工具</text>
-                
-                <rect x="200" y="0" width="15" height="15" fill="rgba(10, 66, 117, 0.2)"/>
-                <text x="220" y="12" font-size="14" fill="#333">其他攻击</text>
-              </g>
+        <div class="data-card">
+          <h3>业务可用率</h3>
+          <div class="gauge-container">
+            <svg class="gauge-chart" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" class="gauge-bg" stroke-dasharray="377 503" stroke-dashoffset="126"></circle>
+              <circle cx="100" cy="100" r="80" class="gauge-fill" stroke-dasharray="377 503" stroke-dashoffset="126" style="transform: rotate(-90deg);"></circle>
             </svg>
-          </div>
-          <div class="data-card">
-            <p><i class="fas fa-shield-alt bullet-icon"></i>信息泄露和爬虫工具攻击占比超62%，是主要威胁来源</p>
+            <div class="gauge-value">100%</div>
+            <div class="gauge-label">7x24小时不间断服务</div>
           </div>
         </div>
 
-        <!-- 右侧：事件等级分布柱状图 -->
-        <div>
-          <h3>事件等级分布</h3>
-          <div class="chart-container">
-            <svg width="100%" height="100%" viewBox="0 0 400 300">
-              <!-- Y轴 -->
-              <line x1="50" y1="30" x2="50" y2="250" stroke="#ccc" stroke-width="2"/>
-              <!-- X轴 -->
-              <line x1="50" y1="250" x2="350" y2="250" stroke="#ccc" stroke-width="2"/>
-              
-              <!-- Y轴刻度 -->
-              <text x="35" y="35" font-size="12" fill="#666" text-anchor="end">300</text>
-              <text x="35" y="95" font-size="12" fill="#666" text-anchor="end">225</text>
-              <text x="35" y="155" font-size="12" fill="#666" text-anchor="end">150</text>
-              <text x="35" y="215" font-size="12" fill="#666" text-anchor="end">75</text>
-              <text x="35" y="255" font-size="12" fill="#666" text-anchor="end">0</text>
-              
-              <!-- 严重事件柱状图 -->
-              <rect x="100" y="242" width="60" height="8" fill="rgba(220, 53, 69, 0.8)"/>
-              <text x="130" y="235" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">25起</text>
-              <text x="130" y="270" font-size="14" fill="#333" text-anchor="middle">严重</text>
-              
-              <!-- 高危事件柱状图 -->
-              <rect x="220" y="30" width="60" height="220" fill="rgba(10, 66, 117, 0.8)"/>
-              <text x="250" y="20" font-size="14" fill="#333" text-anchor="middle" font-weight="bold">269起</text>
-              <text x="250" y="270" font-size="14" fill="#333" text-anchor="middle">高危</text>
-              
-              <!-- 网格线 -->
-              <line x1="50" y1="90" x2="350" y2="90" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="5,5"/>
-              <line x1="50" y1="150" x2="350" y2="150" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="5,5"/>
-              <line x1="50" y1="210" x2="350" y2="210" stroke="#f0f0f0" stroke-width="1" stroke-dasharray="5,5"/>
+        <div class="data-card">
+          <h3>防火墙防护率</h3>
+          <div class="gauge-container">
+            <svg class="gauge-chart" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" class="gauge-bg" stroke-dasharray="377 503" stroke-dashoffset="126"></circle>
+              <circle cx="100" cy="100" r="80" class="gauge-fill" stroke-dasharray="377 503" stroke-dashoffset="126" style="transform: rotate(-90deg);"></circle>
             </svg>
-          </div>
-          <div class="data-card">
-            <p><i class="fas fa-exclamation-triangle bullet-icon"></i>高危事件数量远超严重事件，需重点关注高危风险处置</p>
+            <div class="gauge-value">100%</div>
+            <div class="gauge-label">网络边界全面防护</div>
           </div>
         </div>
-      </div>
 
-      <!-- 底部：响应时间统计 -->
-      <div class="grid grid-cols-3 gap-6 mt-4">
-        <div class="stat-card text-center">
-          <div class="stat-value">41分钟</div>
-          <div class="stat-label">事件平均响应时间</div>
+        <div class="data-card">
+          <h3>安全事件闭环率</h3>
+          <div class="gauge-container">
+            <svg class="gauge-chart" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" class="gauge-bg" stroke-dasharray="377 503" stroke-dashoffset="126"></circle>
+              <circle cx="100" cy="100" r="80" class="gauge-fill" stroke-dasharray="377 503" stroke-dashoffset="126" style="transform: rotate(-90deg);"></circle>
+            </svg>
+            <div class="gauge-value">100%</div>
+            <div class="gauge-label">319起事件全部处置</div>
+          </div>
         </div>
-        <div class="stat-card text-center">
-          <div class="stat-value">319起</div>
-          <div class="stat-label">安全事件总数</div>
-        </div>
-        <div class="stat-card text-center">
-          <div class="stat-value">100%</div>
-          <div class="stat-label">事件处置率</div>
+
+        <div class="data-card">
+          <h3>核心业务系统</h3>
+          <div class="gauge-container">
+            <svg class="gauge-chart" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="80" class="gauge-bg" stroke-dasharray="377 503" stroke-dashoffset="126"></circle>
+              <circle cx="100" cy="100" r="80" class="gauge-fill" stroke-dasharray="377 503" stroke-dashoffset="126" style="transform: rotate(-90deg);"></circle>
+            </svg>
+            <div class="gauge-value">16个</div>
+            <div class="gauge-label">政府核心业务全覆盖</div>
+          </div>
         </div>
       </div>
     </div>

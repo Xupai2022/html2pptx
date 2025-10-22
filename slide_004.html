@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>防护成果</title>
+<title>关键问题深度分析</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,82 +34,63 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>防护成果</h1>
-      <h2 class="text-gray-600">资产防护与威胁拦截成效</h2>
+      <h1>关键问题深度分析</h1>
+      <h2 class="text-gray-600">资产防护短板与管理痛点</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：关键数据展示 -->
+    <!-- 内容区域：正文使用p标签，单栏布局 -->
     <div class="flex-1 overflow-hidden">
-      <div class="grid grid-cols-2 gap-6 mb-6">
+      <div class="grid grid-cols-3 gap-6 mb-6">
         <div class="data-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-2xl font-semibold primary-color mb-2">服务内资产防火墙防护率</h3>
-              <p class="text-4xl font-bold primary-color">100%</p>
-              <p class="text-gray-600 mt-2">实现全面覆盖，无防护盲区</p>
-            </div>
-            <div class="text-5xl primary-color">
-              <i class="fas fa-shield-alt"></i>
-            </div>
-          </div>
+          <p class="primary-color font-semibold mb-2">EDR部署滞后</p>
+          <p class="text-3xl font-bold primary-color">20个</p>
+          <p class="text-sm text-gray-600 mt-1">服务内资产待纳管</p>
         </div>
-        
         <div class="data-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-2xl font-semibold primary-color mb-2">风险资产数量</h3>
-              <p class="text-4xl font-bold primary-color">157个</p>
-              <p class="text-gray-600 mt-2">已识别并纳入监控管理</p>
-            </div>
-            <div class="text-5xl primary-color">
-              <i class="fas fa-exclamation-triangle"></i>
-            </div>
-          </div>
+          <p class="primary-color font-semibold mb-2">弱口令风险</p>
+          <p class="text-3xl font-bold primary-color">16个</p>
+          <p class="text-sm text-gray-600 mt-1">核心业务系统涉及</p>
+        </div>
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">弱口令总量</p>
+          <p class="text-3xl font-bold primary-color">29,311个</p>
+          <p class="text-sm text-gray-600 mt-1">涉及73个IP资产</p>
         </div>
       </div>
       
       <div class="grid grid-cols-2 gap-6">
         <div class="data-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-2xl font-semibold primary-color mb-2">事件响应平均用时</h3>
-              <p class="text-4xl font-bold primary-color">41分钟</p>
-              <p class="text-gray-600 mt-2">快速响应机制有效运行</p>
-            </div>
-            <div class="text-5xl primary-color">
-              <i class="fas fa-clock"></i>
-            </div>
-          </div>
+          <p class="primary-color font-semibold mb-2">响应及时率</p>
+          <p class="text-3xl font-bold primary-color">61.12%</p>
+          <p class="text-sm text-gray-600 mt-1">低于预期目标，需提升应急响应能力</p>
         </div>
-        
         <div class="data-card">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="text-2xl font-semibold primary-color mb-2">响应及时率</h3>
-              <p class="text-4xl font-bold primary-color">61.12%</p>
-              <p class="text-gray-600 mt-2">持续优化提升中</p>
-            </div>
-            <div class="text-5xl primary-color">
-              <i class="fas fa-chart-line"></i>
-            </div>
-          </div>
+          <p class="primary-color font-semibold mb-2">系统服务漏洞事件</p>
+          <p class="text-3xl font-bold primary-color">69.9%</p>
+          <p class="text-sm text-gray-600 mt-1">占安全事件总量的主要部分</p>
         </div>
       </div>
       
-      <div class="mt-6 data-card">
-        <h3 class="text-2xl font-semibold primary-color mb-3">防护成效总结</h3>
-        <div class="bullet-point">
-          <i class="fas fa-check-circle bullet-icon"></i>
-          <p>核心系统7×24小时稳定运行，实现业务连续性保障</p>
-        </div>
-        <div class="bullet-point">
-          <i class="fas fa-check-circle bullet-icon"></i>
-          <p>重要时期重保任务100%完成，重大安全事件零发生</p>
-        </div>
-        <div class="bullet-point">
-          <i class="fas fa-check-circle bullet-icon"></i>
-          <p>三维协同防护体系构建完成，威胁拦截能力显著提升</p>
+      <div class="mt-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">核心问题总结</h3>
+        <div class="data-card">
+          <div class="bullet-point">
+            <i class="fas fa-exclamation-triangle bullet-icon"></i>
+            <p>终端防护能力不足：EDR部署进度滞后，影响终端安全监测与响应能力</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-shield-alt bullet-icon"></i>
+            <p>身份认证薄弱：弱口令问题严重，存在账户暴力破解和信息泄露风险</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-clock bullet-icon"></i>
+            <p>应急响应效率低：响应及时率仅61.12%，影响安全事件处置效果</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-bug bullet-icon"></i>
+            <p>漏洞管理压力大：系统服务漏洞事件占比高，需加强常态化防控</p>
+          </div>
         </div>
       </div>
     </div>

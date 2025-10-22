@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>攻击类型与源IP分析</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>攻击类型与源IP分析</h1>
+      <h2 class="text-gray-600">信息泄露攻击占比32.1%</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：图表垂直排列 -->
+    <div class="flex-1 overflow-hidden">
+      <!-- 攻击类型分布图表 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-chart-pie bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">攻击类型分布</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="500" height="300" viewBox="0 0 500 300">
+            <!-- 饼图 -->
+            <circle cx="150" cy="150" r="100" fill="none" stroke="#e5e7eb" stroke-width="40"/>
+            <!-- 信息泄露 32.1% -->
+            <circle cx="150" cy="150" r="100" fill="none" stroke="#ef4444" stroke-width="40" 
+                    stroke-dasharray="201.06 428.31" stroke-dashoffset="0" 
+                    transform="rotate(-90 150 150)"/>
+            <!-- 爬虫工具 30.39% -->
+            <circle cx="150" cy="150" r="100" fill="none" stroke="#f59e0b" stroke-width="40" 
+                    stroke-dasharray="190.67 438.70" stroke-dashoffset="-201.06" 
+                    transform="rotate(-90 150 150)"/>
+            <!-- 其他攻击 37.51% -->
+            <circle cx="150" cy="150" r="100" fill="none" stroke="#6b7280" stroke-width="40" 
+                    stroke-dasharray="235.25 394.12" stroke-dashoffset="-391.73" 
+                    transform="rotate(-90 150 150)"/>
+            <!-- 图例 -->
+            <rect x="320" y="80" width="20" height="20" fill="#ef4444"/>
+            <text x="350" y="95" font-size="18" fill="#333">信息泄露 32.1%</text>
+            <rect x="320" y="120" width="20" height="20" fill="#f59e0b"/>
+            <text x="350" y="135" font-size="18" fill="#333">爬虫工具 30.39%</text>
+            <rect x="320" y="160" width="20" height="20" fill="#6b7280"/>
+            <text x="350" y="175" font-size="18" fill="#333">其他攻击 37.51%</text>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">📊 攻击类型特征</p>
+          <p>信息泄露和爬虫工具攻击占比超过60%，显示攻击者主要聚焦于数据窃取和自动化探测，攻击手段呈现多样化趋势。</p>
+        </div>
+      </div>
+
+      <!-- 高频攻击源IP分析 -->
+      <div class="mb-8">
+        <div class="flex items-center mb-4">
+          <i class="fas fa-network-wired bullet-icon text-3xl"></i>
+          <h3 class="text-3xl font-semibold primary-color">高频攻击源IP分析</h3>
+        </div>
+        <div class="flex items-center justify-center mb-4">
+          <svg width="600" height="250" viewBox="0 0 600 250">
+            <!-- 柱状图 -->
+            <rect x="50" y="50" width="400" height="40" fill="#ef4444" rx="5"/>
+            <rect x="50" y="110" width="350" height="40" fill="#f59e0b" rx="5"/>
+            <rect x="50" y="170" width="300" height="40" fill="#e5e7eb" rx="5"/>
+            <!-- 标签 -->
+            <text x="460" y="75" font-size="20" font-weight="bold" fill="#333">175,910次</text>
+            <text x="40" y="75" text-anchor="end" font-size="18" fill="#333">TOP1</text>
+            <text x="40" y="135" text-anchor="end" font-size="18" fill="#333">TOP2</text>
+            <text x="40" y="195" text-anchor="end" font-size="18" fill="#333">TOP3</text>
+            <!-- IP地址 -->
+            <text x="250" y="35" text-anchor="middle" font-size="24" font-weight="bold" fill="#ef4444">39.35.39.17</text>
+            <text x="250" y="240" text-anchor="middle" font-size="20" fill="#666">占总攻击量8.97%</text>
+          </svg>
+        </div>
+        <div class="stat-card">
+          <p class="text-2xl font-semibold mb-2">🎯 攻击源特征</p>
+          <p>IP 39.35.39.17呈现持续性攻击行为，攻击次数达175,910次，占总攻击量8.97%。该IP以Web扫描和信息泄露攻击为主，已在防火墙拦截清单中。</p>
+        </div>
+      </div>
+
+      <!-- 趋势分析 -->
+      <div class="data-card">
+        <div class="flex items-center mb-3">
+          <i class="fas fa-chart-line bullet-icon text-2xl"></i>
+          <h3 class="text-2xl font-semibold primary-color">威胁态势分析</h3>
+        </div>
+        <p class="mb-2">• <strong>主要威胁：</strong>信息泄露和爬虫工具攻击占比最高，需要重点关注数据保护机制</p>
+        <p class="mb-2">• <strong>攻击特征：</strong>高频攻击源IP呈现持续性、自动化攻击特征，需加强防护策略</p>
+        <p>• <strong>防护成效：</strong>所有攻击均被成功拦截，业务影响为零，防护体系有效运行</p>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">8</div>
+</div>
+</body>
+</html>
