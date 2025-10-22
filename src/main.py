@@ -1117,12 +1117,36 @@ class HTML2PPTX:
                              'text-xl' in p_classes or
                              'text-3xl' in p_classes)
 
-                # 修复：完全匹配实际渲染逻辑
-                # 实际渲染在 main.py 第7530行（标题）和第7618行（内容）
-                # 都使用：current_y += font_size_px + int(font_size_px * 0.8)
-                # 注意：实际渲染忽略了HTML中定义的margin-bottom类（如mb-2）
-                # 因为使用了硬编码的 font_size * 0.8 间距
-                content_height = int(font_size_px + font_size_px * 0.8)
+                # 关键修复：计算文本换行导致的实际行数
+                # 问题：之前只计算单行高度，导致多行文本的背景高度不足
+                # 解决：根据文本长度、字体大小和可用宽度估算行数
+                
+                # 估算每行可容纳的字符数
+                # 中文字符宽度约为字体大小的1倍，英文约为0.5倍
+                # 使用保守估计：平均每个字符宽度 = font_size_px * 0.7
+                chars_per_line = int(parent_width / (font_size_px * 0.7))
+                if chars_per_line < 1:
+                    chars_per_line = 1
+                
+                # 计算文本实际占用的行数
+                text_length = len(text)
+                num_lines = max(1, (text_length + chars_per_line - 1) // chars_per_line)  # 向上取整
+                
+                # 单行高度 = font_size + spacing
+                single_line_height = int(font_size_px + font_size_px * 0.8)
+                
+                # 总高度 = 单行高度 * 行数
+                # 注意：多行时行间距已包含在line_height中，不需要额外spacing
+                if num_lines == 1:
+                    content_height = single_line_height
+                else:
+                    # 多行：使用line-height 1.6倍计算每行高度
+                    line_height = int(font_size_px * 1.6)
+                    content_height = line_height * num_lines + int(font_size_px * 0.8)  # 最后加段落间距
+                
+                logger.debug(f"p标签高度计算: 文本长度={text_length}, 可用宽度={parent_width}px, "
+                           f"chars_per_line={chars_per_line}, 行数={num_lines}, "
+                           f"单行高度={single_line_height}px, 总高度={content_height}px")
 
                 # 如果有图标，高度应该考虑图标大小
                 if has_icon:
@@ -1130,7 +1154,6 @@ class HTML2PPTX:
                     icon_height = font_size_px
                     content_height = max(icon_height, content_height)
 
-                # 不添加额外的margin，因为实际渲染使用固定的spacing计算
                 return content_height
             return 0
         elif element.name == 'div':
@@ -8626,29 +8649,27 @@ class HTML2PPTX:
             logger.info("data-card不包含progress-bar或bullet-point,使用通用处理")
             return self._convert_generic_card(card, pptx_slide, y_start, card_type='data-card')
 
-        # 使用实际渲染后的高度，而不是估算的高度
-        # progress_y记录了实际渲染到的位置，所以实际内容高度是progress_y - y_start
-        actual_content_height = progress_y - y_start
-        
-        # 添加底部padding（如果有内容被渲染）
-        if actual_content_height > 0:
-            actual_height = actual_content_height + padding_bottom
-        else:
-            # 如果没有内容被渲染，使用estimated_height作为降级
-            actual_height = estimated_height
-        
-        final_y = y_start + actual_height
+        # 关键修复：使用estimated_height而非actual_height来计算final_y
+        # 原因：背景已经使用estimated_height渲染，如果返回值基于更小的actual_height
+        # 会导致下一个容器的起始位置早于当前背景的结束位置，造成背景重叠
+        # 
+        # 问题示例（slide_010）：
+        # - Card #1: 背景高度=236px(estimated), 实际内容=200px(actual)
+        # - Card #1 返回: y_start(214) + actual_height(200) + margin(20) = 434px
+        # - Card #1 背景结束于: y_start(214) + estimated_height(236) = 450px
+        # - Card #2 从434px开始 → 与Card #1背景重叠16px!
+        #
+        # 解决方案：final_y必须基于estimated_height（与背景保持一致）
+        final_y = y_start + estimated_height
 
         # 注意：背景已经在内容渲染前添加过了（使用estimated_height）
         # 这里不再重复添加背景
         
         # 添加左边框（使用与背景一致的高度）
-        # 修复：边框高度应该与背景一致，使用estimated_height
-        # 这样边框不会过短或过长
-        border_height = estimated_height if should_add_bg else actual_height
+        border_height = estimated_height if should_add_bg else estimated_height
         shape_converter.add_border_left(x_base, y_start, border_height, 4)
 
-        logger.info(f"data-card高度计算: 实际高度={actual_height}px, "
+        logger.info(f"data-card高度计算: estimated_height={estimated_height}px, "
                    f"进度条数={len(progress_bars)}, 列表项数={len(bullet_points)}")
 
         # 重要修复：添加CSS定义的margin-bottom
