@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>脆弱性管理分析</title>
+<title>下半年工作目标</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -18,7 +18,6 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
-  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
   .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
@@ -35,36 +34,67 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>脆弱性管理分析</h1>
-      <h2 class="text-gray-600">29311个弱口令风险分布</h2>
+      <h1>下半年工作目标</h1>
+      <h2 class="text-gray-600">全面提升安全防护能力</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：数据卡片 + 描述性内容 -->
+    <!-- 内容区域 -->
     <div class="flex-1 overflow-hidden">
-      <!-- 数据卡片区域 -->
-      <div class="grid grid-cols-3 gap-6 mb-6">
-        <div class="data-card">
-          <h3>弱口令数量</h3>
-          <p class="text-5xl font-bold primary-color">29311个</p>
-        </div>
-        <div class="data-card">
-          <h3>风险资产数量</h3>
-          <p class="text-5xl font-bold primary-color">157个</p>
-        </div>
-        <div class="data-card">
-          <h3>风险资产闭环率</h3>
-          <p class="text-5xl font-bold primary-color">100%</p>
+      <div class="data-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">资产纳管目标</p>
+            <p>全面提升资产安全纳管率，确保EDR全量覆盖</p>
+            <p>持续完善资产指纹信息，实现资产可视化与追踪管理</p>
+          </div>
+          <div class="text-5xl font-bold primary-color ml-8">
+            <i class="fas fa-server"></i>
+          </div>
         </div>
       </div>
 
-      <!-- 描述性内容 -->
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">威胁防护目标</p>
+            <p>持续消除弱口令与高危端口风险，开展周期性安全演练</p>
+            <p>完善安全策略，优化异常检测规则，加强云边端联动防护</p>
+          </div>
+          <div class="text-5xl font-bold text-orange-600 ml-8">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">效率提升指标</p>
+            <p>提高事件响应效率，将处置率提升至99%以上</p>
+            <p>加强与客户沟通，动态调整威胁情报推送与应急策略</p>
+          </div>
+          <div class="text-5xl font-bold text-green-600 ml-8">
+            99%+
+          </div>
+        </div>
+      </div>
+
       <div class="data-card">
-        <p>上半年MSS发现存在弱密码的核心业务系统16个，涉及IP资产73个，共发现弱口令总数29311个。弱口令分布在多个关键系统中，可能导致未授权访问和数据泄露。弱口令成为攻击者入侵的首要途径，一旦被利用可能造成信息系统遭受攻击，引发数据安全事件。</p>
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <p class="font-semibold text-2xl mb-2">能力建设计划</p>
+            <p>提高策略检查与调优频次，优化安全告警质量</p>
+            <p>持续优化值守方案，将业务影响降至最低</p>
+          </div>
+          <div class="text-4xl font-bold text-blue-600 ml-8">
+            <i class="fas fa-tasks"></i>
+          </div>
+        </div>
       </div>
     </div>
   </div>
-  <div class="page-number">6</div>
+  <div class="page-number">13</div>
 </div>
 </body>
 </html>

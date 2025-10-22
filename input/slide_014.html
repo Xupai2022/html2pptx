@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>安全运营报告</title>
+<title>改进计划与能力建设</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,62 +34,38 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>总结与展望</h1>
-      <h2 class="text-gray-600">持续优化安全运营体系</h2>
+      <h1>改进计划与能力建设</h1>
+      <h2 class="text-gray-600">具体实施路径</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：重点总结 -->
+    <!-- 内容区域：正文使用p标签，单栏布局 -->
     <div class="flex-1 overflow-hidden">
-      <!-- 上半年成果总结 -->
-      <div class="data-card mb-6">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-check-circle text-3xl primary-color mr-3"></i>
-          <h3 class="text-2xl font-semibold primary-color">上半年成果总结</h3>
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-2xl font-semibold primary-color mb-4">实施计划</h3>
+          <div class="data-card">
+            <p><i class="fas fa-shield-alt bullet-icon"></i><strong>EDR终端安全防护：</strong>全面部署EDR工具，保障业务终端安全和数据完整性，确保业务连续性</p>
+          </div>
+          <div class="data-card">
+            <p><i class="fas fa-bug bullet-icon"></i><strong>TSS漏洞管理工具：</strong>部署TSS漏洞扫描工具，对资产进行定期漏洞扫描和闭环管理，提升89%业务系统安全性</p>
+          </div>
+          <div class="data-card">
+            <p><i class="fas fa-globe bullet-icon"></i><strong>网站监控模块：</strong>增加网站监控模块，确保政府服务门户7*24小时稳定可靠运行</p>
+          </div>
         </div>
-        <div class="ml-10">
-          <p class="mb-2"><span class="font-semibold text-xl">网络防护率100%</span> | 风险资产闭环率100%</p>
-          <p class="mb-2"><span class="font-semibold text-xl">196.15万次</span>外部攻击成功拦截，业务影响为零</p>
-          <p><span class="font-semibold text-xl">319起</span>安全事件全部闭环处置，响应及时率61.12%</p>
-        </div>
-      </div>
-
-      <!-- 存在挑战 -->
-      <div class="data-card mb-6">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-exclamation-triangle text-3xl primary-color mr-3"></i>
-          <h3 class="text-2xl font-semibold primary-color">存在挑战</h3>
-        </div>
-        <div class="ml-10">
-          <p class="mb-2"><span class="font-semibold text-xl">20个</span>服务内资产EDR部署滞后，终端防护缺失</p>
-          <p class="mb-2"><span class="font-semibold text-xl">16个</span>核心业务系统29311个弱口令风险待整改</p>
-          <p>节假日值守方案与人员轮岗机制需优化，响应时效待提升</p>
-        </div>
-      </div>
-
-      <!-- 未来发展方向 -->
-      <div class="data-card mb-6">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-rocket text-3xl primary-color mr-3"></i>
-          <h3 class="text-2xl font-semibold primary-color">未来发展方向</h3>
-        </div>
-        <div class="ml-10">
-          <p class="mb-2">全面提升<span class="font-semibold text-xl">资产安全纳管率</span>，实现EDR全量覆盖</p>
-          <p class="mb-2">持续消除<span class="font-semibold text-xl">弱口令与高危端口</span>风险，开展周期性演练</p>
-          <p>完善<span class="font-semibold text-xl">云边端联动防护</span>，提升威胁检测与响应能力</p>
-        </div>
-      </div>
-
-      <!-- 重点工作规划 -->
-      <div class="data-card">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-tasks text-3xl primary-color mr-3"></i>
-          <h3 class="text-2xl font-semibold primary-color">重点工作规划</h3>
-        </div>
-        <div class="ml-10">
-          <p class="mb-2">• 加速推进<span class="font-semibold text-xl">EDR全量部署</span>，提升终端安全可控能力</p>
-          <p class="mb-2">• 优化<span class="font-semibold text-xl">安全策略与异常检测规则</span>，降低误报率</p>
-          <p>• 提高<span class="font-semibold text-xl">事件响应效率</span>，处置率提升至99%以上</p>
+        
+        <div>
+          <h3 class="text-2xl font-semibold primary-color mb-4">能力建设</h3>
+          <div class="data-card">
+            <p><i class="fas fa-clock bullet-icon"></i><strong>响应流程优化：</strong>优化应急响应流程，提高业务恢复速度至15分钟内，确保业务不中断</p>
+          </div>
+          <div class="data-card">
+            <p><i class="fas fa-sync-alt bullet-icon"></i><strong>策略检查机制：</strong>每周对防火墙等安全设备进行策略检查，保证规则库持续更新</p>
+          </div>
+          <div class="data-card">
+            <p><i class="fas fa-robot bullet-icon"></i><strong>自动化运营：</strong>建立资产清单台账，定期推送威胁情报，完善资产指纹信息，提升运营效率</p>
+          </div>
         </div>
       </div>
     </div>

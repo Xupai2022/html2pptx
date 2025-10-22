@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>安全事件处置情况</title>
+<title>关键问题深度分析</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -34,115 +34,24 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>安全事件处置情况</h1>
-      <h2 class="text-gray-600">319起事件，41分钟平均响应</h2>
+      <h1>关键问题深度分析</h1>
+      <h2 class="text-gray-600">安全短板与风险点</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
-    <!-- 内容区域：图表垂直排列 -->
+    <!-- 内容区域：正文使用p标签，单栏布局 -->
     <div class="flex-1 overflow-hidden">
-      <!-- 事件总数与响应时间 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-shield-virus bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">安全事件处置概况</h3>
-        </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="600" height="200" viewBox="0 0 600 200">
-            <!-- 事件总数 -->
-            <rect x="50" y="50" width="200" height="100" fill="rgb(10, 66, 117)" rx="8"/>
-            <text x="150" y="90" text-anchor="middle" font-size="36" font-weight="bold" fill="white">319</text>
-            <text x="150" y="115" text-anchor="middle" font-size="18" fill="white">事件总数</text>
-            <!-- 响应时间 -->
-            <rect x="350" y="50" width="200" height="100" fill="#10b981" rx="8"/>
-            <text x="450" y="90" text-anchor="middle" font-size="36" font-weight="bold" fill="white">41分钟</text>
-            <text x="450" y="115" text-anchor="middle" font-size="18" fill="white">平均响应时间</text>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">✅ 处置成果</p>
-          <p>运营期间新增安全事件319起，全部完成闭环处置，处置率100%。响应及时率61.12%，严重级别事件均在30分钟内响应。</p>
-        </div>
-      </div>
-
-      <!-- 事件等级分布 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-chart-pie bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">事件等级分布</h3>
-        </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="600" height="250" viewBox="0 0 600 250">
-            <!-- 饼图 -->
-            <g transform="translate(200, 125)">
-              <!-- 严重 25起 (7.8%) -->
-              <path d="M 0,0 L 100,0 A 100,100 0 0,1 97.81,20.87 z" fill="#dc2626"/>
-              <!-- 高危 269起 (84.3%) -->
-              <path d="M 0,0 L 97.81,20.87 A 100,100 0 1,1 -97.81,20.87 z" fill="#ea580c"/>
-              <!-- 中低危 22起 (6.9%) -->
-              <path d="M 0,0 L -97.81,20.87 A 100,100 0 0,1 100,0 z" fill="#eab308"/>
-              
-              <!-- 中心圆 -->
-              <circle cx="0" cy="0" r="50" fill="white"/>
-              <text x="0" y="0" text-anchor="middle" font-size="24" font-weight="bold" fill="rgb(10, 66, 117)">319</text>
-              <text x="0" y="25" text-anchor="middle" font-size="14" fill="#666">总事件</text>
-            </g>
-            
-            <!-- 图例 -->
-            <g transform="translate(350, 50)">
-              <rect x="0" y="0" width="20" height="20" fill="#dc2626"/>
-              <text x="30" y="15" font-size="18" fill="#333">严重 25起 (7.8%)</text>
-              
-              <rect x="0" y="40" width="20" height="20" fill="#ea580c"/>
-              <text x="30" y="55" font-size="18" fill="#333">高危 269起 (84.3%)</text>
-              
-              <rect x="0" y="80" width="20" height="20" fill="#eab308"/>
-              <text x="30" y="95" font-size="18" fill="#333">中低危 22起 (6.9%)</text>
-            </g>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">⚠️ 风险分布特点</p>
-          <p>高危事件占比84.3%，为主要风险类型。严重事件虽数量较少，但需重点关注。所有事件均已得到快速有效处置。</p>
-        </div>
-      </div>
-
-      <!-- 事件类型分析 -->
-      <div class="mb-8">
-        <div class="flex items-center mb-4">
-          <i class="fas fa-bug bullet-icon text-3xl"></i>
-          <h3 class="text-3xl font-semibold primary-color">主要事件类型</h3>
-        </div>
-        <div class="flex items-center justify-center mb-4">
-          <svg width="600" height="200" viewBox="0 0 600 200">
-            <!-- 系统服务漏洞占比 -->
-            <rect x="50" y="50" width="400" height="40" fill="#e5e7eb" rx="20"/>
-            <rect x="50" y="50" width="279.6" height="40" fill="rgb(10, 66, 117)" rx="20"/>
-            <text x="250" y="75" text-anchor="middle" font-size="24" font-weight="bold" fill="white">69.9%</text>
-            <text x="250" y="110" text-anchor="middle" font-size="20" fill="#333">系统服务漏洞</text>
-            
-            <!-- 其他类型 -->
-            <rect x="50" y="120" width="400" height="40" fill="#e5e7eb" rx="20"/>
-            <rect x="50" y="120" width="120.4" height="40" fill="#64748b" rx="20"/>
-            <text x="250" y="145" text-anchor="middle" font-size="24" font-weight="bold" fill="white">30.1%</text>
-            <text x="250" y="180" text-anchor="middle" font-size="20" fill="#333">木马病毒、内网暴破等</text>
-          </svg>
-        </div>
-        <div class="stat-card">
-          <p class="text-2xl font-semibold mb-2">📊 事件类型分析</p>
-          <p>系统服务漏洞事件占比69.9%，为主要事件类型。木马病毒、内网暴破等占30.1%。已建立针对性响应机制和防护措施。</p>
-        </div>
-      </div>
-
-      <!-- 趋势分析 -->
       <div class="data-card">
-        <div class="flex items-center mb-3">
-          <i class="fas fa-chart-line bullet-icon text-2xl"></i>
-          <h3 class="text-2xl font-semibold primary-color">处置成效与改进方向</h3>
-        </div>
-        <p class="mb-2">• <strong>处置效率：</strong>319起事件全部闭环，平均响应41分钟，严重事件30分钟内响应</p>
-        <p class="mb-2">• <strong>主要挑战：</strong>高危事件占比高，系统服务漏洞为主要风险点</p>
-        <p>• <strong>持续改进：</strong>加强漏洞预防管理，完善EDR部署，优化异常检测规则，提升响应及时率</p>
+        <h3 style="font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px;">终端安全防护缺失</h3>
+        <p>服务内资产EDR终端安全软件覆盖率为0%，涉及20个核心资产。无法及时发现和处置终端侧威胁，存在重大安全隐患，直接影响业务系统可用性。</p>
+      </div>
+      <div class="data-card">
+        <h3 style="font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px;">弱口令风险居高不下</h3>
+        <p>上半年发现弱口令总数高达29311个，分布在16个核心业务系统中，弱口令已成为攻击者入侵的首要途径，极易引发数据安全事件。</p>
+      </div>
+      <div class="data-card">
+        <h3 style="font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 10px;">应急响应能力不足</h3>
+        <p>安全事件响应及时率仅为61.12%，平均响应时长41.0分钟，无法满足《政府网站安全防护要求》中的响应时间标准，可能延误业务恢复时机。</p>
       </div>
     </div>
   </div>

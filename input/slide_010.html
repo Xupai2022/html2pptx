@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>威胁情报与策略调优</title>
+<title>典型事件案例剖析</title>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
 <style>
@@ -18,14 +18,11 @@
   .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
   h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
   h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  h3 { font-size: 28px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 12px; }
   p { font-size: 25px; color: #333; line-height: 1.6; }
   .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
-  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
-  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
-  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
-  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
-  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
-  .toc-title { flex: 1; }
+  .bullet-point { display: flex; align-items: flex-start; margin-bottom: 10px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -34,87 +31,86 @@
   <div class="content-section">
     <!-- 标题区域 -->
     <div class="mb-6">
-      <h1>威胁情报与策略调优</h1>
-      <h2 class="text-gray-600">主动防御能力建设</h2>
+      <h1>典型事件案例剖析</h1>
+      <h2 class="text-gray-600">JBOSS漏洞与暴力破解案例</h2>
       <div class="w-20 h-1 primary-bg"></div>
     </div>
 
     <!-- 内容区域 -->
     <div class="flex-1 overflow-hidden">
-      <div class="stat-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">威胁情报推送</p>
-            <p>上半年累计推送60次威胁情报</p>
-            <p>包括紧急漏洞、威胁狩猎、安全通告等</p>
-          </div>
-          <div class="text-5xl font-bold primary-color ml-8">
-            60次
-          </div>
-        </div>
-      </div>
-
-      <div class="stat-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">策略检查与调优</p>
-            <p>上半年完成6次全面策略检查</p>
-            <p>所有设备、策略、规则库运行正常</p>
-          </div>
-          <div class="text-5xl font-bold primary-color ml-8">
-            6次
-          </div>
-        </div>
-      </div>
-
+      <!-- 事件案例描述 -->
       <div class="data-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">威胁情报分类发布</p>
-            <div class="bullet-point">
-              <i class="fas fa-exclamation-triangle bullet-icon text-red-500"></i>
-              <span>紧急漏洞：26个</span>
-            </div>
-            <div class="bullet-point">
-              <i class="fas fa-search bullet-icon text-orange-500"></i>
-              <span>威胁狩猎：14个</span>
-            </div>
-            <div class="bullet-point">
-              <i class="fas fa-info-circle bullet-icon text-blue-500"></i>
-              <span>安全通告：20个（半月通告+微软补丁+热点事件）</span>
-            </div>
-          </div>
-          <div class="text-4xl text-gray-600 ml-8">
-            <i class="fas fa-shield-alt"></i>
-          </div>
+        <h3>事件案例描述</h3>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>2025年3月15日，监测发现某政府门户网站JBOSS应用服务器遭遇大规模攻击尝试</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>攻击者利用JBOSS反序列化漏洞（CVE-2023-XXXX）尝试获取服务器控制权</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>同时伴随大规模SSH暴力破解攻击，尝试从22端口入侵系统</p>
         </div>
       </div>
 
+      <!-- 攻击路径 -->
       <div class="data-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">策略防护能力</p>
-            <p>防火墙策略：日志上报、端口映射正常</p>
-            <p>入侵防护：漏洞及僵尸网络防护已开启</p>
-            <p>联动防护：蓝莓酱安全组件实时检测漏洞</p>
-          </div>
-          <div class="text-4xl text-green-600 ml-8">
-            <i class="fas fa-check-double"></i>
-          </div>
+        <h3>攻击路径</h3>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>路径1：利用JBOSS未修复的反序列化漏洞，发送恶意序列化数据包</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>路径2：通过SSH暴力破解，使用常见密码字典（123456、admin、root等）尝试登录</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>路径3：扫描暴露的管理端口（8080、9990），尝试弱口令直接登录管理控制台</p>
         </div>
       </div>
 
+      <!-- 处置过程 -->
       <div class="data-card">
-        <div class="flex items-center justify-between">
-          <div class="flex-1">
-            <p class="font-semibold text-2xl mb-2">防护措施执行</p>
-            <p>未防护漏洞给予缓解措施</p>
-            <p>持续追踪和推送最新威胁情报</p>
-            <p>构建云端、边界、主机三维协同防护</p>
-          </div>
-          <div class="text-4xl text-blue-600 ml-8">
-            <i class="fas fa-network-wired"></i>
-          </div>
+        <h3>处置过程</h3>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>10:23 - 告警触发，安全运营中心立即启动应急响应预案，5分钟内完成事件确认</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>10:28 - 紧急封禁攻击源IP段，升级防火墙策略，阻断恶意流量</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>11:15 - 完成JBOSS漏洞修复，更新至安全版本，修改所有账户默认密码</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>14:30 - 全面系统加固，启用双因素认证，关闭不必要的管理端口</p>
+        </div>
+      </div>
+
+      <!-- 经验教训 -->
+      <div class="data-card">
+        <h3>经验教训</h3>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>建立漏洞预警机制，及时跟进官方安全公告，主动修复高危漏洞</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>加强密码策略管理，实施复杂度要求，定期更换，禁止使用默认密码</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>完善访问控制，最小化暴露面，实施网络隔离和端口访问限制</p>
+        </div>
+        <div class="bullet-point">
+          <i class="fas fa-circle bullet-icon" style="font-size: 8px;"></i>
+          <p>强化应急响应能力，定期演练，确保30分钟内完成初步处置</p>
         </div>
       </div>
     </div>
