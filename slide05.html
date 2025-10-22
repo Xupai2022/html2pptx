@@ -10,7 +10,7 @@
 <style>
   /* 基础样式定义 - 必须遵守 */
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: visible; }
-  .slide-container { width: 1920px; min-height: 1080px; background-color: white; position: relative; overflow: visible; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: visible; }
   .content-section { max-height: 1000px; padding: 20px 80px; }
   .page-number { position: absolute; top: 1030px; right: 50px; font-size: 14px; color: #666; }
   .primary-color { color: rgb(10, 66, 117); }
@@ -19,13 +19,9 @@
   .data-card {
     border-left: 4px solid rgb(10, 66, 117);
     padding-left: 15px;
-    min-height: 200px; 
-    max-height: 300px;
 	overflow: visible;
   }
   .chart-container {
-    min-height: 180px; 
-    max-height: 200px;
     position: relative;
 	overflow: visible;
   }
@@ -34,8 +30,6 @@
     border-radius: 8px;
     padding: 20px;
     position: relative;
-    min-height: 200px; 
-    max-height: 300px;
 	overflow: visible;
   }
   .progress-bar {
@@ -46,8 +40,6 @@
     overflow: visible;
   }
   .strategy-card {
-    max-height: 300px;
-    min-height:200px;
     border-radius: 8px;
     padding: 10px;
     margin-bottom: 5px;
@@ -90,14 +82,11 @@
 		overflow: visible;
     }
     .stat-box {
-		max-height: 300px;
-    	min-height:200px;
         background-color: rgba(10, 66, 117, 0.06);
         border-radius: 10px;
         padding: 20px;
         display: flex;
         align-items: center;
-        max-width: calc(1920px - 160px);
         overflow-wrap: break-word;
         word-wrap: break-word;
     }

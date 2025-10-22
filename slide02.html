@@ -8,7 +8,7 @@
 <style>
   /* 基础样式定义 - 必须遵守 */
   body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: visible; }
-  .slide-container { width: 1920px; min-height: 1080px; background-color: white; position: relative; overflow: visible; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: visible; }
   .content-section { max-height: 1000px; padding: 20px 80px; }
   .page-number { position: absolute; top: 1030px; right: 50px; font-size: 14px; color: #666; }
   .primary-color { color: rgb(10, 66, 117); }
@@ -17,13 +17,9 @@
   .data-card {
     border-left: 4px solid rgb(10, 66, 117);
     padding-left: 15px;
-    min-height: 200px; 
-    max-height: 300px;
     overflow: visible;
   }
   .chart-container {
-    min-height: 180px; 
-    max-height: 200px;
     position: relative;
     overflow: visible;
   }
@@ -32,8 +28,6 @@
     border-radius: 8px;
     padding: 20px;
     position: relative;
-    min-height: 200px; 
-    max-height: 300px;
     overflow: visible;
   }
   .progress-bar {
@@ -44,8 +38,6 @@
     overflow: visible;
   }
   .strategy-card {
-    max-height: 300px;
-    min-height:200px;
     border-radius: 8px;
     padding: 10px;
     margin-bottom: 5px;
@@ -89,15 +81,12 @@
         overflow: visible;
     }
     .stat-box {
-        max-height: 300px;
-        min-height:200px;
         background-color: rgba(10, 66, 117, 0.06);
         border-radius: 10px;
         padding: 20px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        max-width: calc(1920px - 160px);
         overflow-wrap: break-word;
         word-wrap: break-word;
     }
@@ -157,9 +146,21 @@ color: rgb(10, 66, 117)}
   margin-bottom: 10px;
 }
 .timeline-item {
-  padding-left: 35px;
+  padding-left: 50px;
   position: relative;
   padding-bottom: 10px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 12.5px;
+  top: 25px;
+  bottom: 0;
+  width: 2px;
+  background-color: rgb(10, 66, 117);
+}
+.timeline-item:last-child::before {
+  display: none;
 }
 .timeline-icon {
   position: absolute;
@@ -174,10 +175,10 @@ color: rgb(10, 66, 117)}
   justify-content: center;
   color: white;
   font-size: 12px;
+  z-index: 1;
 }
 .timeline-content {
-  border-left: 2px solid rgb(10, 66, 117);
-  padding-left: 15px;
+  padding-left: 0;
   padding-bottom: 5px;
 }
 .timeline-title {
@@ -274,7 +275,7 @@ color: rgb(10, 66, 117)}
 <i class="fas fa-exclamation-circle bullet-icon"></i>
 <div>
 <p class="font-bold">网站SQL注入攻击（1月25日）</p>
-<p>检测到针对订单系统的SQL注入尝试，共计367次；攻击者（IP: 103.79.34.15）利用表单字段进行注入；已部署WAF规则拦截，同时修复代码漏洞并进行全面代码审计，避免同类问题</p>
+<p><span class="font-bold">检测到针对订单系统的SQL注入尝试，共计367次；攻击者（IP:</span> 103.79.34.15）利用表单字段进行注入；已部署WAF规则拦截，同时修复代码漏洞并进行全面代码审计，避免同类问题</p>
 </div>
 </div>
 </div>

@@ -131,7 +131,7 @@ class TimelineConverter(BaseConverter):
                 run.font.name = get_font_manager(self.css_parser).get_font('body')
 
         # 2. 绘制左侧竖线（连接线）
-        line_left = UnitConverter.px_to_emu(x + 12)  # 圆心位置
+        line_left = UnitConverter.px_to_emu(x + icon_size)  # 圆形右侧边缘
         line_top = UnitConverter.px_to_emu(y + icon_size)
         line_height = UnitConverter.px_to_emu(60)  # 竖线高度
 

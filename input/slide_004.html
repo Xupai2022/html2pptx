@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>关键问题深度分析</title>
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet"/>
+<style>
+  /* 基础样式定义 - 必须遵守 */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html { margin: 0; padding: 0; width: 1920px; height: 1080px; overflow: hidden; }
+  .slide-container { width: 1920px; height: 1080px; background-color: white; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .content-section { flex: 1; padding: 40px 80px 60px 80px; display: flex; flex-direction: column; overflow: hidden; }
+  .page-number { position: absolute; bottom: 30px; right: 50px; font-size: 14px; color: #666; }
+  .primary-color { color: rgb(10, 66, 117); }
+  .primary-bg { background-color: rgb(10, 66, 117); }
+  .top-bar { height: 10px; width: 100%; background-color: rgb(10, 66, 117); }
+  h1 { font-size: 48px; font-weight: 700; color: rgb(10, 66, 117); margin-bottom: 20px; }
+  h2 { font-size: 36px; font-weight: 600; color: rgb(10, 66, 117); margin-bottom: 15px; }
+  p { font-size: 25px; color: #333; line-height: 1.6; }
+  .data-card { border-left: 4px solid rgb(10, 66, 117); padding: 15px 20px; background-color: rgba(10, 66, 117, 0.03); border-radius: 8px; margin-bottom: 20px; }
+  .stat-card { background-color: rgba(10, 66, 117, 0.08); border-radius: 8px; padding: 15px 20px; border-left: 4px solid rgb(10, 66, 117); margin-bottom: 20px; }
+  .bullet-point { display: flex; align-items: center; margin-bottom: 8px; font-size: 25px; }
+  .bullet-icon { color: rgb(10, 66, 117); margin-right: 10px; min-width: 20px; }
+  .toc-item { display: flex; align-items: center; margin-bottom: 18px; font-size: 28px; color: #333; }
+  .toc-number { color: rgb(10, 66, 117); font-weight: 600; margin-right: 15px; min-width: 40px; }
+  .toc-title { flex: 1; }
+</style>
+</head>
+<body>
+<div class="slide-container">
+  <div class="top-bar"></div>
+  <div class="content-section">
+    <!-- 标题区域 -->
+    <div class="mb-6">
+      <h1>关键问题深度分析</h1>
+      <h2 class="text-gray-600">资产防护短板与管理痛点</h2>
+      <div class="w-20 h-1 primary-bg"></div>
+    </div>
+
+    <!-- 内容区域：正文使用p标签，单栏布局 -->
+    <div class="flex-1 overflow-hidden">
+      <div class="grid grid-cols-3 gap-6 mb-6">
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">EDR部署滞后</p>
+          <p class="text-3xl font-bold primary-color">20个</p>
+          <p class="text-sm text-gray-600 mt-1">服务内资产待纳管</p>
+        </div>
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">弱口令风险</p>
+          <p class="text-3xl font-bold primary-color">16个</p>
+          <p class="text-sm text-gray-600 mt-1">核心业务系统涉及</p>
+        </div>
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">弱口令总量</p>
+          <p class="text-3xl font-bold primary-color">29,311个</p>
+          <p class="text-sm text-gray-600 mt-1">涉及73个IP资产</p>
+        </div>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-6">
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">响应及时率</p>
+          <p class="text-3xl font-bold primary-color">61.12%</p>
+          <p class="text-sm text-gray-600 mt-1">低于预期目标，需提升应急响应能力</p>
+        </div>
+        <div class="data-card">
+          <p class="primary-color font-semibold mb-2">系统服务漏洞事件</p>
+          <p class="text-3xl font-bold primary-color">69.9%</p>
+          <p class="text-sm text-gray-600 mt-1">占安全事件总量的主要部分</p>
+        </div>
+      </div>
+      
+      <div class="mt-6">
+        <h3 class="text-2xl font-semibold primary-color mb-4">核心问题总结</h3>
+        <div class="data-card">
+          <div class="bullet-point">
+            <i class="fas fa-exclamation-triangle bullet-icon"></i>
+            <p>终端防护能力不足：EDR部署进度滞后，影响终端安全监测与响应能力</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-shield-alt bullet-icon"></i>
+            <p>身份认证薄弱：弱口令问题严重，存在账户暴力破解和信息泄露风险</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-clock bullet-icon"></i>
+            <p>应急响应效率低：响应及时率仅61.12%，影响安全事件处置效果</p>
+          </div>
+          <div class="bullet-point">
+            <i class="fas fa-bug bullet-icon"></i>
+            <p>漏洞管理压力大：系统服务漏洞事件占比高，需加强常态化防控</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-number">4</div>
+</div>
+</body>
+</html>
