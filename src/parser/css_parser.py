@@ -608,12 +608,13 @@ class CSSParser:
         
         result = {}
         
-        # 解析min-height
+        # 解析min-height（仅供参考，不用于强制高度约束）
+        # 注意：项目中已移除所有min_height的硬编码约束，高度完全由内容决定
         if 'min-height' in style:
             min_height = self._parse_size(style['min-height'])
             if min_height > 0:
                 result['min_height'] = min_height
-                logger.debug(f"解析 {selector} min-height: {min_height}px")
+                logger.debug(f"解析 {selector} min-height: {min_height}px（仅供参考）")
         
         # 解析max-height
         if 'max-height' in style:
