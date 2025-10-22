@@ -1783,7 +1783,7 @@ class HTML2PPTX:
         current_y = y + 15  # 顶部padding，与CSS中的15px保持一致
 
         # 1. 首先处理h3标题
-        h3_elem = card.find('h3')
+        h3_elem = card.find('h3', recursive=False)  # 修复：只查找直接子元素，避免处理嵌套的h3
         if h3_elem:
             h3_text = h3_elem.get_text(strip=True)
             if h3_text:
@@ -1811,6 +1811,10 @@ class HTML2PPTX:
 
                 current_y += 40  # 28px字体 + 12px margin-bottom
                 logger.info(f"渲染h3标题: {h3_text}")
+                
+                # 修复slide_006：标记h3已渲染，避免后续重复处理
+                if not hasattr(h3_elem, '_rendered'):
+                    h3_elem._rendered = True
 
         # 2. 处理risk-item或bullet-point
         risk_items = card.find_all('div', class_='risk-item')
@@ -2724,8 +2728,18 @@ class HTML2PPTX:
                 is_tailwind_style = True
                 is_h3_p_tailwind = True
         
-        # 根据不同结构计算高度
-        if is_h3_p_tailwind:
+        # 修复slide_005：检测justify-center类（100%高度填充）
+        card_classes = card.get('class', [])
+        has_justify_center = 'justify-center' in card_classes
+        has_flex_col = 'flex-col' in card_classes
+        has_items_center = 'items-center' in card_classes
+        
+        # 如果有justify-center + flex-col + items-center，说明需要100%填充高度
+        if has_justify_center and has_flex_col and has_items_center and target_height is not None:
+            logger.info("检测到justify-center类，stat-card将100%填充高度")
+            # 强制使用target_height实现100%填充
+            card_height = target_height
+        elif is_h3_p_tailwind:
             # h3+p Tailwind风格：精确计算每个元素的高度
             logger.info("检测到h3+p Tailwind风格stat-card，进行精确高度计算")
             estimated_content_height = 0
@@ -2788,10 +2802,13 @@ class HTML2PPTX:
                 logger.info(f"  p[{idx}]: font={p_font_size}pt, line-height={p_line_height_ratio}, mt={margin_top}px, total={p_height}px")
             
             calculated_card_height = padding_top + estimated_content_height + padding_bottom
-            # 如果提供了target_height，使用它来实现同行卡片等高
-            if target_height is not None:
+            # 检查是否需要使用100%高度（justify-center情况已经在前面处理）
+            if target_height is not None and not (has_justify_center and has_flex_col and has_items_center):
                 card_height = target_height
                 logger.info(f"使用目标高度实现等高: calculated={calculated_card_height}px, target={target_height}px")
+            elif has_justify_center and has_flex_col and has_items_center:
+                card_height = target_height
+                logger.info(f"使用目标高度实现100%填充: calculated={calculated_card_height}px, target={target_height}px")
             else:
                 card_height = calculated_card_height
             logger.info(f"h3+p Tailwind stat-card精确高度: 内容={estimated_content_height}px, "
@@ -2824,6 +2841,13 @@ class HTML2PPTX:
                     except:
                         pass
             
+            # 修复slide_005：检测text-7xl类（超大字体），如100%
+            has_text_7xl = any('text-7xl' in div.get('class', []) for div in direct_divs)
+            if has_text_7xl:
+                # text-7xl = 72px字体
+                first_font_size = 72
+                logger.info(f"检测到text-7xl类，字体大小调整为72px")
+            
             estimated_content_height += first_font_size + first_margin_bottom
             
             # 后续div（描述文字）
@@ -2843,8 +2867,11 @@ class HTML2PPTX:
                 estimated_content_height += desc_font_size + 5
             
             calculated_card_height = padding_top + estimated_content_height + padding_bottom
-            # 如果提供了target_height，使用它来实现同行卡片等高
-            if target_height is not None:
+            # 如果有justify-center，强制使用target_height
+            if has_justify_center and has_flex_col and has_items_center and target_height is not None:
+                card_height = target_height
+                logger.info(f"使用目标高度实现100%填充: calculated={calculated_card_height}px, target={target_height}px")
+            elif target_height is not None:
                 card_height = target_height
                 logger.info(f"使用目标高度实现等高: calculated={calculated_card_height}px, target={target_height}px")
             else:
@@ -7748,6 +7775,7 @@ class HTML2PPTX:
 
         # 2. 处理普通段落内容（明确排除标题元素、bullet-point内的元素和cve-card内的元素）
         content_paragraphs = []
+        # 修复slide_008：查找所有p标签，包括直接子元素和嵌套的（但排除特殊容器内的）
         all_paragraphs = card.find_all('p')
 
         for p in all_paragraphs:
@@ -7755,6 +7783,7 @@ class HTML2PPTX:
             parent = p.parent
             is_in_bullet_point = False
             is_in_cve_card = False
+            is_in_data_card = False  # 新增：检查是否在嵌套的data-card中
             while parent and parent != card:
                 if parent.get('class'):
                     if 'bullet-point' in parent.get('class', []):
@@ -7763,9 +7792,13 @@ class HTML2PPTX:
                     elif 'cve-card' in parent.get('class', []):
                         is_in_cve_card = True
                         break
+                    elif 'data-card' in parent.get('class', []) and parent != card:
+                        # 如果在嵌套的data-card中（不是当前card），说明是子容器的内容
+                        is_in_data_card = True
+                        break
                 parent = parent.parent
 
-            if is_in_bullet_point or is_in_cve_card:
+            if is_in_bullet_point or is_in_cve_card or is_in_data_card:
                 continue
 
             # 方法1：只跳过primary-color且字体较小的p（可能是标题）
